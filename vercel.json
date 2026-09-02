@@ -35,6 +35,9 @@
     }
   ],
   "rewrites": [
+    { "source": "/app", "destination": "/app.html" },
+    { "source": "/login", "destination": "/app.html" },
+    { "source": "/dashboard", "destination": "/app.html" },
     { "source": "/download", "destination": "/releases/HydroPulse_WaterPumpController.apk" },
     { "source": "/apk", "destination": "/releases/HydroPulse_WaterPumpController.apk" },
     { "source": "/version", "destination": "/version.json" }

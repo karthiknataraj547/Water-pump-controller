@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HydroPulse Web Console | Cloud Water Management</title>
+  <meta name="description" content="Minimalist cloud web application for HydroPulse IoT water pump monitoring, remote motor actuation, and real-time telemetry.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="webapp.css">
+</head>
+<body>
+  <!-- Ambient Background Glows -->
+  <div class="glow-orb orb-top"></div>
+  <div class="glow-orb orb-bottom"></div>
+
+  <!-- App Wrapper -->
+  <div class="app-root">
+
+    <!-- ====================================================================
+         1. AUTHENTICATION VIEW (When user is not logged in)
+         ==================================================================== -->
+    <div id="auth-view" class="view-screen auth-screen">
+      <div class="auth-card glass-panel">
+        <div class="auth-header">
+          <div class="logo-wrap">
+            <svg class="droplet-svg" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" fill="url(#auth-grad)"/>
+              <defs>
+                <linearGradient id="auth-grad" x1="6.34" y1="2.69" x2="17.66" y2="20" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#00E5FF"/>
+                  <stop offset="1" stop-color="#00F5A0"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <h1>Hydro<span>Pulse</span></h1>
+          <p class="auth-tagline">Centralized Cloud Water Management</p>
+        </div>
+
+        <!-- Server Connection Status -->
+        <div class="server-status-bar" id="server-status-bar">
+          <span class="status-dot online" id="server-status-dot"></span>
+          <span id="server-status-text">Connecting to Backend API...</span>
+          <button type="button" class="btn-api-config" id="btn-open-api-config" title="Change API Server URL">⚙️</button>
+        </div>
+
+        <!-- Auth Mode Tabs -->
+        <div class="auth-tabs">
+          <button type="button" class="auth-tab active" id="tab-login">Sign In</button>
+          <button type="button" class="auth-tab" id="tab-register">Create Account</button>
+        </div>
+
+        <!-- Alert / Error Banner -->
+        <div class="auth-alert hidden" id="auth-alert"></div>
+
+        <!-- Sign In Form -->
+        <form id="form-login" class="auth-form active">
+          <div class="form-group">
+            <label for="login-email">Email Address</label>
+            <input type="email" id="login-email" placeholder="name@example.com" required autocomplete="email">
+          </div>
+          <div class="form-group">
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password">
+          </div>
+          <button type="submit" class="btn btn-submit" id="btn-login-submit">
+            <span class="btn-text">Sign In to Console</span>
+            <span class="btn-loader hidden"></span>
+          </button>
+        </form>
+
+        <!-- Create Account Form (Pushes directly to Backend Database) -->
+        <form id="form-register" class="auth-form hidden">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="reg-firstname">First Name</label>
+              <input type="text" id="reg-firstname" placeholder="Karthik" required autocomplete="given-name">
+            </div>
+            <div class="form-group">
+              <label for="reg-lastname">Last Name</label>
+              <input type="text" id="reg-lastname" placeholder="Nataraj" required autocomplete="family-name">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="reg-email">Email Address</label>
+            <input type="email" id="reg-email" placeholder="name@example.com" required autocomplete="email">
+          </div>
+          <div class="form-group">
+            <label for="reg-password">Password</label>
+            <input type="password" id="reg-password" placeholder="At least 8 characters" minlength="8" required autocomplete="new-password">
+          </div>
+          <button type="submit" class="btn btn-submit" id="btn-register-submit">
+            <span class="btn-text">Create Account & Sync</span>
+            <span class="btn-loader hidden"></span>
+          </button>
+        </form>
+
+        <!-- Instant Demo / Guest Access Button -->
+        <div class="demo-access-wrap">
+          <div class="demo-divider"><span>OR</span></div>
+          <button type="button" class="btn btn-demo" id="btn-demo-access">
+            <span>⚡ Instant Demo Console (Preview)</span>
+          </button>
+        </div>
+
+        <div class="auth-footer">
+          <a href="index.html" class="link-back-landing">← Return to Product Website</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====================================================================
+         2. MAIN CONSOLE DASHBOARD VIEW (Protected by Authentication)
+         ==================================================================== -->
+    <div id="dashboard-view" class="view-screen dashboard-screen hidden">
+      <!-- Top Navigation Header -->
+      <header class="console-header glass-panel">
+        <div class="header-left">
+          <div class="brand-badge">
+            <span class="brand-logo-txt">Hydro<span>Pulse</span></span>
+            <span class="badge-web">CLOUD CONSOLE</span>
+          </div>
+
+          <!-- Active Device Selector -->
+          <div class="device-pill">
+            <span class="device-icon">🎛️</span>
+            <div class="device-meta">
+              <span class="device-label" id="top-device-name">ESP32 Main Gateway</span>
+              <span class="device-id" id="top-device-id">esp32_pump_000000</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="header-right">
+          <!-- Hardware Presence -->
+          <div class="hw-indicator online" id="hw-status-pill">
+            <span class="pulse-dot"></span>
+            <span id="hw-status-txt">HARDWARE ONLINE</span>
+            <span class="hw-rtt" id="hw-rtt-txt">22ms</span>
+          </div>
+
+          <!-- User Profile & Sign Out -->
+          <div class="user-chip">
+            <div class="avatar" id="user-avatar">KN</div>
+            <div class="user-details">
+              <span class="user-name" id="user-display-name">Karthik Nataraj</span>
+              <span class="user-email" id="user-display-email">user@example.com</span>
+            </div>
+            <button class="btn-logout" id="btn-logout" title="Sign Out of Account">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Dashboard Content Grid -->
+      <main class="console-grid">
+
+        <!-- Column 1: Minimalist 3D Fluid Tank Visualizer -->
+        <section class="grid-col tank-col glass-panel">
+          <div class="card-title-row">
+            <h2>💧 Water System Storage</h2>
+            <span class="capacity-tag">Capacity: 5,000 L</span>
+          </div>
+
+          <div class="tank-canvas-container">
+            <canvas id="tank-canvas" width="360" height="360"></canvas>
+            <div class="tank-overlay-metric">
+              <div class="overlay-pct" id="tank-level-pct">68.5%</div>
+              <div class="overlay-vol" id="tank-volume-liters">3,425 Liters</div>
+            </div>
+          </div>
+
+          <!-- Inflow & Tank Health -->
+          <div class="tank-status-strip">
+            <div class="status-cell">
+              <span class="lbl">INFLOW STATUS</span>
+              <span class="val" id="inflow-status-val">Idle</span>
+            </div>
+            <div class="status-cell">
+              <span class="lbl">WATER PURITY</span>
+              <span class="val accent-text" id="tds-status-val">Potable (118 ppm)</span>
+            </div>
+            <div class="status-cell">
+              <span class="lbl">ESTIMATED REFILL</span>
+              <span class="val" id="refill-time-val">~18 mins</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Column 2: Motor Control Deck & Telemetry -->
+        <section class="grid-col controls-col">
+
+          <!-- Tactile Control Deck Card -->
+          <div class="control-deck glass-panel">
+            <div class="card-title-row">
+              <h2>⚡ Pump Motor Actuation</h2>
+              <!-- Mode Switcher -->
+              <div class="mode-toggle">
+                <button type="button" class="mode-btn active" id="btn-mode-auto">AUTO</button>
+                <button type="button" class="mode-btn" id="btn-mode-manual">MANUAL</button>
+              </div>
+            </div>
+
+            <!-- Main Big Start / Stop Motor Toggle -->
+            <div class="actuation-action-wrap">
+              <button type="button" class="btn-motor-toggle" id="btn-motor-toggle">
+                <div class="motor-toggle-glow"></div>
+                <div class="motor-toggle-inner">
+                  <span class="motor-power-icon">⚡</span>
+                  <span class="motor-toggle-state" id="motor-btn-text">START MOTOR</span>
+                  <span class="motor-toggle-sub" id="motor-btn-sub">Relay: Pin GPIO 23</span>
+                </div>
+              </button>
+            </div>
+
+            <!-- Emergency Cutoff -->
+            <div class="emergency-action-row">
+              <button type="button" class="btn-estop" id="btn-estop">
+                <span>🛑 EMERGENCY STOP (E-STOP)</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Live Telemetry Matrix -->
+          <div class="telemetry-matrix glass-panel">
+            <div class="card-title-row">
+              <h2>📊 Live Sensor Telemetry</h2>
+              <span class="live-pill">SYNCED</span>
+            </div>
+
+            <div class="telemetry-grid">
+              <div class="telemetry-box">
+                <span class="t-icon">🌊</span>
+                <div class="t-data">
+                  <span class="t-label">FLOW RATE</span>
+                  <span class="t-value" id="val-flow-rate">0.0 <small>L/min</small></span>
+                </div>
+              </div>
+
+              <div class="telemetry-box">
+                <span class="t-icon">⚡</span>
+                <div class="t-data">
+                  <span class="t-label">POWER DRAW</span>
+                  <span class="t-value" id="val-power-kw">0.00 <small>kW</small></span>
+                </div>
+              </div>
+
+              <div class="telemetry-box">
+                <span class="t-icon">🧪</span>
+                <div class="t-data">
+                  <span class="t-label">TDS PURITY</span>
+                  <span class="t-value" id="val-tds">118 <small>ppm</small></span>
+                </div>
+              </div>
+
+              <div class="telemetry-box">
+                <span class="t-icon">🌡️</span>
+                <div class="t-data">
+                  <span class="t-label">WATER TEMP</span>
+                  <span class="t-value" id="val-temp">24.5 <small>°C</small></span>
+                </div>
+              </div>
+
+              <div class="telemetry-box">
+                <span class="t-icon">⏱️</span>
+                <div class="t-data">
+                  <span class="t-label">RUN DURATION</span>
+                  <span class="t-value mono" id="val-runtime">00:00:00</span>
+                </div>
+              </div>
+
+              <div class="telemetry-box">
+                <span class="t-icon">🔄</span>
+                <div class="t-data">
+                  <span class="t-label">TOTAL CYCLES</span>
+                  <span class="t-value" id="val-cycles">14</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </section>
+
+      </main>
+
+      <!-- Bottom Row: 24-Hour Telemetry Graph & Autonomous Rules -->
+      <section class="console-bottom-row">
+
+        <!-- 24-Hour Interactive Level History Chart -->
+        <div class="chart-card glass-panel">
+          <div class="card-title-row">
+            <h2>📈 24-Hour Water Level & Consumption Trend</h2>
+            <div class="chart-legend">
+              <span class="legend-item"><span class="legend-color level"></span> Tank Level (%)</span>
+              <span class="legend-item"><span class="legend-color pump"></span> Motor Run Activity</span>
+            </div>
+          </div>
+          <div class="chart-svg-wrap" id="chart-wrap">
+            <svg id="history-chart" viewBox="0 0 760 160" preserveAspectRatio="none">
+              <!-- Dynamically populated smooth SVG curve -->
+            </svg>
+          </div>
+          <div class="chart-time-labels">
+            <span>00:00</span>
+            <span>04:00</span>
+            <span>08:00</span>
+            <span>12:00</span>
+            <span>16:00</span>
+            <span>20:00</span>
+            <span>Now</span>
+          </div>
+        </div>
+
+        <!-- Autonomous Safety Rules Card -->
+        <div class="rules-card glass-panel">
+          <div class="card-title-row">
+            <h2>🛡️ Autonomous Safety Rules</h2>
+            <button class="btn-save-rules" id="btn-save-rules">Save to Cloud</button>
+          </div>
+
+          <div class="rule-slider-group">
+            <div class="rule-label-row">
+              <label>Auto-Start Motor Threshold</label>
+              <span class="rule-val" id="lbl-start-thresh">25%</span>
+            </div>
+            <input type="range" min="10" max="50" value="25" class="range-slider" id="slider-start-thresh">
+          </div>
+
+          <div class="rule-slider-group">
+            <div class="rule-label-row">
+              <label>Auto-Stop Motor Threshold</label>
+              <span class="rule-val" id="lbl-stop-thresh">95%</span>
+            </div>
+            <input type="range" min="70" max="100" value="95" class="range-slider" id="slider-stop-thresh">
+          </div>
+
+          <div class="rule-toggle-row">
+            <div>
+              <span class="toggle-name">Dry Run Cutoff Protection</span>
+              <p class="toggle-desc">Shuts off pump if flow &lt; 2 L/min for 10s</p>
+            </div>
+            <input type="checkbox" id="check-dryrun" checked>
+          </div>
+        </div>
+
+      </section>
+    </div>
+
+  </div>
+
+  <!-- API URL Configuration Modal -->
+  <div class="modal-backdrop hidden" id="api-modal">
+    <div class="modal-card glass-panel">
+      <h3>⚙️ Backend API Endpoint Configuration</h3>
+      <p class="modal-desc">Configure the Node.js backend server URL for database authentication and telemetry sync.</p>
+
+      <div class="form-group">
+        <label for="input-api-url">Backend REST API Base URL</label>
+        <input type="text" id="input-api-url" placeholder="http://localhost:4000/api/v1">
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="btn-cancel-api-modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="btn-save-api-url">Save & Reconnect</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="webapp.js"></script>
+</body>
+</html>
