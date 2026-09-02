@@ -1,0 +1,254 @@
+// Prisma schema for IoT Water Pump Monitoring and Control System
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  USER
+  TECHNICIAN
+}
+
+enum DeviceStatus {
+  ONLINE
+  OFFLINE
+  WARNING
+  CRITICAL
+  SETUP_MODE
+}
+
+enum PumpState {
+  ON
+  OFF
+  TRIPPED
+  EMERGENCY_STOP
+}
+
+enum ControlMode {
+  MANUAL
+  AUTO
+  SCHEDULE
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+  EMERGENCY
+}
+
+enum CommandStatus {
+  PENDING
+  DISPATCHED
+  ACKNOWLEDGED
+  FAILED
+  TIMED_OUT
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  passwordHash  String
+  firstName     String
+  lastName      String
+  role          Role           @default(USER)
+  refreshToken  String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  devices       Device[]
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model Device {
+  id              String          @id // e.g. "esp32_pump_94B97E"
+  name            String
+  macAddress      String          @unique
+  userId          String
+  status          DeviceStatus    @default(SETUP_MODE)
+  pumpState       PumpState       @default(OFF)
+  mode            ControlMode     @default(AUTO)
+  wifiRssi        Int?            @default(-70)
+  firmwareVersion String?         @default("1.0.0")
+  ipAddress       String?
+  lastSeen        DateTime        @default(now())
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  settings        DeviceSettings?
+  nodes           DeviceNode[]
+  sensorData      SensorData[]
+  pumpEvents      PumpEvent[]
+  alerts          Alert[]
+  commands        MqttCommand[]
+  logs            DeviceLog[]
+  rules           AutomationRule[]
+
+  @@index([userId])
+  @@map("devices")
+}
+
+model DeviceNode {
+  id          String    @id @default(uuid())
+  deviceId    String
+  nodeId      String    // e.g. "tank_node_001"
+  name        String    @default("Main Tank Sensor")
+  nodeType    String    @default("ESP8266_TANK_SENSOR")
+  isActive    Boolean   @default(true)
+  batteryPct  Int?      @default(100)
+  batteryVolt Float?    @default(4.2)
+  lastSeen    DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+
+  device      Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceId, nodeId])
+  @@map("device_nodes")
+}
+
+model DeviceSettings {
+  id                       String   @id @default(uuid())
+  deviceId                 String   @unique
+  autoStartLevelPct        Float    @default(30.0)
+  autoStopLevelPct         Float    @default(90.0)
+  maxContinuousRunMinutes  Int      @default(45)
+  dryRunTimeoutSeconds     Int      @default(60)
+  minFlowRateLpm           Float    @default(2.0)
+  tankHeightCm             Float    @default(200.0)
+  tankCapacityLiters       Float    @default(5000.0)
+  telemetryIntervalSec     Int      @default(5)
+  updatedAt                DateTime @updatedAt
+
+  device                   Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@map("device_settings")
+}
+
+model SensorData {
+  id               String   @id @default(uuid())
+  deviceId         String
+  nodeId           String
+  waterLevelPct    Float
+  waterLevelCm     Float
+  flowRateLpm      Float
+  totalWaterLiters Float
+  tdsPpm           Int
+  temperatureC     Float
+  batteryVoltage   Float?
+  batteryPct       Int?
+  createdAt        DateTime @default(now())
+
+  device           Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, createdAt])
+  @@map("sensor_data")
+}
+
+model PumpEvent {
+  id                 String    @id @default(uuid())
+  deviceId           String
+  eventType          String    // "START", "STOP", "EMERGENCY_STOP", "DRY_RUN_TRIP"
+  triggeredBy        String    // "MANUAL_APP", "AUTO_RULE", "ESP32_SAFETY", "MANUAL_BUTTON"
+  startLevelPct      Float?
+  endLevelPct        Float?
+  durationSeconds    Int       @default(0)
+  volumePumpedLiters Float     @default(0.0)
+  status             String    @default("COMPLETED")
+  createdAt          DateTime  @default(now())
+
+  device             Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, createdAt])
+  @@map("pump_events")
+}
+
+model AutomationRule {
+  id                String   @id @default(uuid())
+  deviceId          String
+  name              String
+  isEnabled         Boolean  @default(true)
+  conditionType     String   // "WATER_LEVEL_BELOW", "WATER_LEVEL_ABOVE", "SCHEDULE_TIME"
+  conditionValue    Float
+  actionType        String   // "START_PUMP", "STOP_PUMP"
+  autoStopLevelPct  Float?   @default(90.0)
+  maxRunMinutes     Int?     @default(30)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  device            Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId])
+  @@map("automation_rules")
+}
+
+model Alert {
+  id          String        @id @default(uuid())
+  deviceId    String
+  severity    AlertSeverity @default(WARNING)
+  type        String        // "DRY_RUN", "TANK_OVERFLOW", "COMMUNICATION_LOST", "HIGH_TDS"
+  title       String
+  description String
+  isResolved  Boolean       @default(false)
+  resolvedAt  DateTime?
+  createdAt   DateTime      @default(now())
+
+  device      Device        @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, isResolved])
+  @@map("alerts")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  type      String   @default("INFO")
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+model MqttCommand {
+  id              String        @id // UUID generated at dispatch
+  deviceId        String
+  command         String        // "PUMP_ON", "PUMP_OFF", "EMERGENCY_STOP", "SET_MODE"
+  parameters      Json?
+  status          CommandStatus @default(PENDING)
+  responseMessage String?
+  executionTimeMs Int?
+  dispatchedAt    DateTime      @default(now())
+  acknowledgedAt  DateTime?
+
+  device          Device        @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, status])
+  @@map("mqtt_commands")
+}
+
+model DeviceLog {
+  id        String   @id @default(uuid())
+  deviceId  String
+  logLevel  String   // "DEBUG", "INFO", "WARN", "ERROR"
+  message   String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  device    Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, createdAt])
+  @@map("device_logs")
+}
