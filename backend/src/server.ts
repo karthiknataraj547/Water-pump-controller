@@ -40,6 +40,27 @@ app.get('/health', (req, res) => {
   });
 });
 
+// In-App Version & Update Manifest
+app.get('/api/v1/app/version', (req, res) => {
+  res.status(200).json({
+    version: '2.0.0',
+    build_number: 1,
+    release_date: '2026-09-02',
+    min_supported_version: '1.0.0',
+    download_url: 'https://github.com/karthiknataraj547/Water-pump-controller/raw/main/releases/HydroPulse_WaterPumpController.apk',
+    website_url: 'https://github.com/karthiknataraj547/Water-pump-controller',
+    title: 'HydroPulse v2.0 - Active Hardware Ping & Strict Offline Verifier',
+    changelog: [
+      'Strict physical hardware presence verification with sub-100ms ping/pong',
+      'Mosquitto MQTT broker priority and instant failover pool',
+      'Dedicated notification settings toggles for motor starts, stops, and tank thresholds',
+      'Enhanced 3D solid rotatable tank visualizer and real-time telemetry analytics',
+      'In-App Automatic Update Checker'
+    ],
+    is_critical: false,
+  });
+});
+
 // API Routes Mounting
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/devices', devicesRouter);

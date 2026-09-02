@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HydroPulse | Enterprise IoT Water Pump Controller & Monitoring Platform</title>
+  <meta name="description" content="HydroPulse is an enterprise-grade IoT water pump monitoring and autonomous control platform with real-time fluid visualization, sub-100ms hardware verification, and cloud synchronization.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Ambient Glow Background Canvas -->
+  <div class="glow-orb glow-orb-1"></div>
+  <div class="glow-orb glow-orb-2"></div>
+  <div class="glow-orb glow-orb-3"></div>
+
+  <!-- Navigation Bar -->
+  <header class="navbar">
+    <div class="container nav-container">
+      <a href="#" class="brand-logo">
+        <div class="logo-icon-wrap">
+          <svg class="logo-droplet" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" fill="url(#logo-grad)"/>
+            <defs>
+              <linearGradient id="logo-grad" x1="6.34" y1="2.69" x2="17.66" y2="20" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#00E5FF"/>
+                <stop offset="1" stop-color="#00F5A0"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <span class="brand-title">Hydro<span>Pulse</span></span>
+        <span class="version-tag">v2.0</span>
+      </a>
+
+      <nav class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#simulator">Live Simulator</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#hardware">Hardware</a>
+        <a href="#download">Download</a>
+      </nav>
+
+      <div class="nav-actions">
+        <a href="https://github.com/karthiknataraj547/Water-pump-controller" target="_blank" rel="noreferrer" class="btn btn-github">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+          <span>GitHub</span>
+        </a>
+        <a href="#download" class="btn btn-primary nav-download-btn">
+          <span>Get Mobile App</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero-section">
+    <div class="container hero-container">
+      <div class="hero-content">
+        <div class="hero-badge">
+          <span class="pulse-dot"></span>
+          <span>Next-Gen IoT Water Management & Automation</span>
+        </div>
+        <h1 class="hero-title">
+          Intelligent Water Pump Control & <span class="gradient-text">Real-Time Telemetry</span>
+        </h1>
+        <p class="hero-subtitle">
+          Engineered with FreeRTOS dual-core ESP32 gateways, sub-100ms active hardware ping verification, fluid physics 3D simulation, and industrial-grade Mosquitto MQTT cloud synchronization.
+        </p>
+
+        <div class="hero-cta-group">
+          <a href="https://github.com/karthiknataraj547/Water-pump-controller/raw/main/releases/HydroPulse_WaterPumpController.apk" class="btn btn-primary btn-large download-trigger">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+              <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
+            </svg>
+            <div class="btn-text-wrap">
+              <span class="btn-main">Download Android APK</span>
+              <span class="btn-sub">v2.0.0 • 55 MB • ARM64 / ARMv7</span>
+            </div>
+          </a>
+
+          <a href="#simulator" class="btn btn-secondary btn-large">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <polygon points="10 8 16 12 10 16 10 8" fill="currentColor"/>
+            </svg>
+            <span>Try Live Simulator</span>
+          </a>
+        </div>
+
+        <div class="hero-metrics">
+          <div class="metric-item">
+            <span class="metric-val">&lt; 100ms</span>
+            <span class="metric-lbl">Hardware Ping RTT</span>
+          </div>
+          <div class="metric-divider"></div>
+          <div class="metric-item">
+            <span class="metric-val">100%</span>
+            <span class="metric-lbl">Autonomous Local Safety</span>
+          </div>
+          <div class="metric-divider"></div>
+          <div class="metric-item">
+            <span class="metric-val">BLE + MQTT</span>
+            <span class="metric-lbl">Zero-Touch Provisioning</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive 3D Tank Showcase Card -->
+      <div class="hero-visual">
+        <div class="interactive-tank-card">
+          <div class="card-header">
+            <div class="status-indicator online">
+              <span class="dot"></span>
+              <span class="status-text">ESP32 GATEWAY ONLINE</span>
+            </div>
+            <div class="latency-pill">RTT: <span id="hero-rtt">24ms</span></div>
+          </div>
+
+          <div class="tank-viewport">
+            <canvas id="hero-tank-canvas" width="340" height="340"></canvas>
+            <div class="tank-hud">
+              <div class="hud-level-val" id="hero-level-pct">68.4%</div>
+              <div class="hud-volume-val" id="hero-volume-liters">3,420 / 5,000 L</div>
+            </div>
+          </div>
+
+          <div class="quick-controls">
+            <button class="ctrl-btn pump-toggle-btn" id="hero-pump-btn">
+              <span class="icon">⚡</span>
+              <span id="hero-pump-text">START MOTOR</span>
+            </button>
+            <button class="ctrl-btn mode-btn active" id="hero-mode-btn">MODE: AUTO</button>
+          </div>
+
+          <div class="telemetry-bar">
+            <div class="t-stat">
+              <span class="t-lbl">FLOW RATE</span>
+              <span class="t-val" id="hero-flow-val">0.0 L/min</span>
+            </div>
+            <div class="t-stat">
+              <span class="t-lbl">POWER</span>
+              <span class="t-val" id="hero-power-val">0.00 kW</span>
+            </div>
+            <div class="t-stat">
+              <span class="t-lbl">WATER TEMP</span>
+              <span class="t-val">24.5 °C</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Live Simulation & Interactive Demo Section -->
+  <section id="simulator" class="section simulator-section">
+    <div class="container">
+      <div class="section-heading text-center">
+        <span class="badge">Interactive Experience</span>
+        <h2>Full System Live Simulator</h2>
+        <p>Experience the reactive fluid physics, relay actuation, and automated threshold alerts directly in your browser.</p>
+      </div>
+
+      <div class="sim-grid">
+        <!-- Control Panel -->
+        <div class="sim-panel glass-panel">
+          <div class="panel-header">
+            <h3>🎛️ Motor & Automation Controls</h3>
+            <span class="live-pill">LIVE EMULATION</span>
+          </div>
+
+          <div class="control-group">
+            <label>Operating Mode</label>
+            <div class="toggle-switch-group">
+              <button class="mode-opt active" data-mode="AUTO" id="sim-mode-auto">✨ AUTOMATIC</button>
+              <button class="mode-opt" data-mode="MANUAL" id="sim-mode-manual">🕹️ MANUAL</button>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <label>Main Relay State</label>
+            <button class="btn btn-action-motor" id="sim-pump-action">
+              <span class="action-icon">▶</span>
+              <span id="sim-action-label">START MOTOR</span>
+            </button>
+          </div>
+
+          <div class="control-group">
+            <div class="label-with-val">
+              <label>Simulate Tank Water Level</label>
+              <span class="slider-val" id="sim-level-slider-val">68%</span>
+            </div>
+            <input type="range" min="0" max="100" value="68" class="custom-slider" id="sim-water-slider">
+          </div>
+
+          <div class="control-group">
+            <label>Emergency Cutoff Interlock</label>
+            <button class="btn btn-emergency" id="sim-emergency-btn">
+              <span>🛑 EMERGENCY STOP (E-STOP)</span>
+            </button>
+          </div>
+
+          <div class="rule-box">
+            <div class="rule-title">⚡ Autonomous Safety Rules:</div>
+            <ul>
+              <li>Auto-Start Threshold: <strong>&le; 25% Water Level</strong></li>
+              <li>Auto-Stop Threshold: <strong>&ge; 95% Water Level</strong></li>
+              <li>Dry Run Protection: <strong>Flow &lt; 2 L/min triggers safe stop</strong></li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Live Telemetry Stream -->
+        <div class="sim-telemetry glass-panel">
+          <div class="panel-header">
+            <h3>📡 High-Speed MQTT Packet Feed</h3>
+            <span class="tag-topic">pump/usr_demo/status</span>
+          </div>
+
+          <div class="terminal-window">
+            <div class="terminal-body" id="packet-log">
+              <!-- Dynamically Populated -->
+            </div>
+          </div>
+
+          <div class="stats-summary-grid">
+            <div class="summary-box">
+              <div class="lbl">TDS PURITY</div>
+              <div class="val">118 <small>ppm</small></div>
+              <div class="sub good">Clean / Potable</div>
+            </div>
+            <div class="summary-box">
+              <div class="lbl">FLOW RATE</div>
+              <div class="val" id="sim-flow-stat">0.0 <small>L/min</small></div>
+              <div class="sub" id="sim-flow-sub">Impeller Idle</div>
+            </div>
+            <div class="summary-box">
+              <div class="lbl">RUN DURATION</div>
+              <div class="val" id="sim-runtime-stat">00:00:00</div>
+              <div class="sub">Cycle Count: 14</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Core Features Section -->
+  <section id="features" class="section features-section">
+    <div class="container">
+      <div class="section-heading text-center">
+        <span class="badge">Architecture & Innovations</span>
+        <h2>Why HydroPulse Leads Industrial IoT Water Control</h2>
+        <p>Built from the ground up for high reliability, zero false-online states, and instant responsiveness.</p>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card glass-panel">
+          <div class="feature-icon">⚡</div>
+          <h3>Sub-100ms Ping Latency</h3>
+          <p>Strict hardware request-response handshake. The app verifies live ESP32 presence with active ping/pong polling and never relies on ambiguous MQTT broker connections.</p>
+        </div>
+
+        <div class="feature-card glass-panel">
+          <div class="feature-icon">🌊</div>
+          <h3>3D Volumetric Fluid Visuals</h3>
+          <p>Interactive 360° rotatable solid cylindrical tank with real-time sinus wave oscillations, cascade overflow pipelines, and rotating motorized impellers.</p>
+        </div>
+
+        <div class="feature-card glass-panel">
+          <div class="feature-icon">🛡️</div>
+          <h3>Dual-Layer Fail-Safe Logic</h3>
+          <p>Local FreeRTOS safety engine executes on the ESP32 hardware independently of Wi-Fi or cloud outages to prevent dry runs, overflows, and pipe bursts.</p>
+        </div>
+
+        <div class="feature-card glass-panel">
+          <div class="feature-icon">📶</div>
+          <h3>Zero-Touch BLE Provisioning</h3>
+          <p>Native Bluetooth Low Energy discovery wizard connects to unconfigured ESP32 controllers in seconds and securely transmits Wi-Fi credentials with GATT handshakes.</p>
+        </div>
+
+        <div class="feature-card glass-panel">
+          <div class="feature-icon">🔄</div>
+          <h3>In-App Automatic OTA Updates</h3>
+          <p>Integrated version check engine queries GitHub releases on app launch and notifies users of new firmware & app builds with one-tap APK installation.</p>
+        </div>
+
+        <div class="feature-card glass-panel">
+          <div class="feature-icon">📊</div>
+          <h3>Historical Telemetry & Analytics</h3>
+          <p>Full daily, weekly, and monthly trend breakdowns of power consumption (kWh), water pumped (Liters), and relay actuation cycles.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- System Architecture Section -->
+  <section id="architecture" class="section arch-section">
+    <div class="container">
+      <div class="section-heading text-center">
+        <span class="badge">Ecosystem Topology</span>
+        <h2>End-to-End Enterprise Architecture</h2>
+        <p>Seamless communication from edge physical sensors to cloud backends and mobile client devices.</p>
+      </div>
+
+      <div class="arch-flow-wrap glass-panel">
+        <div class="arch-node">
+          <div class="node-icon">📱</div>
+          <div class="node-title">Flutter Mobile App</div>
+          <div class="node-desc">Android & iOS client with 3D water shaders, Riverpod state, and BLE provisioning.</div>
+          <div class="node-proto">MQTT (TCP / WSS) + REST API</div>
+        </div>
+
+        <div class="arch-arrow">➔</div>
+
+        <div class="arch-node">
+          <div class="node-icon">☁️</div>
+          <div class="node-title">Mosquitto & Cloud Backend</div>
+          <div class="node-desc">High-throughput Mosquitto broker with Node.js TypeScript API, Redis cache & PostgreSQL.</div>
+          <div class="node-proto">MQTT Protocol (Port 1883)</div>
+        </div>
+
+        <div class="arch-arrow">➔</div>
+
+        <div class="arch-node">
+          <div class="node-icon">🎛️</div>
+          <div class="node-title">ESP32 Main Gateway</div>
+          <div class="node-desc">FreeRTOS dual-core controller managing 30A relay, physical buttons, buzzer & safety rules.</div>
+          <div class="node-proto">ESP-NOW (2.4 GHz CRC16)</div>
+        </div>
+
+        <div class="arch-arrow">➔</div>
+
+        <div class="arch-node">
+          <div class="node-icon">🧪</div>
+          <div class="node-title">ESP8266 Sub Node</div>
+          <div class="node-desc">Battery-backed sensor node reading Ultrasonic Level, Pulse Flow, TDS, and Temperature.</div>
+          <div class="node-proto">High-Frequency ~300ms Streaming</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Hardware Specifications Table -->
+  <section id="hardware" class="section hardware-section">
+    <div class="container">
+      <div class="section-heading text-center">
+        <span class="badge">Hardware Specifications</span>
+        <h2>Engineered for Industrial Reliability</h2>
+      </div>
+
+      <div class="table-wrap glass-panel">
+        <table class="spec-table">
+          <thead>
+            <tr>
+              <th>Component</th>
+              <th>Hardware Model</th>
+              <th>Interface / Pinout</th>
+              <th>Specifications</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Main IoT Gateway</strong></td>
+              <td>ESP32 Dual-Core Xtensa LX6</td>
+              <td>Wi-Fi 802.11 b/g/n + BLE 4.2</td>
+              <td>240MHz, 520KB SRAM, FreeRTOS Core 0 (Network) + Core 1 (Relay)</td>
+            </tr>
+            <tr>
+              <td><strong>Main Pump Relay</strong></td>
+              <td>Optocoupler Isolated Relay</td>
+              <td>GPIO 23 (Active HIGH)</td>
+              <td>Supports 250VAC/30A inductive motor soft-start</td>
+            </tr>
+            <tr>
+              <td><strong>Water Level Sensing</strong></td>
+              <td>JSN-SR04T Waterproof Ultrasonic</td>
+              <td>Trigger: GPIO 12, Echo: GPIO 14</td>
+              <td>20cm - 450cm range with millimeter accuracy</td>
+            </tr>
+            <tr>
+              <td><strong>Water Flow Meter</strong></td>
+              <td>YF-S201 Hall-Effect Sensor</td>
+              <td>GPIO 13 (Hardware Interrupt)</td>
+              <td>1 - 30 L/min flow rate measurement</td>
+            </tr>
+            <tr>
+              <td><strong>Water Purity (TDS)</strong></td>
+              <td>Analog Total Dissolved Solids</td>
+              <td>GPIO A0 (10-bit ADC)</td>
+              <td>0 - 1000 ppm water quality index</td>
+            </tr>
+            <tr>
+              <td><strong>Temperature Probe</strong></td>
+              <td>DS18B20 Stainless Steel Probe</td>
+              <td>GPIO 4 (1-Wire Protocol)</td>
+              <td>-55°C to +125°C &plusmn;0.5°C accuracy</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Download & QR Code Section -->
+  <section id="download" class="section download-section">
+    <div class="container">
+      <div class="download-card glass-panel">
+        <div class="download-info">
+          <div class="badge">Latest Production Release</div>
+          <h2>Get the HydroPulse App Today</h2>
+          <p>Download the standalone APK directly onto your Android device or build from source using Flutter.</p>
+
+          <div class="download-specs">
+            <div class="spec-chip">📱 Version: <strong>v2.0.0</strong></div>
+            <div class="spec-chip">📦 Package: <strong>55 MB</strong></div>
+            <div class="spec-chip">🤖 Target: <strong>Android 8.0+ (API 26+)</strong></div>
+            <div class="spec-chip">⚡ Architecture: <strong>arm64-v8a / armeabi-v7a</strong></div>
+          </div>
+
+          <div class="download-btn-row">
+            <a href="https://github.com/karthiknataraj547/Water-pump-controller/raw/main/releases/HydroPulse_WaterPumpController.apk" class="btn btn-primary btn-large download-trigger">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
+              </svg>
+              <span>Download HydroPulse APK</span>
+            </a>
+
+            <a href="https://github.com/karthiknataraj547/Water-pump-controller" target="_blank" rel="noreferrer" class="btn btn-secondary btn-large">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+              </svg>
+              <span>View Source Code</span>
+            </a>
+          </div>
+        </div>
+
+        <div class="qr-scan-card">
+          <div class="qr-box">
+            <canvas id="qr-code-canvas" width="160" height="160"></canvas>
+          </div>
+          <span class="qr-label">Scan with Mobile Camera to Download Directly</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer-container">
+      <div class="footer-brand">
+        <span class="brand-title">Hydro<span>Pulse</span></span>
+        <p>Enterprise IoT Water Pump Controller & Automation Platform</p>
+      </div>
+
+      <div class="footer-meta">
+        <p>Designed and Developed by <strong>Karthik Nataraj</strong></p>
+        <p>Licensed under MIT • Open Source Hardware & Software</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

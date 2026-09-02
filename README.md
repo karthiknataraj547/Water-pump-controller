@@ -70,44 +70,68 @@ You can directly download and install the Android Application on your mobile pho
 
 ## 📂 Project Structure
 
-- `backend/`: TypeScript REST API, WebSocket/MQTT ingestion service, Prisma ORM schema & migrations.
-- `firmware/esp32_main_node/`: FreeRTOS C++ firmware for the Gateway, BLE provisioning, MQTT client, Relay safety controller, and ESP-NOW master.
-- `firmware/esp8266_sub_node/`: ESP8266 firmware reading Ultrasonic, Flow, TDS, and DS18B20 sensors, transmitting CRC16 binary packets over ESP-NOW.
-- `mobile_app/`: Flutter application for Android and iOS using Riverpod, GoRouter, and custom UI components.
-- `tools/`: Hardware simulators and test harnesses for end-to-end integration verification without physical boards.
-- `docs/`: Comprehensive technical documentation.
+```text
+├── frontend/                     # Flutter Mobile App (Android & iOS)
+│   ├── lib/core/update/          # In-App Automatic Update Checker Engine
+│   ├── lib/features/dashboard/   # 3D Water System & Live Motor Dashboard
+│   ├── lib/features/provisioning/# BLE Device Onboarding Wizard
+│   └── lib/shared/widgets/       # 3D Tank Shaders & Custom Controls
+├── backend/                      # Cloud Backend & Ingestion Services
+│   ├── src/modules/mqtt/         # Mosquitto MQTT Handler & Presence Sweeper
+│   ├── src/modules/devices/      # Device Registry & Telemetry APIs
+│   └── prisma/schema.prisma      # PostgreSQL Schema with Prisma ORM
+├── website/                      # Product Showcase & Web Simulator
+│   ├── index.html                # Responsive Landing Page & APK Download
+│   ├── style.css                 # Glassmorphic Cyber-Hydro Design System
+│   └── app.js                    # Interactive 3D Tank Simulator
+├── firmware/
+│   ├── esp32_main_node/          # PlatformIO Dual-Core FreeRTOS Main Gateway
+│   ├── esp8266_sub_node/         # ESP8266 Sub Node (Ultrasonic, Flow, TDS)
+│   └── arduino_ide/              # Arduino IDE Single-File Gateway Sketch
+├── releases/                     # Production Mobile Application APK Releases
+│   └── HydroPulse_WaterPumpController.apk
+├── version.json                  # In-App Update Manifest for OTA Checks
+├── tools/                        # Python MQTT Telemetry & Hardware Simulators
+└── docs/                         # Specifications, Wiring & Architecture Guides
+```
 
 ---
 
 ## 🛠️ Quick Start
 
-### 1. Start Backend & MQTT Infrastructure
+### 1. Launch Showcase Website Locally
+Open `website/index.html` directly in your browser or serve via:
+```bash
+npx serve website
+```
+
+### 2. Start Cloud Backend & Mosquitto MQTT Broker
 ```bash
 docker compose up -d --build
 ```
 
-### 2. Run MQTT Hardware Simulator
+### 3. Launch Flutter Mobile Application
+```bash
+cd frontend
+flutter pub get
+flutter run
+```
+
+### 4. Run Hardware MQTT Simulation
 ```bash
 cd tools
 pip install paho-mqtt
 python mqtt_simulator.py
 ```
 
-### 3. Launch Flutter Mobile App
-```bash
-cd mobile_app
-flutter pub get
-flutter run
-```
-
 ---
 
 ## 📖 Documentation Index
-- [Architecture Details](file:///d:/water%20pump/docs/ARCHITECTURE.md)
-- [REST API Reference](file:///d:/water%20pump/docs/API_DOCUMENTATION.md)
-- [MQTT Protocol Guide](file:///d:/water%20pump/docs/MQTT_PROTOCOL.md)
-- [BLE Provisioning Specification](file:///d:/water%20pump/docs/BLE_PROVISIONING.md)
-- [ESP-NOW Protocol Specification](file:///d:/water%20pump/docs/ESP_NOW_PROTOCOL.md)
-- [Hardware Wiring & Pinouts](file:///d:/water%20pump/docs/HARDWARE_SETUP.md)
-- [Deployment Guide](file:///d:/water%20pump/docs/DEPLOYMENT.md)
-- [Security Model](file:///d:/water%20pump/docs/SECURITY.md)
+- [Architecture Details](docs/ARCHITECTURE.md)
+- [REST API Reference](docs/API_DOCUMENTATION.md)
+- [MQTT Protocol Guide](docs/MQTT_PROTOCOL.md)
+- [BLE Provisioning Specification](docs/BLE_PROVISIONING.md)
+- [ESP-NOW Protocol Specification](docs/ESP_NOW_PROTOCOL.md)
+- [Hardware Wiring & Pinouts](docs/HARDWARE_SETUP.md)
+- [Deployment Guide](docs/DEPLOYMENT.md)
+- [Security Model](docs/SECURITY.md)
