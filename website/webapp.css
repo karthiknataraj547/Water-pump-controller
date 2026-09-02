@@ -1,51 +1,86 @@
 /* ==============================================================================
    HydroPulse IoT - Minimalist UI Matching Flutter Mobile Design
+   Supports Both Dark Mode and Light Mode with Dynamic Theming
    ============================================================================== */
 
-:root {
-  --color-primary: #00E5FF;
-  --color-primary-dark: #00B4D8;
-  --color-accent: #00F5A0;
-  --color-danger: #EF4444;
-  --color-warning: #F59E0B;
+:root, [data-theme="dark"] {
+  /* Flutter AppTheme Dark Mode Colors */
+  --primary: #0EA5E9;
+  --primary-light: #7DD3FC;
+  --primary-dark: #0284C7;
+  --accent: #22C55E;
+  --warning: #F59E0B;
+  --danger: #EF4444;
+  --danger-dark: #DC2626;
 
-  --bg-slate-dark: #0B0F19;
-  --bg-card-glass: rgba(18, 24, 39, 0.78);
-  --border-glass: rgba(255, 255, 255, 0.12);
-  --border-cyan: rgba(0, 229, 255, 0.35);
+  --bg-app: #16161E;
+  --bg-surface: #1E1E2A;
+  --bg-card: #252536;
+  --border-card: #35354A;
+  --border-subtle: rgba(255, 255, 255, 0.08);
 
-  --text-main: #FFFFFF;
+  --text-primary: #F1F5F9;
   --text-secondary: #94A3B8;
-  --text-muted: #64748B;
+  --text-tertiary: #64748B;
 
-  --font-heading: 'Outfit', sans-serif;
-  --font-ui: 'Inter', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --tank-bg: #111118;
+  --input-bg: rgba(30, 30, 42, 0.85);
+  --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-toggle: 0 4px 16px rgba(14, 165, 233, 0.35);
 
-  --radius-sm: 10px;
-  --radius-md: 16px;
-  --radius-lg: 24px;
+  --water-cyan: #38BDF8;
+  --water-emerald: #22C55E;
+}
+
+[data-theme="light"] {
+  /* Flutter AppTheme Light Mode Colors */
+  --primary: #0284C7;
+  --primary-light: #38BDF8;
+  --primary-dark: #0369A1;
+  --accent: #16A34A;
+  --warning: #D97706;
+  --danger: #DC2626;
+  --danger-dark: #B91C1C;
+
+  --bg-app: #F8FAFC;
+  --bg-surface: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --border-card: #E2E8F0;
+  --border-subtle: rgba(0, 0, 0, 0.06);
+
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-tertiary: #94A3B8;
+
+  --tank-bg: #F1F5F9;
+  --input-bg: #F8FAFC;
+  --shadow-card: 0 4px 16px rgba(15, 23, 42, 0.06);
+  --shadow-toggle: 0 4px 16px rgba(2, 132, 199, 0.25);
+
+  --water-cyan: #0284C7;
+  --water-emerald: #16A34A;
 }
 
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  background-color: var(--bg-slate-dark);
-  color: var(--text-main);
-  font-family: var(--font-ui);
-  line-height: 1.5;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   min-height: 100vh;
+  line-height: 1.5;
   overflow-x: hidden;
   position: relative;
 }
 
-/* Background Interactive Water Canvas */
-#bg-water-canvas {
+/* Background Interactive Water Physics Canvas */
+#water-bg-canvas {
   position: fixed;
   top: 0;
   left: 0;
@@ -55,13 +90,15 @@ body {
   z-index: 0;
 }
 
-.app-container {
+.flutter-app-shell {
   position: relative;
   z-index: 1;
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
-.view-panel {
+.screen-view {
   width: 100%;
 }
 
@@ -70,85 +107,115 @@ body {
 }
 
 /* ==============================================================================
-   1. AUTHENTICATION VIEW (MATCHING FLUTTER LOGIN SCREEN)
+   1. AUTHENTICATION SCREEN (MATCHING FLUTTER LOGIN SCREEN)
    ============================================================================== */
-.auth-screen {
+.auth-layout {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  position: relative;
+}
+
+.auth-top-actions {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 10;
+}
+
+.theme-toggle-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 32px 20px;
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+  font-size: 16px;
 }
 
-.auth-center-wrap {
+.theme-toggle-btn:hover {
+  border-color: var(--primary);
+  transform: scale(1.05);
+}
+
+.auth-card-wrapper {
   width: 100%;
-  max-width: 440px;
+  max-width: 420px;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
 /* Flutter-Matching Resonance Rings & Droplet */
-.hydro-droplet-structure {
+.hydro-droplet-container {
   position: relative;
-  width: 90px;
-  height: 90px;
+  width: 88px;
+  height: 88px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 16px;
 }
 
-.resonance-ring-outer {
+.hydro-resonance-outer {
   position: absolute;
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  border: 1.5px solid rgba(0, 229, 255, 0.35);
+  border: 1.5px solid var(--primary);
+  opacity: 0.35;
   animation: hydro-pulse 2.2s infinite ease-in-out;
 }
 
-.resonance-ring-inner {
+.hydro-resonance-inner {
   position: absolute;
   width: 80%;
   height: 80%;
   border-radius: 50%;
-  border: 1.5px solid rgba(0, 245, 160, 0.45);
+  border: 1.5px solid var(--accent);
+  opacity: 0.45;
   animation: hydro-pulse 2.2s infinite ease-in-out 0.4s;
 }
 
 @keyframes hydro-pulse {
   0% { transform: scale(0.85); opacity: 0.8; }
-  50% { transform: scale(1.18); opacity: 0.2; }
+  50% { transform: scale(1.18); opacity: 0.15; }
   100% { transform: scale(0.85); opacity: 0.8; }
 }
 
-.droplet-badge {
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
-  background: rgba(0, 229, 255, 0.12);
-  border: 1px solid rgba(0, 229, 255, 0.35);
+.hydro-droplet-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--primary);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 20px rgba(0, 229, 255, 0.3);
+  box-shadow: 0 4px 16px rgba(14, 165, 233, 0.3);
 }
 
-.droplet-svg {
+.droplet-icon {
   width: 26px;
   height: 26px;
 }
 
-.app-brand-title {
-  font-family: var(--font-heading);
-  font-size: 28px;
+.brand-heading {
+  font-size: 26px;
   font-weight: 800;
   letter-spacing: -0.5px;
+  color: var(--text-primary);
   margin-bottom: 4px;
 }
 
-.app-brand-subtitle {
+.brand-subheading {
   font-size: 13px;
   color: var(--text-secondary);
   margin-bottom: 24px;
@@ -156,147 +223,142 @@ body {
 }
 
 /* Frosted Glass Login Card */
-.frosted-login-card {
+.flutter-frosted-card {
   width: 100%;
-  background: var(--bg-card-glass);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1.2px solid var(--border-glass);
-  border-radius: var(--radius-lg);
-  padding: 28px 24px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: var(--shadow-card);
 }
 
-.server-status-pill {
+.sync-status-row {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.sync-pill {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid var(--border-glass);
-  padding: 6px 12px;
+  gap: 6px;
+  padding: 4px 12px;
   border-radius: 20px;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.25);
   font-size: 11px;
-  color: var(--text-secondary);
-  margin-bottom: 18px;
-  width: fit-content;
+  font-weight: 600;
+  color: var(--accent);
 }
 
-.status-dot {
-  width: 7px;
-  height: 7px;
+.sync-dot {
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
+  background: var(--accent);
 }
 
-.status-dot.online {
-  background: var(--color-accent);
-  box-shadow: 0 0 8px var(--color-accent);
-}
-
-.status-dot.offline {
-  background: var(--color-danger);
-  box-shadow: 0 0 8px var(--color-danger);
-}
-
-.auth-tab-switch {
+.flutter-tab-switch {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  background: rgba(0, 0, 0, 0.4);
-  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
   padding: 4px;
   margin-bottom: 20px;
 }
 
-.tab-btn {
-  padding: 9px;
+.tab-pill {
+  padding: 8px;
   border: none;
   background: transparent;
   color: var(--text-secondary);
-  font-family: var(--font-ui);
+  font-family: inherit;
   font-weight: 700;
   font-size: 13px;
-  border-radius: var(--radius-sm);
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.tab-btn.active {
-  background: rgba(30, 41, 59, 0.9);
-  color: var(--color-primary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+.tab-pill.active {
+  background: var(--bg-card);
+  color: var(--primary);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
-.auth-alert-box {
+.flutter-alert-banner {
   padding: 10px 14px;
-  border-radius: var(--radius-sm);
+  border-radius: 10px;
   font-size: 12px;
+  font-weight: 500;
   margin-bottom: 16px;
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.4);
-  color: #FCA5A5;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: var(--danger);
 }
 
-.auth-alert-box.success {
-  background: rgba(0, 245, 160, 0.15);
-  border-color: rgba(0, 245, 160, 0.4);
-  color: #86EFAC;
+.flutter-alert-banner.success {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.35);
+  color: var(--accent);
 }
 
-.auth-form {
+.flutter-auth-form {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
-.input-row-dual {
+.flutter-input-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
 
-.input-field-group {
+.flutter-input-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.input-field-group label {
+.flutter-input-group label {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary);
 }
 
-.input-with-icon {
+.flutter-input-box {
   position: relative;
   display: flex;
   align-items: center;
 }
 
-.input-with-icon .input-icon {
+.input-prefix-icon {
   position: absolute;
   left: 12px;
   font-size: 14px;
   opacity: 0.6;
 }
 
-.input-with-icon input {
+.flutter-input-box input {
   width: 100%;
-  background: rgba(30, 41, 59, 0.6);
-  border: 1px solid var(--border-glass);
-  border-radius: var(--radius-md);
-  padding: 12px 14px 12px 38px;
-  color: var(--text-main);
-  font-family: var(--font-ui);
+  background: var(--input-bg);
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  padding: 11px 14px 11px 38px;
+  color: var(--text-primary);
+  font-family: inherit;
   font-size: 14px;
   outline: none;
-  transition: border-color 0.2s;
 }
 
-.input-with-icon input:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
+.flutter-input-box input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
 }
 
-.btn-toggle-pwd {
+.btn-pwd-peek {
   position: absolute;
   right: 12px;
   background: transparent;
@@ -305,69 +367,76 @@ body {
   opacity: 0.6;
 }
 
-.btn-submit-auth {
-  margin-top: 8px;
+.btn-flutter-primary {
+  margin-top: 6px;
   width: 100%;
-  padding: 14px;
-  border-radius: var(--radius-md);
-  background: linear-gradient(135deg, #00E5FF 0%, #00F5A0 100%);
-  color: #070B12;
-  font-family: var(--font-ui);
-  font-weight: 800;
+  padding: 13px;
+  border-radius: 14px;
+  background: var(--primary);
+  color: #FFFFFF;
+  font-family: inherit;
+  font-weight: 700;
   font-size: 14px;
-  letter-spacing: 0.3px;
   border: none;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(0, 229, 255, 0.35);
-  transition: all 0.2s;
+  box-shadow: var(--shadow-toggle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.btn-submit-auth:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 22px rgba(0, 245, 160, 0.4);
+.btn-flutter-primary:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+.btn-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .btn-spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(0, 0, 0, 0.2);
-  border-top-color: #000;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #FFF;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
-  display: inline-block;
 }
 
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 
-.or-divider {
+.flutter-divider-or {
   display: flex;
   align-items: center;
-  margin: 18px 0;
-  color: var(--text-muted);
+  margin: 16px 0;
+  color: var(--text-tertiary);
   font-size: 11px;
   font-weight: 700;
 }
 
-.or-divider::before,
-.or-divider::after {
+.flutter-divider-or::before,
+.flutter-divider-or::after {
   content: '';
   flex: 1;
-  border-bottom: 1px solid var(--border-glass);
+  border-bottom: 1px solid var(--border-card);
 }
 
-.or-divider span {
+.flutter-divider-or span {
   padding: 0 10px;
 }
 
-.btn-google {
+.btn-flutter-google {
   width: 100%;
-  padding: 12px;
-  background: rgba(30, 41, 59, 0.8);
-  border: 1px solid var(--border-glass);
-  border-radius: var(--radius-md);
-  color: var(--text-main);
+  padding: 11px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-card);
+  border-radius: 14px;
+  color: var(--text-primary);
+  font-family: inherit;
   font-weight: 700;
   font-size: 13px;
   display: flex;
@@ -375,12 +444,11 @@ body {
   justify-content: center;
   gap: 10px;
   cursor: pointer;
-  transition: all 0.2s;
 }
 
-.btn-google:hover {
-  background: rgba(30, 41, 59, 1);
-  border-color: rgba(255, 255, 255, 0.25);
+.btn-flutter-google:hover {
+  background: var(--bg-card);
+  border-color: var(--primary);
 }
 
 .google-g-badge {
@@ -389,475 +457,542 @@ body {
   color: #4285F4;
 }
 
-.auth-card-footer {
+.auth-bottom-links {
   margin-top: 18px;
   text-align: center;
 }
 
-.link-return-home {
+.link-back-site {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--text-tertiary);
   text-decoration: none;
-  transition: color 0.2s;
 }
 
-.link-return-home:hover {
-  color: var(--color-primary);
+.link-back-site:hover {
+  color: var(--primary);
 }
 
-.touch-hint {
+.water-touch-caption {
   font-size: 11px;
-  color: var(--text-muted);
-  margin-top: 16px;
+  color: var(--text-tertiary);
+  margin-top: 14px;
   text-align: center;
 }
 
 /* ==============================================================================
-   2. DASHBOARD CONSOLE (MATCHING FLUTTER SCREENS)
+   2. MAIN DASHBOARD SCREEN (MATCHING FLUTTER SCREENS)
    ============================================================================== */
-.dashboard-screen {
+.dashboard-layout {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
-/* Top Bar */
-.app-topbar {
+/* Flutter AppBar */
+.flutter-app-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 24px;
-  background: rgba(11, 15, 25, 0.85);
-  backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--border-glass);
+  padding: 12px 24px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-card);
   position: sticky;
   top: 0;
   z-index: 100;
+  box-shadow: var(--shadow-card);
 }
 
-.topbar-brand {
+.app-bar-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
-.logo-mini-droplet {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: rgba(0, 229, 255, 0.12);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.topbar-title {
-  font-family: var(--font-heading);
-  font-size: 20px;
-  font-weight: 800;
-}
-
-.hw-status-badge {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 12px;
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 800;
-  border: 1px solid var(--border-glass);
-}
-
-.hw-status-badge.online {
-  background: rgba(0, 245, 160, 0.1);
-  color: var(--color-accent);
-  border-color: rgba(0, 245, 160, 0.3);
-}
-
-.hw-status-badge.online .hw-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--color-accent);
-  box-shadow: 0 0 8px var(--color-accent);
-}
-
-.hw-latency-tag {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  background: rgba(0, 0, 0, 0.4);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.topbar-user {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.user-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #0284C7, #00E5FF);
-  color: #070B12;
-  font-weight: 800;
-  font-size: 12px;
+.app-bar-logo-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(14, 165, 233, 0.12);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.user-meta-txt {
+.app-bar-meta {
   display: flex;
   flex-direction: column;
 }
 
-.user-name-txt {
+.app-bar-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.device-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.hw-status-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.hw-status-pill.online {
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--accent);
+  border: 0.5px solid rgba(34, 197, 94, 0.25);
+}
+
+.hw-status-pill.online .hw-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.device-subtitle {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.app-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-profile-widget {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: 12px;
+  border-left: 1px solid var(--border-card);
+}
+
+.user-avatar-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #FFFFFF;
+  font-weight: 800;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-name-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-full-name {
   font-size: 12px;
   font-weight: 700;
+  color: var(--text-primary);
 }
 
-.user-role-tag {
+.user-role-label {
   font-size: 9px;
-  color: var(--color-accent);
   font-weight: 800;
+  color: var(--accent);
 }
 
-.btn-signout {
+.btn-action-icon {
   background: transparent;
   border: none;
-  color: var(--text-muted);
+  color: var(--text-tertiary);
   cursor: pointer;
+  display: flex;
+  align-items: center;
   padding: 4px;
 }
 
-.btn-signout:hover {
-  color: var(--color-danger);
+.btn-action-icon:hover {
+  color: var(--danger);
 }
 
-/* Main Content Area */
-.app-main-content {
+/* Main Body Layout */
+.dashboard-scrollable-body {
   flex: 1;
-  max-width: 600px;
+  padding: 20px 16px 120px;
+  display: flex;
+  justify-content: center;
+}
+
+.dashboard-center-column {
   width: 100%;
-  margin: 0 auto;
-  padding: 20px 16px 80px;
+  max-width: 680px;
+}
+
+.tab-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 /* SMART WATER SYSTEM CARD (MATCHING smart_water_system_card.dart) */
 .smart-water-card {
-  background: var(--bg-card-glass);
-  backdrop-filter: blur(16px);
-  border: 1.2px solid var(--border-glass);
-  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 20px;
   padding: 20px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
-  margin-bottom: 20px;
+  box-shadow: var(--shadow-card);
 }
 
-.smart-card-header {
+.smart-card-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 16px;
 }
 
-.card-chip {
+.system-chip {
   font-size: 10px;
   font-weight: 800;
-  color: var(--color-primary);
-  background: rgba(0, 229, 255, 0.12);
+  color: var(--primary);
+  background: rgba(14, 165, 233, 0.12);
   padding: 3px 8px;
   border-radius: 6px;
 }
 
-.smart-card-title-group h3 {
-  font-family: var(--font-heading);
+.system-heading {
   font-size: 16px;
   font-weight: 700;
   margin-top: 4px;
+  color: var(--text-primary);
 }
 
-.smart-mode-toggle {
+.mode-segmented-control {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  background: rgba(0, 0, 0, 0.4);
-  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
   padding: 3px;
 }
 
-.mode-pill {
-  padding: 5px 12px;
+.seg-btn {
+  padding: 4px 10px;
   border: none;
   background: transparent;
   color: var(--text-secondary);
-  font-weight: 700;
+  font-family: inherit;
   font-size: 11px;
+  font-weight: 700;
   border-radius: 6px;
   cursor: pointer;
 }
 
-.mode-pill.active {
-  background: rgba(30, 41, 59, 0.9);
-  color: var(--color-primary);
+.seg-btn.active {
+  background: var(--bg-card);
+  color: var(--primary);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* 3D Cylindrical Tank Canvas */
-.smart-tank-viewport {
+/* 3D Volumetric Cylindrical Tank Canvas */
+.tank-viewport-card {
   position: relative;
   width: 100%;
-  height: 280px;
-  background: radial-gradient(circle at center, #0F172A 0%, #070B12 100%);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-glass);
+  height: 260px;
+  background: var(--tank-bg);
+  border-radius: 14px;
+  border: 1px solid var(--border-card);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
-#smart-tank-canvas {
+#water-tank-canvas {
   width: 100%;
   height: 100%;
 }
 
-.smart-tank-hud {
+.tank-level-overlay {
   position: absolute;
-  top: 16px;
+  top: 14px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(11, 15, 25, 0.8);
-  backdrop-filter: blur(8px);
-  padding: 5px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  padding: 4px 14px;
   border-radius: 20px;
-  border: 1px solid var(--border-cyan);
   text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-.smart-hud-pct {
+.tank-pct-number {
   display: block;
-  font-family: var(--font-heading);
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 800;
-  color: var(--color-primary);
+  color: var(--primary);
 }
 
-.smart-hud-vol {
+.tank-vol-number {
   font-size: 10px;
   color: var(--text-secondary);
 }
 
-/* START / STOP MOTOR BUTTON */
-.motor-action-container {
-  margin-bottom: 12px;
+/* Motor Actuation Button */
+.motor-toggle-container {
+  margin-bottom: 10px;
 }
 
-.btn-smart-motor-toggle {
+.btn-motor-toggle {
   width: 100%;
-  padding: 18px;
-  border-radius: var(--radius-md);
+  padding: 16px;
+  border-radius: 16px;
   border: none;
-  background: linear-gradient(135deg, #00E5FF 0%, #00F5A0 100%);
-  color: #070B12;
+  background: var(--primary);
+  color: #FFFFFF;
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(0, 229, 255, 0.35);
+  box-shadow: var(--shadow-toggle);
   display: flex;
   flex-direction: column;
   align-items: center;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  gap: 2px;
+  transition: all 0.2s;
 }
 
-.btn-smart-motor-toggle:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 24px rgba(0, 245, 160, 0.45);
+.btn-motor-toggle:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
 }
 
-.btn-smart-motor-toggle.running {
-  background: linear-gradient(135deg, #EF4444 0%, #F59E0B 100%);
-  color: #FFFFFF;
-  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
+.btn-motor-toggle.active-running {
+  background: var(--danger);
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.35);
 }
 
-.motor-icon {
-  font-size: 20px;
+.btn-motor-toggle.active-running:hover {
+  background: var(--danger-dark);
 }
 
-.motor-label {
-  font-family: var(--font-heading);
+.motor-action-icon {
   font-size: 18px;
-  font-weight: 900;
+}
+
+.motor-action-title {
+  font-size: 17px;
+  font-weight: 800;
   letter-spacing: 0.5px;
 }
 
-.motor-sub {
+.motor-action-sub {
   font-size: 11px;
   opacity: 0.85;
 }
 
-/* EMERGENCY STOP BUTTON (BELOW MOTOR TOGGLE) */
-.btn-smart-estop {
+/* Emergency Stop Button */
+.btn-emergency-stop {
   width: 100%;
-  padding: 12px;
-  border-radius: var(--radius-md);
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.35);
-  color: var(--color-danger);
+  padding: 11px;
+  border-radius: 12px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--danger);
+  font-family: inherit;
   font-weight: 800;
   font-size: 12px;
   cursor: pointer;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
   transition: all 0.2s;
 }
 
-.btn-smart-estop:hover {
-  background: rgba(239, 68, 68, 0.22);
+.btn-emergency-stop:hover {
+  background: rgba(239, 68, 68, 0.2);
 }
 
-/* SUB-METRICS: POWER, RUN TIME, CYCLES IN THE SAME CARD */
-.smart-card-metrics-row {
+/* Sub-Metrics Inside Smart Card */
+.smart-card-metrics-grid {
   display: grid;
   grid-template-columns: 1fr auto 1fr auto 1fr;
   align-items: center;
   padding-top: 14px;
-  border-top: 1px solid var(--border-glass);
+  border-top: 1px solid var(--border-card);
 }
 
-.smart-metric-cell {
+.card-metric-item {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
 }
 
-.cell-icon {
+.metric-icon {
   font-size: 16px;
   margin-bottom: 2px;
 }
 
-.cell-lbl {
+.metric-key {
   font-size: 9px;
   font-weight: 700;
-  color: var(--text-muted);
+  color: var(--text-tertiary);
 }
 
-.cell-val {
-  font-family: var(--font-heading);
+.metric-val {
   font-size: 14px;
   font-weight: 800;
+  color: var(--text-primary);
 }
 
-.cell-val.mono {
-  font-family: var(--font-mono);
+.metric-val.mono {
+  font-family: 'JetBrains Mono', monospace;
   font-size: 13px;
 }
 
-.cell-divider {
+.metric-v-divider {
   width: 1px;
-  height: 28px;
-  background: var(--border-glass);
+  height: 24px;
+  background: var(--border-card);
 }
 
-/* Quick Telemetry Row */
-.quick-telemetry-row {
+/* 2x2 Sensor Metric Grid (Matching Flutter MetricCard) */
+.sensor-metric-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 
-.quick-tile {
-  background: var(--bg-card-glass);
-  border: 1px solid var(--border-glass);
-  border-radius: var(--radius-md);
-  padding: 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.q-icon {
-  font-size: 20px;
-}
-
-.q-info {
+.metric-card-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
 }
 
-.q-lbl {
-  font-size: 9px;
-  font-weight: 700;
-  color: var(--text-muted);
+.metric-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
 }
 
-.q-val {
-  font-family: var(--font-heading);
+.m-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.m-icon-bubble {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 14px;
+}
+
+.m-icon-bubble.blue { background: rgba(14, 165, 233, 0.12); }
+.m-icon-bubble.sky { background: rgba(56, 189, 248, 0.12); }
+.m-icon-bubble.green { background: rgba(34, 197, 94, 0.12); }
+.m-icon-bubble.amber { background: rgba(245, 158, 11, 0.12); }
+
+.m-val-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+
+.m-val {
+  font-size: 20px;
   font-weight: 800;
+  color: var(--text-primary);
 }
 
-.q-val small {
+.m-unit {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.m-sub {
   font-size: 10px;
-  font-weight: 500;
+  color: var(--text-tertiary);
 }
 
-/* Telemetry Chart & Automation Views */
-.telemetry-chart-card, .automation-card, .settings-card {
-  background: var(--bg-card-glass);
-  backdrop-filter: blur(16px);
-  border: 1px solid var(--border-glass);
-  border-radius: var(--radius-lg);
+.m-sub.accent {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Section Cards (Telemetry, Automation, Settings) */
+.content-section-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 20px;
   padding: 20px;
+  box-shadow: var(--shadow-card);
 }
 
-.section-card-header {
+.section-heading-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 18px;
 }
 
-.section-card-header h3 {
-  font-family: var(--font-heading);
+.sec-title {
   font-size: 16px;
   font-weight: 700;
+  color: var(--text-primary);
 }
 
-.badge-accent {
+.sec-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.live-stream-badge {
   font-size: 10px;
-  font-weight: 700;
-  padding: 2px 8px;
+  font-weight: 800;
+  padding: 3px 8px;
   border-radius: 6px;
-  background: rgba(0, 245, 160, 0.15);
-  color: var(--color-accent);
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--accent);
 }
 
-.svg-chart-container {
+.svg-trend-container {
   width: 100%;
-  height: 160px;
+  height: 180px;
   margin-bottom: 8px;
 }
 
-#trend-svg {
+#svg-trend-chart {
   width: 100%;
   height: 100%;
 }
 
-.chart-timestamps {
+.timeline-labels {
   display: flex;
   justify-content: space-between;
-  font-family: var(--font-mono);
+  font-family: 'JetBrains Mono', monospace;
   font-size: 10px;
-  color: var(--text-muted);
+  color: var(--text-tertiary);
 }
 
-.slider-rule-wrap {
-  margin-bottom: 18px;
+.rule-slider-item {
+  margin-bottom: 16px;
 }
 
-.slider-rule-header {
+.rule-label-row {
   display: flex;
   justify-content: space-between;
   font-size: 12px;
@@ -866,43 +1001,43 @@ body {
   color: var(--text-secondary);
 }
 
-.rule-digit {
-  font-family: var(--font-heading);
+.r-val {
   font-weight: 800;
-  color: var(--color-primary);
+  color: var(--primary);
 }
 
-.custom-range {
+.flutter-range-slider {
   width: 100%;
   height: 6px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.12);
-  accent-color: var(--color-primary);
+  border-radius: 3px;
+  background: var(--border-card);
+  accent-color: var(--primary);
   cursor: pointer;
 }
 
-.checkbox-rule-row {
+.rule-toggle-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 12px;
-  border-top: 1px solid var(--border-glass);
+  padding-top: 14px;
+  border-top: 1px solid var(--border-card);
 }
 
-.rule-name {
+.rule-title {
   font-size: 12px;
   font-weight: 700;
 }
 
 .rule-hint {
   font-size: 10px;
-  color: var(--text-muted);
+  color: var(--text-tertiary);
 }
 
-.btn-save-cloud-rules {
-  background: rgba(0, 229, 255, 0.12);
-  border: 1px solid rgba(0, 229, 255, 0.35);
-  color: var(--color-primary);
+.btn-save-cloud {
+  background: rgba(14, 165, 233, 0.12);
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  font-family: inherit;
   font-weight: 700;
   font-size: 11px;
   padding: 5px 12px;
@@ -910,92 +1045,154 @@ body {
   cursor: pointer;
 }
 
-.setting-item-row {
+/* Switch Toggle */
+.switch-toggle {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.switch-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider-round {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: var(--border-card);
+  transition: .3s;
+  border-radius: 24px;
+}
+
+.slider-round:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .3s;
+  border-radius: 50%;
+}
+
+input:checked + .slider-round {
+  background-color: var(--accent);
+}
+
+input:checked + .slider-round:before {
+  transform: translateX(20px);
+}
+
+.settings-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-row {
   display: flex;
   justify-content: space-between;
   padding: 12px 0;
-  border-bottom: 1px solid var(--border-glass);
+  border-bottom: 1px solid var(--border-card);
   font-size: 12px;
 }
 
-.s-label {
+.st-key {
   color: var(--text-secondary);
 }
 
-.s-val {
+.st-val {
   font-weight: 600;
+  color: var(--text-primary);
 }
 
-.s-val.accent {
-  color: var(--color-primary);
+.st-val.bold { font-weight: 700; }
+.st-val.status-green { color: var(--accent); }
+.st-val.mono { font-family: 'JetBrains Mono', monospace; }
+
+.settings-actions-wrap {
+  margin-top: 20px;
 }
 
-.s-val.online {
-  color: var(--color-accent);
+.btn-flutter-danger {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--danger);
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
 }
 
-/* Bottom Navigation Bar */
-.app-bottom-nav {
+/* Bottom Navigation Bar (Matching Flutter BottomNavigationBar) */
+.flutter-bottom-nav {
   position: fixed;
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
   width: 100%;
-  max-width: 600px;
-  background: rgba(11, 15, 25, 0.92);
-  backdrop-filter: blur(16px);
-  border-top: 1px solid var(--border-glass);
+  max-width: 680px;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-card);
   display: flex;
   justify-content: space-around;
   padding: 8px 0;
   z-index: 100;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
 }
 
-.nav-tab-item {
+.nav-tab-button {
   display: flex;
   flex-direction: column;
   align-items: center;
   background: transparent;
   border: none;
-  color: var(--text-muted);
+  color: var(--text-tertiary);
   cursor: pointer;
   padding: 4px 12px;
   transition: color 0.2s;
 }
 
-.nav-tab-item.active {
-  color: var(--color-primary);
+.nav-tab-button.active {
+  color: var(--primary);
 }
 
-.nav-icon {
+.nav-btn-icon {
   font-size: 18px;
 }
 
-.nav-label {
+.nav-btn-label {
   font-size: 10px;
   font-weight: 700;
   margin-top: 2px;
 }
 
-/* Google Bottom Sheet Modal */
-.modal-sheet-backdrop {
+/* Google Account Picker Modal */
+.flutter-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
   z-index: 200;
   display: flex;
   align-items: flex-end;
   justify-content: center;
 }
 
-.google-bottom-sheet {
-  background: #1E293B;
+.flutter-bottom-sheet {
+  background: var(--bg-card);
   width: 100%;
-  max-width: 480px;
+  max-width: 460px;
   border-radius: 24px 24px 0 0;
   padding: 20px 24px 32px;
-  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
 }
@@ -1003,52 +1200,59 @@ body {
 .sheet-drag-handle {
   width: 40px;
   height: 4px;
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--border-card);
   border-radius: 2px;
   margin: 0 auto 16px;
 }
 
-.sheet-title-row {
+.sheet-header-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
-.sheet-title-row h3 {
+.google-logo-pill {
+  font-weight: 900;
+  font-size: 18px;
+  color: #4285F4;
+}
+
+.sheet-heading {
   font-size: 18px;
   font-weight: 700;
+  color: var(--text-primary);
 }
 
-.sheet-desc {
+.sheet-sub {
   font-size: 13px;
   color: var(--text-secondary);
   margin-bottom: 18px;
 }
 
-.google-accounts-list {
+.google-account-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
   margin-bottom: 18px;
 }
 
-.google-acct-item {
+.google-user-item {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-card);
   padding: 10px 14px;
   border-radius: 12px;
   cursor: pointer;
-  transition: background 0.2s;
 }
 
-.google-acct-item:hover {
-  background: rgba(255, 255, 255, 0.1);
+.google-user-item:hover {
+  border-color: var(--primary);
 }
 
-.google-avatar {
+.google-avatar-circle {
   width: 36px;
   height: 36px;
   border-radius: 50%;
@@ -1060,30 +1264,31 @@ body {
   color: #FFF;
 }
 
-.google-avatar.blue { background: #0284C7; }
-.google-avatar.green { background: #10B981; }
+.google-avatar-circle.blue { background: #0284C7; }
+.google-avatar-circle.green { background: #16A34A; }
 
-.acct-meta {
+.google-user-details {
   display: flex;
   flex-direction: column;
 }
 
-.acct-name {
+.g-name {
   font-size: 13px;
   font-weight: 700;
+  color: var(--text-primary);
 }
 
-.acct-email {
+.g-email {
   font-size: 11px;
   color: var(--text-secondary);
 }
 
-.btn-cancel-sheet {
+.btn-sheet-cancel {
   padding: 12px;
-  background: rgba(255, 255, 255, 0.08);
-  border: none;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-card);
   border-radius: 12px;
-  color: var(--text-main);
+  color: var(--text-primary);
   font-weight: 600;
   cursor: pointer;
 }
