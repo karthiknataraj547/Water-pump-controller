@@ -1,6 +1,6 @@
 class AppConstants {
   static const String appName = 'HydroPulse IoT';
-  static const String appVersion = '2.0.0';
+  static const String appVersion = '2.0.1';
 
   // API & MQTT Backend (Cloud IoT Broker)
   static const String apiBaseUrl = 'http://localhost:4000/api/v1';

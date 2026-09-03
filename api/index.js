@@ -127,22 +127,47 @@ module.exports = async (req, res) => {
     });
   }
 
-  // 2. Version Check
+  // 2. In-App Version & OTA Manifest
   if (url.includes('/api/v1/app/version') || url === '/version.json') {
+    if (method === 'POST') {
+      const { version, build_number, title, changelog, is_critical } = body;
+      return res.status(200).json({
+        status: 'success',
+        message: `Application update v${version || '2.0.1'} published successfully.`,
+        data: {
+          version: version || '2.0.1',
+          build_number: build_number || 3,
+          release_date: new Date().toISOString().split('T')[0],
+          download_url: 'https://github.com/karthiknataraj547/Water-pump-controller/raw/main/releases/HydroPulse_WaterPumpController.apk',
+          title: title || 'HydroPulse v2.0.1 - System Console & OTA Update',
+          changelog: changelog || ['System Console update with left sidebar navigation', 'Automated OTA update system'],
+          is_critical: is_critical || false
+        }
+      });
+    }
+
     return res.status(200).json({
-      version: '2.0.0',
-      build_number: 2,
-      release_date: '2026-09-02',
+      version: '2.0.1',
+      build_number: 3,
+      release_date: '2026-09-03',
+      min_supported_version: '1.0.0',
       download_url: 'https://github.com/karthiknataraj547/Water-pump-controller/raw/main/releases/HydroPulse_WaterPumpController.apk',
       website_url: 'https://github.com/karthiknataraj547/Water-pump-controller',
-      title: 'HydroPulse v2.0 - Centralized Database Auth & Minimalist UI',
+      title: 'HydroPulse v2.0.1 - System Console, Minimalism UI & Central Auth Update',
       changelog: [
-        'Centralized backend database authentication across web and mobile',
-        'Minimalist HydroPulse UI matching Flutter aesthetic',
-        'Real-time pump actuation and 3D fluid visualizer',
-        'Cross-device account and device sync'
-      ]
+        'Enterprise System Console with persistent left sidebar navigation',
+        'Full mobile-responsive website and web application layouts',
+        'Centralized account authentication and direct mobile registration',
+        'Strict hardware presence verification with sub-100ms ping/pong handshake',
+        'Automatic In-App OTA Update System managed by backend'
+      ],
+      is_critical: false
     });
+  }
+
+  // 2b. Direct APK Download Endpoint
+  if (url.includes('/api/v1/app/download')) {
+    return res.redirect(302, 'https://github.com/karthiknataraj547/Water-pump-controller/raw/main/releases/HydroPulse_WaterPumpController.apk');
   }
 
   // 3. User Registration (Pushes to Database)

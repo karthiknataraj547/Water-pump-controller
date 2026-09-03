@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
+import '../constants/app_constants.dart';
 
 class AppVersionInfo {
   final String version;
@@ -27,8 +28,8 @@ class AppVersionInfo {
 
   factory AppVersionInfo.fromJson(Map<String, dynamic> json) {
     return AppVersionInfo(
-      version: json['version'] ?? '2.0.0',
-      buildNumber: json['build_number'] ?? 1,
+      version: json['version'] ?? '2.0.1',
+      buildNumber: json['build_number'] ?? 3,
       releaseDate: json['release_date'] ?? '',
       downloadUrl: json['download_url'] ??
           'https://github.com/karthiknataraj547/Water-pump-controller/raw/main/releases/HydroPulse_WaterPumpController.apk',
@@ -53,23 +54,23 @@ class AppUpdateService {
     receiveTimeout: const Duration(seconds: 4),
   ));
 
-  // Current installed version
+  // Current installed version (matches pubspec.yaml)
   static const String currentVersion = '2.0.0';
-  static const int currentBuildNumber = 1;
+  static const int currentBuildNumber = 2;
 
-  // Remote version configuration endpoints
+  // Remote version endpoints
   static const String _githubRawVersionUrl =
       'https://raw.githubusercontent.com/karthiknataraj547/Water-pump-controller/main/version.json';
-  static const String _backendVersionUrl =
-      'http://localhost:4000/api/v1/app/version';
+  static const String _vercelVersionUrl =
+      'https://water-pump-controller.vercel.app/api/v1/app/version';
 
   bool _isChecking = false;
   bool get isChecking => _isChecking;
   AppVersionInfo? _latestVersionInfo;
   AppVersionInfo? get latestVersionInfo => _latestVersionInfo;
 
-  /// Compares two semver strings: returns true if [remote] > [current]
-  bool isVersionNewer(String remote, String current) {
+  /// Compares two semver strings: returns true if [remote] > [current] or build is newer
+  bool isVersionNewer(String remote, String current, {int remoteBuild = 0, int currentBuild = 0}) {
     try {
       final remoteClean = remote.replaceAll(RegExp(r'[^0-9.]'), '');
       final currentClean = current.replaceAll(RegExp(r'[^0-9.]'), '');
@@ -83,17 +84,42 @@ class AppUpdateService {
         if (r > c) return true;
         if (r < c) return false;
       }
-      return false;
+      return remoteBuild > currentBuild;
     } catch (_) {
       return false;
     }
   }
 
-  /// Checks for update from GitHub / Backend
+  /// Checks for update from Backend / GitHub
   Future<AppVersionInfo?> fetchLatestVersion() async {
     _isChecking = true;
 
-    // 1. Try GitHub Raw Manifest
+    // 1. Primary: Active Backend API endpoint
+    try {
+      final backendUrl = '${AppConstants.activeApiBaseUrl}/app/version';
+      final res = await _dio.get(backendUrl);
+      if (res.statusCode == 200 && res.data != null) {
+        final data = res.data is String ? jsonDecode(res.data) : res.data;
+        _latestVersionInfo = AppVersionInfo.fromJson(data);
+        _isChecking = false;
+        return _latestVersionInfo;
+      }
+    } catch (e) {
+      debugPrint('[AppUpdateService] Active backend check notice ($e). Trying cloud/GitHub fallback...');
+    }
+
+    // 2. Secondary: Vercel Cloud Backend
+    try {
+      final res = await _dio.get(_vercelVersionUrl);
+      if (res.statusCode == 200 && res.data != null) {
+        final data = res.data is String ? jsonDecode(res.data) : res.data;
+        _latestVersionInfo = AppVersionInfo.fromJson(data);
+        _isChecking = false;
+        return _latestVersionInfo;
+      }
+    } catch (_) {}
+
+    // 3. Tertiary: GitHub Raw Manifest
     try {
       final res = await _dio.get(
         _githubRawVersionUrl,
@@ -109,20 +135,7 @@ class AppUpdateService {
         return _latestVersionInfo;
       }
     } catch (e) {
-      debugPrint('[AppUpdateService] GitHub version check failed ($e). Trying backend...');
-    }
-
-    // 2. Fallback to Local/Cloud Backend endpoint
-    try {
-      final res = await _dio.get(_backendVersionUrl);
-      if (res.statusCode == 200 && res.data != null) {
-        final data = res.data is String ? jsonDecode(res.data) : res.data;
-        _latestVersionInfo = AppVersionInfo.fromJson(data);
-        _isChecking = false;
-        return _latestVersionInfo;
-      }
-    } catch (e) {
-      debugPrint('[AppUpdateService] Backend version check failed: $e');
+      debugPrint('[AppUpdateService] GitHub version check failed: $e');
     }
 
     _isChecking = false;
@@ -134,7 +147,9 @@ class AppUpdateService {
     final latest = await fetchLatestVersion();
     if (!context.mounted) return;
 
-    if (latest != null && isVersionNewer(latest.version, currentVersion)) {
+    if (latest != null &&
+        isVersionNewer(latest.version, currentVersion,
+            remoteBuild: latest.buildNumber, currentBuild: currentBuildNumber)) {
       showUpdateDialog(context, latest);
     } else if (isManual) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -298,6 +313,13 @@ class AppUpdateService {
                 ElevatedButton.icon(
                   onPressed: () async {
                     Navigator.of(ctx).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Downloading HydroPulse v${info.version} APK update...'),
+                        backgroundColor: const Color(0xFF10B981),
+                        duration: const Duration(seconds: 3),
+                      ),
+                    );
                     final uri = Uri.parse(info.downloadUrl);
                     if (await canLaunchUrl(uri)) {
                       await launchUrl(uri,

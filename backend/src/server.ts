@@ -40,25 +40,102 @@ app.get('/health', (req, res) => {
   });
 });
 
-// In-App Version & Update Manifest
-app.get('/api/v1/app/version', (req, res) => {
-  res.status(200).json({
-    version: '2.0.0',
-    build_number: 1,
-    release_date: '2026-09-02',
+import fs from 'fs';
+import path from 'path';
+
+// Helper to resolve and read version.json dynamically
+function getVersionManifest() {
+  const versionFilePaths = [
+    path.join(__dirname, '../../version.json'),
+    path.join(__dirname, '../version.json'),
+    path.join(process.cwd(), 'version.json'),
+    path.join(process.cwd(), '../version.json'),
+  ];
+  for (const p of versionFilePaths) {
+    if (fs.existsSync(p)) {
+      try {
+        const raw = fs.readFileSync(p, 'utf-8');
+        return JSON.parse(raw);
+      } catch (err) {
+        logger.warn(`Failed parsing ${p}: ${err}`);
+      }
+    }
+  }
+  return {
+    version: '2.0.1',
+    build_number: 3,
+    release_date: new Date().toISOString().split('T')[0],
     min_supported_version: '1.0.0',
     download_url: 'https://github.com/karthiknataraj547/Water-pump-controller/raw/main/releases/HydroPulse_WaterPumpController.apk',
     website_url: 'https://github.com/karthiknataraj547/Water-pump-controller',
-    title: 'HydroPulse v2.0 - Active Hardware Ping & Strict Offline Verifier',
+    title: 'HydroPulse v2.0.1 - System Console, Minimalism UI & Central Auth Update',
     changelog: [
-      'Strict physical hardware presence verification with sub-100ms ping/pong',
-      'Mosquitto MQTT broker priority and instant failover pool',
-      'Dedicated notification settings toggles for motor starts, stops, and tank thresholds',
-      'Enhanced 3D solid rotatable tank visualizer and real-time telemetry analytics',
-      'In-App Automatic Update Checker'
+      'Enterprise System Console with persistent left sidebar navigation',
+      'Full mobile-responsive website and web application layouts',
+      'Centralized account authentication and direct mobile registration',
+      'Strict hardware presence verification with sub-100ms ping/pong handshake',
+      'Automatic In-App OTA Update System managed by backend'
     ],
     is_critical: false,
+  };
+}
+
+// In-App Version & Update Manifest
+app.get('/api/v1/app/version', (req, res) => {
+  const manifest = getVersionManifest();
+  res.status(200).json(manifest);
+});
+
+// Admin Endpoint: Update / Publish New Application Version from Backend
+app.post('/api/v1/app/version', (req, res) => {
+  const { version, build_number, title, changelog, is_critical, download_url } = req.body;
+  const current = getVersionManifest();
+  const updated = {
+    ...current,
+    version: version || current.version,
+    build_number: build_number || current.build_number,
+    release_date: new Date().toISOString().split('T')[0],
+    title: title || current.title,
+    changelog: changelog || current.changelog,
+    is_critical: typeof is_critical === 'boolean' ? is_critical : current.is_critical,
+    download_url: download_url || current.download_url,
+  };
+
+  const versionFilePaths = [
+    path.join(__dirname, '../../version.json'),
+    path.join(process.cwd(), 'version.json'),
+    path.join(process.cwd(), '../version.json'),
+  ];
+  for (const p of versionFilePaths) {
+    try {
+      fs.writeFileSync(p, JSON.stringify(updated, null, 2));
+      break;
+    } catch {
+      // try next
+    }
+  }
+
+  logger.info(`📢 Application update v${updated.version} published via backend API`);
+  res.status(200).json({
+    status: 'success',
+    message: `Application update v${updated.version} published successfully.`,
+    data: updated,
   });
+});
+
+// Direct APK Download Endpoint
+app.get('/api/v1/app/download', (req, res) => {
+  const apkPaths = [
+    path.join(__dirname, '../../releases/HydroPulse_WaterPumpController.apk'),
+    path.join(process.cwd(), 'releases/HydroPulse_WaterPumpController.apk'),
+    path.join(process.cwd(), '../releases/HydroPulse_WaterPumpController.apk'),
+  ];
+  for (const p of apkPaths) {
+    if (fs.existsSync(p)) {
+      return res.download(p, 'HydroPulse_WaterPumpController.apk');
+    }
+  }
+  return res.redirect('https://github.com/karthiknataraj547/Water-pump-controller/raw/main/releases/HydroPulse_WaterPumpController.apk');
 });
 
 // API Routes Mounting
