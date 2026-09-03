@@ -161,6 +161,17 @@ class HardwareStateService extends ChangeNotifier {
   }
 
   DeviceModel? get activeDevice => _activeDevice;
+
+  Future<void> clearDevice() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('saved_paired_device');
+    _activeDevice = null;
+    _sensorData = null;
+    _pumpStatus = null;
+    _lastMainNodeHeartbeat = null;
+    _lastSubNodePacket = null;
+    notifyListeners();
+  }
   SensorDataModel? get sensorData => _sensorData;
   PumpStatusModel? get pumpStatus => _pumpStatus;
   DateTime? get lastHeartbeat => _lastMainNodeHeartbeat;

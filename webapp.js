@@ -314,15 +314,25 @@ document.addEventListener('DOMContentLoaded', () => {
     btnCloseGoogleSheet.addEventListener('click', () => googleModalSheet.classList.add('hidden'));
   }
 
-  document.querySelectorAll('.g-account-item').forEach(item => {
-    item.addEventListener('click', () => {
+  const googleAuthForm = document.getElementById('google-auth-form');
+  if (googleAuthForm) {
+    googleAuthForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = document.getElementById('google-email-input');
+      const email = input ? input.value.trim().toLowerCase() : '';
+      if (!email || !email.includes('@')) return;
       googleModalSheet.classList.add('hidden');
-      const email = item.getAttribute('data-email');
-      const firstName = item.getAttribute('data-first');
-      const lastName = item.getAttribute('data-last');
-      completeAuthentication({ firstName, lastName, email, role: 'ADMIN', deviceId: 'esp32_pump_main' });
+      const namePart = email.split('@')[0].replace(/[\._-]/g, ' ');
+      const capName = namePart ? (namePart.charAt(0).toUpperCase() + namePart.slice(1)) : 'Google User';
+      completeAuthentication({
+        firstName: capName,
+        lastName: 'Account',
+        email: email,
+        role: 'CLIENT',
+        deviceId: 'esp32_pump_main'
+      });
     });
-  });
+  }
 
   function handleSignOut() {
     authToken = null;

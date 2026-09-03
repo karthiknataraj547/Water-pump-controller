@@ -74,7 +74,7 @@
                   <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
                   <polyline points="22,6 12,13 2,6"/>
                 </svg>
-                <input type="email" id="signin-email" placeholder="name@domain.com" value="admin@waterpump.io" autocomplete="email" required>
+                <input type="email" id="signin-email" placeholder="name@domain.com" autocomplete="email" required>
               </div>
             </div>
 
@@ -85,7 +85,7 @@
                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
                   <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                 </svg>
-                <input type="password" id="signin-password" placeholder="••••••••" value="AdminPassword123!" autocomplete="current-password" required>
+                <input type="password" id="signin-password" placeholder="••••••••" autocomplete="current-password" required>
                 <button type="button" class="btn-pwd-toggle" id="btn-peek-pwd" title="Show / Hide Password">👁️</button>
               </div>
             </div>
@@ -531,27 +531,18 @@
         <span class="g-pill">G</span>
         <h3 class="sheet-title">Sign In with Google</h3>
       </div>
-      <p class="sheet-sub">Choose an account to continue to HydroPulse System Console</p>
+      <p class="sheet-sub">Enter your Google Account email to continue to HydroPulse Console</p>
 
-      <div class="g-account-list">
-        <div class="g-account-item" data-email="karthik.iotpump@gmail.com" data-first="Karthik" data-last="N">
-          <div class="g-avatar blue">KN</div>
-          <div class="g-meta">
-            <span class="g-meta-name">Karthik N</span>
-            <span class="g-meta-email">karthik.iotpump@gmail.com</span>
-          </div>
+      <form id="google-auth-form" style="display:flex; flex-direction:column; gap:12px; margin-top:16px;">
+        <div class="input-box">
+          <input type="email" id="google-email-input" placeholder="yourname@gmail.com" required style="width:100%; padding:10px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.05); color:inherit; font-size:14px;">
         </div>
+        <button type="submit" class="btn-primary-action" style="margin-top:4px;">
+          <span class="btn-text">Continue with Google Account</span>
+        </button>
+      </form>
 
-        <div class="g-account-item" data-email="admin@waterpump.io" data-first="Admin" data-last="HydroPulse">
-          <div class="g-avatar green">AH</div>
-          <div class="g-meta">
-            <span class="g-meta-name">Admin HydroPulse</span>
-            <span class="g-meta-email">admin@waterpump.io</span>
-          </div>
-        </div>
-      </div>
-
-      <button type="button" class="btn-sheet-close" id="btn-close-google-sheet">Cancel</button>
+      <button type="button" class="btn-sheet-close" id="btn-close-google-sheet" style="margin-top:10px;">Cancel</button>
     </div>
   </div>
 

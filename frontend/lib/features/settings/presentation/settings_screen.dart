@@ -18,10 +18,10 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  String _userName = 'Admin User';
-  String _userEmail = 'admin@waterpump.io';
-  String _deviceId = 'esp32_pump_main';
-  String _initials = 'AU';
+  String _userName = 'Loading Profile...';
+  String _userEmail = '';
+  String _deviceId = 'No Device Linked';
+  String _initials = 'HP';
 
   @override
   void initState() {
@@ -41,13 +41,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
         if (name != null && name.trim().isNotEmpty) {
           _userName = name.trim();
         } else if (email != null && email.isNotEmpty) {
-          _userName = email.split('@')[0];
+          final prefix = email.split('@')[0];
+          _userName = prefix.replaceAll(RegExp(r'[\._-]'), ' ');
+          if (_userName.isNotEmpty) {
+            _userName = '${_userName[0].toUpperCase()}${_userName.substring(1)}';
+          }
+        } else {
+          _userName = 'HydroPulse User';
         }
+
         if (email != null && email.isNotEmpty) {
           _userEmail = email.trim();
         }
-        if (deviceId != null && deviceId.isNotEmpty) {
+
+        if (deviceId != null && deviceId.isNotEmpty && deviceId != 'esp32_pump_main') {
           _deviceId = deviceId.trim();
+        } else {
+          _deviceId = 'No Hardware Linked';
         }
 
         final parts = _userName.trim().split(RegExp(r'\s+'));
