@@ -148,32 +148,14 @@ document.addEventListener('DOMContentLoaded', () => {
     ? `${window.location.origin}/api/v1`
     : '/api/v1';
 
-  const DEFAULT_USERS = [
-    {
-      email: 'admin@waterpump.io',
-      password: 'AdminPassword123!',
-      firstName: 'Admin',
-      lastName: 'HydroPulse',
-      role: 'ADMIN',
-      deviceId: 'esp32_pump_main'
-    },
-    {
-      email: 'karthik.iotpump@gmail.com',
-      password: 'Password123!',
-      firstName: 'Karthik',
-      lastName: 'Nataraj',
-      role: 'ADMIN',
-      deviceId: 'esp32_pump_main'
-    }
-  ];
+  const DEFAULT_USERS = [];
 
   function getLocalUserStore() {
     try {
       const data = localStorage.getItem('hydropulse_central_user_store');
       if (data) return JSON.parse(data);
     } catch {}
-    localStorage.setItem('hydropulse_central_user_store', JSON.stringify(DEFAULT_USERS));
-    return DEFAULT_USERS;
+    return [];
   }
 
   let authToken = localStorage.getItem('hydropulse_auth_token') || null;
@@ -289,20 +271,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // 2. Secondary: Fallback to Central Synced Local Store
       const users = getLocalUserStore();
-      const matched = users.find(u => u.email.toLowerCase() === email);
+      const matched = users.find(u => u.email && u.email.toLowerCase() === email);
 
-      if (matched) {
+      if (matched && (!matched.password || matched.password === password)) {
         completeAuthentication(matched);
       } else {
-        // Automatically accept user created on mobile
-        const fallbackUser = {
-          email,
-          firstName: email.split('@')[0],
-          lastName: 'User',
-          role: 'CLIENT',
-          deviceId: 'esp32_pump_main'
-        };
-        completeAuthentication(fallbackUser);
+        showAlert('Account not found or invalid credentials. Please create an account via the HydroPulse mobile app first.');
+      }
+    });
+  }
+
+  function handleSignOut() {
+    currentUser = null;
+    authToken = null;
+    localStorage.removeItem('hydropulse_auth_token');
+    localStorage.removeItem('hydropulse_current_user');
+    localStorage.removeItem('hydropulse_central_user_store');
+    sessionStorage.clear();
+    window.location.reload();
+  }
+
+  if (btnLogout) btnLogout.addEventListener('click', handleSignOut);
+  if (btnSettingsLogout) btnSettingsLogout.addEventListener('click', handleSignOut);
+
+  const btnSettingsFlush = document.getElementById('btn-settings-flush');
+  if (btnSettingsFlush) {
+    btnSettingsFlush.addEventListener('click', async () => {
+      if (confirm('Are you sure you want to flush all user accounts, devices, and database telemetry?')) {
+        try {
+          await fetch(`${apiBaseUrl}/system/flush`, { method: 'POST' });
+        } catch {}
+        localStorage.clear();
+        sessionStorage.clear();
+        alert('All accounts and database data have been completely flushed.');
+        window.location.reload();
       }
     });
   }

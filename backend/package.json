@@ -10,6 +10,7 @@
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:seed": "ts-node prisma/seed.ts",
+    "prisma:flush": "ts-node prisma/flush.ts",
     "test": "jest --detectOpenHandles --forceExit"
   },
   "dependencies": {

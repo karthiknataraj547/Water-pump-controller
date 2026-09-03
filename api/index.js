@@ -49,45 +49,18 @@ function verifyToken(token) {
   }
 }
 
-// Seed default users
-const adminSalt = crypto.randomBytes(16).toString('hex');
-const adminHash = hashPassword('AdminPassword123!', adminSalt).hash;
-const defaultAdmin = {
-  id: 'usr_admin_001',
-  email: 'admin@waterpump.io',
-  passwordHash: adminHash,
-  salt: adminSalt,
-  firstName: 'Admin',
-  lastName: 'HydroPulse',
-  role: 'ADMIN',
-  createdAt: new Date().toISOString()
-};
-usersDb.set(defaultAdmin.email, defaultAdmin);
-
-const karthikSalt = crypto.randomBytes(16).toString('hex');
-const karthikHash = hashPassword('Password123!', karthikSalt).hash;
-const defaultKarthik = {
-  id: 'usr_karthik_002',
-  email: 'karthik.iotpump@gmail.com',
-  passwordHash: karthikHash,
-  salt: karthikSalt,
-  firstName: 'Karthik',
-  lastName: 'Nataraj',
-  role: 'ADMIN',
-  createdAt: new Date().toISOString()
-};
-usersDb.set(defaultKarthik.email, defaultKarthik);
-
-// Global live state for pump
+// Database Registries start completely empty (0 accounts, 0 devices)
+// When a user registers via the mobile app, they are securely stored here.
+// Global live state for hardware telemetry (Pristine zero state)
 let liveState = {
   pumpRunning: false,
-  mode: 'AUTO',
-  waterLevelPct: 68.5,
+  mode: 'MANUAL',
+  waterLevelPct: 0.0,
   flowRateLpm: 0.0,
   powerKw: 0.00,
-  tdsPpm: 118,
-  tempC: 24.5,
-  lastSeen: Date.now()
+  tdsPpm: 0,
+  tempC: 0.0,
+  lastSeen: 0
 };
 
 module.exports = async (req, res) => {
@@ -107,7 +80,7 @@ module.exports = async (req, res) => {
   let body = {};
   if (req.body) {
     body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-  } else if (method === 'POST' || method === 'PUT') {
+  } else if ((method === 'POST' || method === 'PUT') && typeof req.on === 'function') {
     body = await new Promise((resolve) => {
       let data = '';
       req.on('data', chunk => { data += chunk; });
@@ -229,27 +202,14 @@ module.exports = async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'Email and password are required.' });
     }
 
-    let user = usersDb.get(cleanEmail);
+    const cleanEmail = email.trim().toLowerCase();
+    const user = usersDb.get(cleanEmail);
 
     if (!user) {
-      // Recover account dynamically across serverless instances
-      const nameParts = cleanEmail.split('@')[0].split(/[._-]/);
-      const fName = nameParts[0] ? nameParts[0].charAt(0).toUpperCase() + nameParts[0].slice(1) : 'HydroPulse';
-      const lName = nameParts[1] ? nameParts[1].charAt(0).toUpperCase() + nameParts[1].slice(1) : 'Member';
-      const salt = crypto.randomBytes(16).toString('hex');
-      const passwordHash = hashPassword(password, salt);
-      user = {
-        id: `usr_${Date.now()}`,
-        email: cleanEmail,
-        passwordHash,
-        salt,
-        firstName: fName,
-        lastName: lName,
-        role: 'CLIENT',
-        createdAt: new Date().toISOString()
-      };
-      usersDb.set(cleanEmail, user);
-    } else if (!verifyPassword(password, user.passwordHash, user.salt)) {
+      return res.status(401).json({ status: 'error', message: 'Account not found. Please create an account via the registration page first.' });
+    }
+
+    if (!verifyPassword(password, user.passwordHash, user.salt)) {
       return res.status(401).json({ status: 'error', message: 'Invalid email address or password.' });
     }
 
@@ -342,20 +302,48 @@ module.exports = async (req, res) => {
 
   // 7. Get User Devices
   if (method === 'GET' && url.includes('/api/v1/devices')) {
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
+    const payload = verifyToken(token);
+
+    if (payload && payload.userId) {
+      const userDevices = Array.from(devicesDb.values()).filter(d => d.userId === payload.userId);
+      return res.status(200).json({
+        status: 'success',
+        data: userDevices
+      });
+    }
+
     return res.status(200).json({
       status: 'success',
-      data: [
-        {
-          id: 'esp32_pump_main',
-          deviceId: 'esp32_pump_main',
-          name: 'ESP32 Main Gateway',
-          macAddress: '3C:61:05:D4:B2:A0',
-          isOnline: true,
-          pumpRunning: liveState.pumpRunning,
-          mode: liveState.mode,
-          waterLevelPct: liveState.waterLevelPct
-        }
-      ]
+      data: []
+    });
+  }
+
+  // 7b. Register / Pair New Device
+  if (method === 'POST' && url.includes('/api/v1/devices')) {
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
+    const payload = verifyToken(token);
+
+    const { name, macAddress, deviceId } = body;
+    const newDevice = {
+      id: deviceId || `esp32_${Date.now()}`,
+      deviceId: deviceId || `esp32_${Date.now()}`,
+      name: name || 'HydroPulse Pump Gateway',
+      macAddress: macAddress || '00:00:00:00:00:00',
+      userId: payload ? payload.userId : 'unassigned',
+      isOnline: true,
+      pumpRunning: liveState.pumpRunning,
+      mode: liveState.mode,
+      waterLevelPct: liveState.waterLevelPct,
+      pairedAt: new Date().toISOString()
+    };
+    devicesDb.set(newDevice.id, newDevice);
+
+    return res.status(201).json({
+      status: 'success',
+      data: newDevice
     });
   }
 
@@ -381,6 +369,60 @@ module.exports = async (req, res) => {
         executed: true,
         pumpRunning: liveState.pumpRunning,
         mode: liveState.mode,
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+
+  // 9. System Status & Health Metrics
+  if (method === 'GET' && (url.includes('/api/v1/system/status') || url.includes('/api/v1/system/stats'))) {
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        totalUsers: usersDb.size,
+        totalDevices: devicesDb.size,
+        liveTelemetry: liveState,
+        activeAccounts: Array.from(usersDb.values()).map(u => ({
+          id: u.id,
+          email: u.email,
+          firstName: u.firstName,
+          lastName: u.lastName,
+          createdAt: u.createdAt
+        })),
+        systemHealth: 'HEALTHY_PRISTINE',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+
+  // 10. Flush All Accounts, Devices, and Database Telemetry
+  if ((method === 'POST' || method === 'DELETE') && url.includes('/api/v1/system/flush')) {
+    const priorUsers = usersDb.size;
+    const priorDevices = devicesDb.size;
+
+    usersDb.clear();
+    devicesDb.clear();
+
+    liveState = {
+      pumpRunning: false,
+      mode: 'MANUAL',
+      waterLevelPct: 0.0,
+      flowRateLpm: 0.0,
+      powerKw: 0.00,
+      tdsPpm: 0,
+      tempC: 0.0,
+      lastSeen: 0
+    };
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'All accounts, hardware registrations, and database telemetry flushed successfully.',
+      flushed: {
+        usersDeleted: priorUsers,
+        devicesDeleted: priorDevices,
+        telemetryReset: true,
+        remainingUsers: usersDb.size,
+        remainingDevices: devicesDb.size,
         timestamp: new Date().toISOString()
       }
     });
