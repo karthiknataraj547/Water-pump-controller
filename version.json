@@ -1,17 +1,17 @@
 {
-  "version": "2.0.1",
-  "build_number": 3,
+  "version": "2.0.2",
+  "build_number": 4,
   "release_date": "2026-09-03",
   "min_supported_version": "1.0.0",
   "download_url": "https://github.com/karthiknataraj547/Water-pump-controller/raw/main/releases/HydroPulse_WaterPumpController.apk",
   "website_url": "https://github.com/karthiknataraj547/Water-pump-controller",
-  "title": "HydroPulse v2.0.1 - System Console, Minimalism UI & Central Auth Update",
+  "title": "HydroPulse v2.0.2 - In-App OTA Update Engine & Direct Package Installer",
   "changelog": [
-    "Enterprise System Console with persistent left sidebar navigation",
-    "Full mobile-responsive website and web application layouts",
-    "Centralized account authentication and direct mobile registration",
-    "Strict hardware presence verification with sub-100ms ping/pong handshake",
-    "Automatic In-App OTA Update System managed by backend"
+    "In-App OTA direct APK downloader with live progress percentage",
+    "Automatic Android package installer trigger with zero sandbox blocks",
+    "Native dynamic version detection via Android package manager",
+    "Zero-failure authentic customer onboarding and device setup",
+    "Real-time bidirectional MQTT sync between mobile and web console"
   ],
   "is_critical": false
 }
