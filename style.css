@@ -1065,18 +1065,101 @@ body {
 }
 
 @media (max-width: 768px) {
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
+  .container {
+    padding: 0 16px;
+  }
+
+  /* Compact Mobile Navbar */
   .nav-links {
     display: none;
   }
-  .hero-title {
-    font-size: 34px;
+  .nav-actions .btn-github,
+  .nav-actions .nav-download-btn {
+    display: none;
   }
+  .nav-actions .nav-app-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  .brand-title {
+    font-size: 19px;
+  }
+  .version-tag {
+    display: none;
+  }
+
+  /* Hero Section */
+  .hero-section {
+    padding: 40px 0 30px;
+  }
+  .hero-title {
+    font-size: 30px;
+    line-height: 1.2;
+  }
+  .hero-subtitle {
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+  .hero-cta-group {
+    flex-direction: column;
+    width: 100%;
+    gap: 12px;
+  }
+  .hero-cta-group .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .hero-metrics {
+    flex-wrap: wrap;
+    gap: 14px;
+    justify-content: space-between;
+  }
+  .metric-item {
+    min-width: 45%;
+  }
+
+  /* Sim Grid & Features Grid */
   .sim-grid {
     grid-template-columns: 1fr;
+    gap: 16px;
   }
   .features-grid {
     grid-template-columns: 1fr;
+    gap: 16px;
   }
+
+  /* Architecture Flow */
+  .arch-flow-wrap {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .arch-arrow {
+    display: none;
+  }
+
+  /* Download Card */
+  .download-card {
+    grid-template-columns: 1fr;
+    padding: 24px 16px;
+  }
+  .dl-left-col {
+    text-align: center;
+  }
+  .dl-buttons-group {
+    flex-direction: column;
+    width: 100%;
+  }
+  .dl-buttons-group .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Footer */
   .footer-container {
     flex-direction: column;
     gap: 16px;

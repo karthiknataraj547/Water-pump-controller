@@ -1,19 +1,20 @@
 /**
- * HydroPulse IoT - Minimalist Responsive Web Application Controller
- * Connects Backend APIs with Web Console, Supports Light & Dark Modes,
- * and Adapts Seamlessly for Mobile and Laptop / Desktop Screens.
+ * HydroPulse IoT - Enterprise System Console Controller
+ * Implements System Software Left Sidebar Navigation, Dynamic Fluid Canvas,
+ * Light/Dark Mode Synchronizer, and Multi-Tier Backend API Integration.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
 
   // ==============================================================================
-  // 1. Light & Dark Theme Engine
+  // 1. Light & Dark Mode Engine
   // ==============================================================================
   const htmlRoot = document.documentElement;
   const btnThemeAuth = document.getElementById('btn-theme-auth');
   const btnThemeDash = document.getElementById('btn-theme-dash');
   const themeIconAuth = document.getElementById('theme-icon-auth');
   const themeIconDash = document.getElementById('theme-icon-dash');
+  const themeLabelDash = document.getElementById('theme-label-dash');
 
   let currentTheme = localStorage.getItem('hydropulse_theme') || 'dark';
 
@@ -23,8 +24,11 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem('hydropulse_theme', theme);
 
     const icon = theme === 'dark' ? '☀️' : '🌙';
+    const label = theme === 'dark' ? 'Light Mode' : 'Dark Mode';
+
     if (themeIconAuth) themeIconAuth.textContent = icon;
     if (themeIconDash) themeIconDash.textContent = icon;
+    if (themeLabelDash) themeLabelDash.textContent = label;
   }
 
   function toggleTheme() {
@@ -75,11 +79,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const h = waterCanvas.height;
     const isDark = currentTheme === 'dark';
 
-    // Ambient background gradient
     const bgGrad = bgCtx.createLinearGradient(0, 0, 0, h);
     if (isDark) {
-      bgGrad.addColorStop(0, '#0B0F19');
-      bgGrad.addColorStop(1, '#111728');
+      bgGrad.addColorStop(0, '#090D16');
+      bgGrad.addColorStop(1, '#0F1524');
     } else {
       bgGrad.addColorStop(0, '#F8FAFC');
       bgGrad.addColorStop(1, '#EEF2F6');
@@ -87,7 +90,6 @@ document.addEventListener('DOMContentLoaded', () => {
     bgCtx.fillStyle = bgGrad;
     bgCtx.fillRect(0, 0, w, h);
 
-    // Subtle center glow
     const centerGlow = bgCtx.createRadialGradient(w / 2, h * 0.45, 40, w / 2, h * 0.45, w * 0.55);
     if (isDark) {
       centerGlow.addColorStop(0, 'rgba(14, 165, 233, 0.06)');
@@ -99,7 +101,6 @@ document.addEventListener('DOMContentLoaded', () => {
     bgCtx.fillStyle = centerGlow;
     bgCtx.fillRect(0, 0, w, h);
 
-    // Buoyant bubbles
     bubbles.forEach(b => {
       b.y -= b.speed;
       b.wobble += 0.025;
@@ -116,7 +117,6 @@ document.addEventListener('DOMContentLoaded', () => {
       bgCtx.restore();
     });
 
-    // Touch ripples
     for (let i = ripples.length - 1; i >= 0; i--) {
       const r = ripples[i];
       r.radius += 2.5;
@@ -139,9 +139,8 @@ document.addEventListener('DOMContentLoaded', () => {
   renderBackground();
 
   // ==============================================================================
-  // 3. Centralized Multi-Tier Authentication & API Connection
+  // 3. Centralized Authentication & Backend Connection
   // ==============================================================================
-  // Dynamic API Base URL resolution
   const apiBaseUrl = window.location.origin.includes('http')
     ? `${window.location.origin}/api/v1`
     : '/api/v1';
@@ -179,7 +178,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (cached) currentUser = JSON.parse(cached);
   } catch {}
 
-  // UI References
   const authView = document.getElementById('auth-view');
   const dashboardView = document.getElementById('dashboard-view');
   const authAlert = document.getElementById('auth-alert');
@@ -190,13 +188,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnPeekPwd = document.getElementById('btn-peek-pwd');
   const signinPassword = document.getElementById('signin-password');
 
-  // Header References
   const userDisplayName = document.getElementById('user-display-name');
   const userAvatarBadge = document.getElementById('user-avatar-badge');
   const btnLogout = document.getElementById('btn-logout');
   const btnSettingsLogout = document.getElementById('btn-settings-logout');
 
-  // Password Visibility Toggle
   if (btnPeekPwd && signinPassword) {
     btnPeekPwd.addEventListener('click', () => {
       signinPassword.type = signinPassword.type === 'password' ? 'text' : 'password';
@@ -220,18 +216,21 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem('hydropulse_auth_token', authToken);
     localStorage.setItem('hydropulse_current_user', JSON.stringify(currentUser));
 
-    showAlert('✓ Authenticated! Synchronizing hardware console...', true);
+    showAlert('✓ Authenticated! Loading System Console...', true);
 
     setTimeout(() => {
       authView.classList.add('hidden');
       dashboardView.classList.remove('hidden');
 
       const fullName = `${user.firstName} ${user.lastName}`;
-      userDisplayName.textContent = fullName;
-      userAvatarBadge.textContent = `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
-      document.getElementById('settings-user-name').textContent = fullName;
-      document.getElementById('settings-user-email').textContent = user.email;
-      document.getElementById('settings-api-url').textContent = apiBaseUrl;
+      if (userDisplayName) userDisplayName.textContent = fullName;
+      if (userAvatarBadge) userAvatarBadge.textContent = `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
+      const sName = document.getElementById('settings-user-name');
+      const sEmail = document.getElementById('settings-user-email');
+      const sApi = document.getElementById('settings-api-url');
+      if (sName) sName.textContent = fullName;
+      if (sEmail) sEmail.textContent = user.email;
+      if (sApi) sApi.textContent = apiBaseUrl;
 
       resizeTankCanvas();
       renderTrendChart();
@@ -239,7 +238,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 400);
   }
 
-  // Handle Sign In Submission (NO account creation in web app)
   authFormSignin.addEventListener('submit', async (e) => {
     e.preventDefault();
     hideAlert();
@@ -252,7 +250,6 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Attempt backend API login
     try {
       const response = await fetch(`${apiBaseUrl}/auth/login`, {
         method: 'POST',
@@ -269,26 +266,22 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } catch {}
 
-    // Resilient Central Store Check
     const users = getLocalUserStore();
     const matched = users.find(u => u.email.toLowerCase() === email);
 
     if (matched) {
       completeAuthentication(matched);
     } else {
-      // Direct user to mobile app if not registered
       showAlert('Account not recognized. Please create an account via the HydroPulse Mobile App.');
     }
   });
 
-  // Google Login Sheet
-  btnGoogleAuth.addEventListener('click', () => {
-    googleModalSheet.classList.remove('hidden');
-  });
-
-  btnCloseGoogleSheet.addEventListener('click', () => {
-    googleModalSheet.classList.add('hidden');
-  });
+  if (btnGoogleAuth) {
+    btnGoogleAuth.addEventListener('click', () => googleModalSheet.classList.remove('hidden'));
+  }
+  if (btnCloseGoogleSheet) {
+    btnCloseGoogleSheet.addEventListener('click', () => googleModalSheet.classList.add('hidden'));
+  }
 
   document.querySelectorAll('.g-account-item').forEach(item => {
     item.addEventListener('click', () => {
@@ -296,12 +289,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const email = item.getAttribute('data-email');
       const firstName = item.getAttribute('data-first');
       const lastName = item.getAttribute('data-last');
-
       completeAuthentication({ firstName, lastName, email, role: 'ADMIN' });
     });
   });
 
-  // Sign Out Handler
   function handleSignOut() {
     authToken = null;
     currentUser = null;
@@ -315,16 +306,19 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnLogout) btnLogout.addEventListener('click', handleSignOut);
   if (btnSettingsLogout) btnSettingsLogout.addEventListener('click', handleSignOut);
 
-  // Auto-resume session if token exists
   if (authToken && currentUser) {
     completeAuthentication(currentUser);
   }
 
   // ==============================================================================
-  // 4. Multi-Device Unified Navigation (Desktop Tabs & Mobile Bottom Bar)
+  // 4. System Console Left Navigation & Mobile Drawer
   // ==============================================================================
-  const desktopNavButtons = document.querySelectorAll('.d-nav-btn');
+  const sidebarNavButtons = document.querySelectorAll('.nav-item-btn');
   const mobileNavItems = document.querySelectorAll('.m-nav-item');
+  const systemSidebar = document.getElementById('system-sidebar');
+  const btnSidebarToggle = document.getElementById('btn-sidebar-toggle');
+  const pageTitle = document.getElementById('page-title');
+
   const tabPanes = {
     dashboard: document.getElementById('tab-pane-dashboard'),
     telemetry: document.getElementById('tab-pane-telemetry'),
@@ -332,8 +326,15 @@ document.addEventListener('DOMContentLoaded', () => {
     settings: document.getElementById('tab-pane-settings')
   };
 
+  const TAB_TITLES = {
+    dashboard: 'Hardware Console / Overview',
+    telemetry: 'Continuous Telemetry & Historical Trends',
+    automation: 'Autonomous Safety & Actuation Rules',
+    settings: 'Node Configuration & System Settings'
+  };
+
   function switchTab(tabKey) {
-    desktopNavButtons.forEach(btn => {
+    sidebarNavButtons.forEach(btn => {
       btn.classList.toggle('active', btn.getAttribute('data-tab') === tabKey);
     });
     mobileNavItems.forEach(item => {
@@ -341,21 +342,34 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     Object.keys(tabPanes).forEach(k => {
-      if (k === tabKey) {
-        tabPanes[k].classList.remove('hidden');
-        tabPanes[k].classList.add('active');
-      } else {
-        tabPanes[k].classList.add('hidden');
-        tabPanes[k].classList.remove('active');
+      if (tabPanes[k]) {
+        if (k === tabKey) {
+          tabPanes[k].classList.remove('hidden');
+          tabPanes[k].classList.add('active');
+        } else {
+          tabPanes[k].classList.add('hidden');
+          tabPanes[k].classList.remove('active');
+        }
       }
     });
 
+    if (pageTitle && TAB_TITLES[tabKey]) {
+      pageTitle.textContent = TAB_TITLES[tabKey];
+    }
+
+    // Close mobile drawer if open
+    if (systemSidebar) {
+      systemSidebar.classList.remove('drawer-open');
+    }
+
     if (tabKey === 'telemetry') {
       renderTrendChart();
+    } else if (tabKey === 'dashboard') {
+      resizeTankCanvas();
     }
   }
 
-  desktopNavButtons.forEach(btn => {
+  sidebarNavButtons.forEach(btn => {
     btn.addEventListener('click', () => switchTab(btn.getAttribute('data-tab')));
   });
 
@@ -363,12 +377,18 @@ document.addEventListener('DOMContentLoaded', () => {
     item.addEventListener('click', () => switchTab(item.getAttribute('data-tab')));
   });
 
+  if (btnSidebarToggle && systemSidebar) {
+    btnSidebarToggle.addEventListener('click', () => {
+      systemSidebar.classList.toggle('drawer-open');
+    });
+  }
+
   // ==============================================================================
   // 5. Dynamic Responsive 3D Cylindrical Tank Visualizer
   // ==============================================================================
   const tankContainer = document.getElementById('tank-canvas-container');
   const tankCanvas = document.getElementById('water-tank-canvas');
-  const tankCtx = tankCanvas.getContext('2d');
+  const tankCtx = tankCanvas ? tankCanvas.getContext('2d') : null;
 
   const tankPctText = document.getElementById('tank-pct-text');
   const tankVolText = document.getElementById('tank-vol-text');
@@ -386,7 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const gridValVol = document.getElementById('grid-val-vol');
   const gridSubVol = document.getElementById('grid-sub-vol');
 
-  let waterLevel = 68.5; // percentage
+  let waterLevel = 68.5;
   let isPumpRunning = false;
   let controlMode = 'AUTO';
   let runSeconds = 0;
@@ -404,6 +424,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('resize', resizeTankCanvas);
 
   function drawTank() {
+    if (!tankCtx || !tankCanvas) return;
     tankCtx.clearRect(0, 0, tankCanvas.width, tankCanvas.height);
     const w = tankCanvas.width;
     const h = tankCanvas.height;
@@ -411,7 +432,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const isDark = currentTheme === 'dark';
 
-    // Cylindrical coordinates
     const padX = w * 0.08;
     const padY = h * 0.1;
     const tw = w - padX * 2;
@@ -420,8 +440,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Glass Tank Cylinder Base
     tankCtx.save();
-    tankCtx.fillStyle = isDark ? 'rgba(18, 24, 38, 0.45)' : 'rgba(241, 245, 249, 0.7)';
-    tankCtx.strokeStyle = isDark ? 'rgba(56, 189, 248, 0.22)' : 'rgba(2, 132, 199, 0.22)';
+    tankCtx.fillStyle = isDark ? 'rgba(18, 25, 43, 0.45)' : 'rgba(241, 245, 249, 0.7)';
+    tankCtx.strokeStyle = isDark ? 'rgba(56, 189, 248, 0.25)' : 'rgba(2, 132, 199, 0.25)';
     tankCtx.lineWidth = 1.6;
 
     // Top Rim
@@ -467,7 +487,6 @@ document.addEventListener('DOMContentLoaded', () => {
       tankCtx.ellipse(padX + tw / 2, padY + th - ellipseH / 2, tw / 2 - 2, ellipseH / 2 - 2, 0, Math.PI, 0, true);
       tankCtx.lineTo(padX + tw - 2, fluidTopY);
 
-      // Sinusoidal surface wave
       for (let x = tw - 2; x >= 2; x -= 4) {
         const amp = isPumpRunning ? 4.0 : 1.2;
         const wy = fluidTopY + Math.sin((x / 20) + wavePhase) * amp;
@@ -476,7 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
       tankCtx.closePath();
       tankCtx.fill();
 
-      // Top Fluid Ellipse Surface
+      // Fluid Top Surface
       tankCtx.fillStyle = isDark ? 'rgba(125, 211, 252, 0.45)' : 'rgba(255, 255, 255, 0.6)';
       tankCtx.beginPath();
       tankCtx.ellipse(padX + tw / 2, fluidTopY, tw / 2 - 2, ellipseH / 2 - 2, 0, 0, Math.PI * 2);
@@ -514,7 +533,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     tankCtx.restore();
 
-    // Physics update
     wavePhase += isPumpRunning ? 0.08 : 0.03;
     if (isPumpRunning) {
       impellerSpin += 0.2;
@@ -537,26 +555,24 @@ document.addEventListener('DOMContentLoaded', () => {
     requestAnimationFrame(drawTank);
   }
 
-  // Pump Actuation
   function togglePump(active) {
     isPumpRunning = active;
 
-    // Send API command to backend
     fetch(`${apiBaseUrl}/pumps/esp32_pump_main/command`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${authToken}`
       },
-      body: JSON.stringify({
-        command: active ? 'PUMP_ON' : 'PUMP_OFF'
-      })
+      body: JSON.stringify({ command: active ? 'PUMP_ON' : 'PUMP_OFF' })
     }).catch(() => null);
 
     if (active) {
-      btnPumpToggle.classList.add('active-running');
-      txtPumpLabel.textContent = 'STOP MOTOR';
-      txtPumpSub.textContent = 'Relay: Pin GPIO 23 (Active)';
+      if (btnPumpToggle) {
+        btnPumpToggle.classList.add('active-running');
+        if (txtPumpLabel) txtPumpLabel.textContent = 'STOP MOTOR';
+        if (txtPumpSub) txtPumpSub.textContent = 'Relay: GPIO 23 (Active)';
+      }
 
       if (!runTimer) {
         runTimer = setInterval(() => {
@@ -564,13 +580,15 @@ document.addEventListener('DOMContentLoaded', () => {
           const h = String(Math.floor(runSeconds / 3600)).padStart(2, '0');
           const m = String(Math.floor((runSeconds % 3600) / 60)).padStart(2, '0');
           const s = String(runSeconds % 60).padStart(2, '0');
-          valRunDuration.textContent = `${h}:${m}:${s}`;
+          if (valRunDuration) valRunDuration.textContent = `${h}:${m}:${s}`;
         }, 1000);
       }
     } else {
-      btnPumpToggle.classList.remove('active-running');
-      txtPumpLabel.textContent = 'START MOTOR';
-      txtPumpSub.textContent = 'Relay: Pin GPIO 23';
+      if (btnPumpToggle) {
+        btnPumpToggle.classList.remove('active-running');
+        if (txtPumpLabel) txtPumpLabel.textContent = 'START MOTOR';
+        if (txtPumpSub) txtPumpSub.textContent = 'Relay: GPIO 23 (Standby)';
+      }
 
       if (runTimer) {
         clearInterval(runTimer);
@@ -664,7 +682,7 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
   }
 
-  // Automation Slider Updates
+  // Automation Sliders
   const sliderStart = document.getElementById('slider-autostart');
   const sliderStop = document.getElementById('slider-autostop');
   const dispStart = document.getElementById('disp-autostart-pct');

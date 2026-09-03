@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>HydroPulse IoT | Smart Water Management System</title>
-  <meta name="description" content="Minimalist, responsive web console for HydroPulse IoT smart volumetric water management and pump automation.">
+  <title>HydroPulse IoT | Enterprise System Console</title>
+  <meta name="description" content="Enterprise System Console for HydroPulse IoT volumetric water management, automated pump actuation, and hardware telemetry.">
   <meta name="theme-color" content="#0B0F19">
 
   <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
@@ -16,10 +16,10 @@
 </head>
 <body>
 
-  <!-- Fluid Ambient Background Canvas (Touch ripples & buoyant micro-bubbles) -->
+  <!-- Ambient Fluid Background Canvas -->
   <canvas id="water-bg-canvas"></canvas>
 
-  <div class="app-shell" id="app-shell">
+  <div class="app-root" id="app-root">
 
     <!-- =========================================================================
          1. AUTHENTICATION VIEW (SIGN IN ONLY - NO PROVISION FOR ACCOUNT CREATION)
@@ -32,7 +32,7 @@
       </div>
 
       <div class="auth-card-container">
-        <!-- Minimalist Brand Droplet & Title -->
+        <!-- Brand Droplet & Title -->
         <div class="brand-hero">
           <div class="brand-icon-wrap">
             <div class="brand-pulse-ring"></div>
@@ -49,7 +49,7 @@
             </div>
           </div>
           <h1 class="brand-title">HydroPulse</h1>
-          <p class="brand-subtitle">Smart Volumetric Water Management Console</p>
+          <p class="brand-subtitle">Enterprise IoT System Console</p>
         </div>
 
         <!-- Minimalist Sign In Card -->
@@ -61,8 +61,8 @@
             </span>
           </div>
 
-          <h2 class="auth-form-title">Sign In to Your Account</h2>
-          <p class="auth-form-desc">Enter your credentials to access live hardware telemetry and pump controls.</p>
+          <h2 class="auth-form-title">System Console Sign In</h2>
+          <p class="auth-form-desc">Authenticate to access hardware control registers and real-time telemetry.</p>
 
           <div class="auth-alert hidden" id="auth-alert"></div>
 
@@ -91,7 +91,7 @@
             </div>
 
             <button type="submit" class="btn-primary-action" id="btn-submit-signin">
-              <span class="btn-text">Sign In to Dashboard</span>
+              <span class="btn-text">Sign In to Console</span>
             </button>
           </form>
 
@@ -114,7 +114,7 @@
             <div class="banner-icon">📱</div>
             <div class="banner-body">
               <h3 class="banner-heading">Need a New Account?</h3>
-              <p class="banner-text">Customer registration is exclusively available through the official HydroPulse mobile app.</p>
+              <p class="banner-text">Customer registration is exclusively supported via the HydroPulse mobile app.</p>
               <a href="releases/HydroPulse_WaterPumpController.apk" class="btn-mobile-download" download>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="dl-svg">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -128,74 +128,85 @@
         </div>
 
         <div class="auth-footer-links">
-          <a href="index.html" class="footer-link">← Return to Product Overview</a>
+          <a href="index.html" class="footer-link">← Return to Product Website</a>
         </div>
       </div>
     </section>
 
     <!-- =========================================================================
-         2. MAIN CONSOLE DASHBOARD VIEW (ADAPTS FOR MOBILE & LAPTOP DEVICES)
+         2. SYSTEM SOFTWARE CONSOLE VIEW (WITH PERSISTENT LEFT SIDEBAR NAVIGATION)
          ========================================================================= -->
-    <main class="dashboard-view hidden" id="dashboard-view">
-      <!-- Universal Responsive Minimalist Navigation Header -->
-      <header class="app-header">
-        <div class="header-left">
-          <div class="header-logo-badge">
-            <svg viewBox="0 0 24 24" fill="none" class="h-droplet">
+    <div class="system-layout hidden" id="dashboard-view">
+
+      <!-- 2.1 PERSISTENT SYSTEM SOFTWARE LEFT SIDEBAR NAVIGATION -->
+      <aside class="system-sidebar" id="system-sidebar">
+        <!-- Sidebar Brand Header -->
+        <div class="sidebar-brand">
+          <div class="sidebar-logo-badge">
+            <svg viewBox="0 0 24 24" fill="none" class="sidebar-droplet">
               <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" fill="#0EA5E9" />
             </svg>
           </div>
-          <div class="header-title-block">
-            <div class="title-row">
-              <span class="app-title">HydroPulse</span>
-              <span class="status-pill online" id="status-pill" title="Strict physical hardware heartbeat verified">
-                <span class="status-indicator-dot"></span>
-                <span>ONLINE</span>
-              </span>
-            </div>
-            <div class="subtitle-row">
-              <span class="device-tag">ESP32 Main Gateway</span>
-              <span class="separator">•</span>
-              <span class="ping-tag" id="header-ping-text">Ping 22ms</span>
-            </div>
+          <div class="sidebar-brand-text">
+            <span class="sb-title">HydroPulse</span>
+            <span class="sb-edition">System Console v2.0</span>
           </div>
         </div>
 
-        <!-- Desktop Navigation Tabs (Visible on Laptop / Desktop screens) -->
-        <nav class="desktop-nav-tabs">
-          <button class="d-nav-btn active" data-tab="dashboard">
-            <span class="d-nav-icon">⚡</span>
-            <span>Dashboard</span>
+        <!-- Hardware Status Widget in Sidebar -->
+        <div class="sidebar-hw-status">
+          <div class="hw-status-header">
+            <span class="hw-indicator-dot"></span>
+            <span class="hw-status-text">HARDWARE ONLINE</span>
+          </div>
+          <div class="hw-status-sub">
+            <span class="hw-node-id">ESP32 Main Gateway</span>
+            <span class="hw-ping-badge" id="sidebar-ping">Ping 22ms</span>
+          </div>
+        </div>
+
+        <!-- Navigation Tabs on the Left (System Software Version) -->
+        <nav class="sidebar-nav-menu">
+          <span class="nav-section-label">MAIN NAVIGATION</span>
+          <button class="nav-item-btn active" data-tab="dashboard">
+            <span class="nav-item-icon">⚡</span>
+            <span class="nav-item-text">Dashboard</span>
+            <span class="nav-item-active-bar"></span>
           </button>
-          <button class="d-nav-btn" data-tab="telemetry">
-            <span class="d-nav-icon">📈</span>
-            <span>Telemetry</span>
+          <button class="nav-item-btn" data-tab="telemetry">
+            <span class="nav-item-icon">📈</span>
+            <span class="nav-item-text">Telemetry</span>
+            <span class="nav-item-active-bar"></span>
           </button>
-          <button class="d-nav-btn" data-tab="automation">
-            <span class="d-nav-icon">⚙️</span>
-            <span>Automation</span>
+          <button class="nav-item-btn" data-tab="automation">
+            <span class="nav-item-icon">⚙️</span>
+            <span class="nav-item-text">Automation</span>
+            <span class="nav-item-active-bar"></span>
           </button>
-          <button class="d-nav-btn" data-tab="settings">
-            <span class="d-nav-icon">🛡️</span>
-            <span>Settings</span>
+          <button class="nav-item-btn" data-tab="settings">
+            <span class="nav-item-icon">🛡️</span>
+            <span class="nav-item-text">Settings</span>
+            <span class="nav-item-active-bar"></span>
           </button>
         </nav>
 
-        <div class="header-right">
-          <!-- Light / Dark Mode Toggle Button -->
-          <button class="theme-toggle-btn" id="btn-theme-dash" title="Toggle Light / Dark Mode" aria-label="Toggle Theme">
+        <!-- Sidebar Footer Actions -->
+        <div class="sidebar-footer">
+          <!-- Theme Toggle with Label -->
+          <button class="sidebar-theme-toggle" id="btn-theme-dash" title="Toggle Light / Dark Mode">
             <span class="theme-icon" id="theme-icon-dash">☀️</span>
+            <span class="theme-text" id="theme-label-dash">Switch Theme</span>
           </button>
 
-          <!-- User Profile & Sign Out Widget -->
-          <div class="user-profile-menu">
-            <div class="avatar-circle" id="user-avatar-badge">AH</div>
-            <div class="user-meta-desktop">
-              <span class="user-name" id="user-display-name">Admin HydroPulse</span>
-              <span class="user-role">ADMINISTRATOR</span>
+          <!-- Active User Profile Card -->
+          <div class="sidebar-user-card">
+            <div class="sb-avatar" id="user-avatar-badge">AH</div>
+            <div class="sb-user-info">
+              <span class="sb-user-name" id="user-display-name">Admin HydroPulse</span>
+              <span class="sb-user-role">ADMINISTRATOR</span>
             </div>
-            <button class="btn-header-logout" id="btn-logout" title="Sign Out" aria-label="Sign Out">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="logout-svg">
+            <button class="sb-logout-btn" id="btn-logout" title="Sign Out" aria-label="Sign Out">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="logout-icon">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
                 <polyline points="16 17 21 12 16 7"/>
                 <line x1="21" y1="12" x2="9" y2="12"/>
@@ -203,269 +214,312 @@
             </button>
           </div>
         </div>
-      </header>
+      </aside>
 
-      <!-- Scrollable Multi-Device Content Container -->
-      <div class="content-scroll-area">
-        <div class="responsive-max-wrapper">
-
-          <!-- TAB 1: DASHBOARD CONSOLE -->
-          <div class="tab-pane active" id="tab-pane-dashboard">
-            <div class="dashboard-grid-layout">
-
-              <!-- COLUMN 1: SMART WATER SYSTEM CARD -->
-              <section class="smart-card">
-                <div class="smart-card-header">
-                  <div class="card-title-group">
-                    <span class="system-badge">HYDRO SYSTEM</span>
-                    <h2 class="card-heading">ESP32 Main Gateway</h2>
-                  </div>
-                  <div class="mode-toggle-group">
-                    <button class="mode-pill active" id="btn-mode-auto">AUTO</button>
-                    <button class="mode-pill" id="btn-mode-manual">MANUAL</button>
-                  </div>
-                </div>
-
-                <!-- 3D Fluid Tank Canvas Container (Dynamically responsive) -->
-                <div class="tank-canvas-card" id="tank-canvas-container">
-                  <canvas id="water-tank-canvas"></canvas>
-                  <div class="tank-data-overlay">
-                    <span class="tank-pct" id="tank-pct-text">68.5%</span>
-                    <span class="tank-liters" id="tank-vol-text">3,425 / 5,000 L</span>
-                  </div>
-                </div>
-
-                <!-- Primary Motor Control Button -->
-                <div class="pump-controls-wrap">
-                  <button class="btn-motor-actuation" id="btn-pump-toggle">
-                    <span class="motor-action-icon">⚡</span>
-                    <span class="motor-title" id="txt-pump-label">START MOTOR</span>
-                    <span class="motor-subtext" id="txt-pump-sub">Relay: Pin GPIO 23</span>
-                  </button>
-
-                  <button class="btn-e-stop" id="btn-emergency-stop">
-                    <span>🛑 EMERGENCY STOP (E-STOP)</span>
-                  </button>
-                </div>
-
-                <!-- Embedded System Metrics -->
-                <div class="embedded-metrics-row">
-                  <div class="e-metric">
-                    <span class="e-label">POWER</span>
-                    <span class="e-value" id="val-power-kw">0.00 <small>kW</small></span>
-                  </div>
-                  <div class="e-divider"></div>
-                  <div class="e-metric">
-                    <span class="e-label">RUN TIME</span>
-                    <span class="e-value mono" id="val-run-duration">00:00:00</span>
-                  </div>
-                  <div class="e-divider"></div>
-                  <div class="e-metric">
-                    <span class="e-label">CYCLES</span>
-                    <span class="e-value" id="val-cycles-count">14</span>
-                  </div>
-                </div>
-              </section>
-
-              <!-- COLUMN 2: 2x2 SENSOR GRID & QUICK TELEMETRY -->
-              <div class="dashboard-side-col">
-                <!-- 2x2 Sensor Metric Cards -->
-                <div class="sensor-grid-2x2">
-                  <div class="sensor-card">
-                    <div class="s-card-top">
-                      <span class="s-card-title">Flow Rate</span>
-                      <div class="s-icon blue">💧</div>
-                    </div>
-                    <div class="s-card-val-row">
-                      <span class="s-val" id="grid-val-flow">0.0</span>
-                      <span class="s-unit">L/min</span>
-                    </div>
-                    <span class="s-subtext" id="grid-sub-flow">Idle</span>
-                  </div>
-
-                  <div class="sensor-card">
-                    <div class="s-card-top">
-                      <span class="s-card-title">Volume</span>
-                      <div class="s-icon sky">🪣</div>
-                    </div>
-                    <div class="s-card-val-row">
-                      <span class="s-val" id="grid-val-vol">3,425</span>
-                      <span class="s-unit">L</span>
-                    </div>
-                    <span class="s-subtext" id="grid-sub-vol">Level: 68%</span>
-                  </div>
-
-                  <div class="sensor-card">
-                    <div class="s-card-top">
-                      <span class="s-card-title">TDS Purity</span>
-                      <div class="s-icon green">🧪</div>
-                    </div>
-                    <div class="s-card-val-row">
-                      <span class="s-val" id="grid-val-tds">142</span>
-                      <span class="s-unit">PPM</span>
-                    </div>
-                    <span class="s-subtext status-green">Potable Water</span>
-                  </div>
-
-                  <div class="sensor-card">
-                    <div class="s-card-top">
-                      <span class="s-card-title">Water Temp</span>
-                      <div class="s-icon amber">🌡️</div>
-                    </div>
-                    <div class="s-card-val-row">
-                      <span class="s-val" id="grid-val-temp">24.2</span>
-                      <span class="s-unit">°C</span>
-                    </div>
-                    <span class="s-subtext">Optimal Range</span>
-                  </div>
-                </div>
-
-                <!-- Live Cloud MQTT Broker Connection Card -->
-                <div class="cloud-broker-card">
-                  <div class="broker-top-row">
-                    <div class="broker-info">
-                      <span class="broker-badge">EMQX CLOUD BROKER</span>
-                      <span class="broker-host">broker.emqx.io:1883</span>
-                    </div>
-                    <span class="broker-status-pill">CONNECTED</span>
-                  </div>
-                  <div class="broker-details-grid">
-                    <div class="b-item">
-                      <span class="b-key">Active Topic</span>
-                      <span class="b-val mono">waterpump/esp32/status</span>
-                    </div>
-                    <div class="b-item">
-                      <span class="b-key">Hardware Ping</span>
-                      <span class="b-val mono status-green">Sub-100ms Verified</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
+      <!-- 2.2 MAIN SYSTEM CONSOLE WORKSPACE -->
+      <main class="system-workspace">
+        <!-- Top Workspace Bar -->
+        <header class="workspace-topbar">
+          <div class="topbar-left">
+            <button class="btn-mobile-sidebar-toggle" id="btn-sidebar-toggle" aria-label="Toggle Navigation">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="menu-icon">
+                <line x1="3" y1="12" x2="21" y2="12"/>
+                <line x1="3" y1="6" x2="21" y2="6"/>
+                <line x1="3" y1="18" x2="21" y2="18"/>
+              </svg>
+            </button>
+            <div class="topbar-context">
+              <span class="topbar-section-title" id="page-title">Hardware Console / Overview</span>
+              <span class="topbar-device-chip">Node: esp32_pump_main</span>
             </div>
           </div>
 
-          <!-- TAB 2: TELEMETRY & HISTORICAL TRENDS -->
-          <div class="tab-pane hidden" id="tab-pane-telemetry">
-            <section class="minimal-card">
-              <div class="m-card-header">
-                <div>
-                  <h3 class="m-title">24-Hour Telemetry & Volumetric Curves</h3>
-                  <p class="m-desc">Continuous historical recording from ultrasonic & flow sensors</p>
-                </div>
-                <span class="badge-accent">LIVE REAL-TIME STREAM</span>
-              </div>
-              <div class="chart-container">
-                <svg id="svg-trend-chart" viewBox="0 0 760 200" preserveAspectRatio="none"></svg>
-              </div>
-              <div class="chart-time-labels">
-                <span>00:00</span>
-                <span>04:00</span>
-                <span>08:00</span>
-                <span>12:00</span>
-                <span>16:00</span>
-                <span>20:00</span>
-                <span>Now</span>
-              </div>
-            </section>
+          <div class="topbar-right">
+            <div class="system-pill-stat">
+              <span class="pill-dot"></span>
+              <span>EMQX Cloud Active</span>
+            </div>
+            <div class="system-pill-stat mono">
+              <span>FreeRTOS Core 1</span>
+            </div>
           </div>
+        </header>
 
-          <!-- TAB 3: AUTOMATION RULES -->
-          <div class="tab-pane hidden" id="tab-pane-automation">
-            <section class="minimal-card">
-              <div class="m-card-header">
-                <div>
-                  <h3 class="m-title">Automated Motor Actuation Thresholds</h3>
-                  <p class="m-desc">Synchronized directly with ESP32 EEPROM safety registers</p>
-                </div>
-                <button class="btn-action-sm" id="btn-save-automation-rules">Save to Cloud</button>
-              </div>
+        <!-- Scrollable Workspace Body -->
+        <div class="workspace-scroll-body">
+          <div class="workspace-container">
 
-              <div class="rule-slider-group">
-                <div class="rule-label-row">
-                  <span>Auto-Start Pump When Level Drops Below:</span>
-                  <span class="rule-val-pill" id="disp-autostart-pct">25%</span>
-                </div>
-                <input type="range" class="minimal-slider" id="slider-autostart" min="10" max="50" value="25">
-              </div>
+            <!-- TAB 1: DASHBOARD (2-COLUMN SYSTEM LAYOUT) -->
+            <div class="tab-pane active" id="tab-pane-dashboard">
+              <div class="system-grid-2col">
 
-              <div class="rule-slider-group">
-                <div class="rule-label-row">
-                  <span>Auto-Stop Pump When Tank Reaches:</span>
-                  <span class="rule-val-pill" id="disp-autostop-pct">95%</span>
-                </div>
-                <input type="range" class="minimal-slider" id="slider-autostop" min="70" max="100" value="95">
-              </div>
+                <!-- LEFT PANE: SMART WATER SYSTEM CARD -->
+                <section class="system-card smart-water-system-card">
+                  <div class="sys-card-header">
+                    <div>
+                      <span class="sys-chip">VOLUMETRIC FLUID SYSTEM</span>
+                      <h2 class="sys-heading">Cylindrical Reservoir & Impeller</h2>
+                    </div>
+                    <div class="mode-switch-pills">
+                      <button class="mode-btn active" id="btn-mode-auto">AUTO</button>
+                      <button class="mode-btn" id="btn-mode-manual">MANUAL</button>
+                    </div>
+                  </div>
 
-              <div class="toggle-rule-item">
-                <div class="rule-text-block">
-                  <span class="rule-name">Dry-Run Auto Protection</span>
-                  <span class="rule-sub">Immediately cuts power if 0 L/min flow detected while motor is active</span>
+                  <!-- 3D Cylindrical Water Tank Canvas (Fluid Responsive) -->
+                  <div class="tank-canvas-wrapper" id="tank-canvas-container">
+                    <canvas id="water-tank-canvas"></canvas>
+                    <div class="tank-data-hud">
+                      <span class="tank-pct-number" id="tank-pct-text">68.5%</span>
+                      <span class="tank-liters-number" id="tank-vol-text">3,425 / 5,000 L</span>
+                    </div>
+                  </div>
+
+                  <!-- Tactile Motor Actuation Controls -->
+                  <div class="pump-action-group">
+                    <button class="btn-motor-toggle" id="btn-pump-toggle">
+                      <span class="motor-btn-icon">⚡</span>
+                      <span class="motor-btn-title" id="txt-pump-label">START MOTOR</span>
+                      <span class="motor-btn-sub" id="txt-pump-sub">Relay: GPIO 23 (Standby)</span>
+                    </button>
+
+                    <button class="btn-estop-action" id="btn-emergency-stop">
+                      <span>🛑 EMERGENCY STOP (E-STOP)</span>
+                    </button>
+                  </div>
+
+                  <!-- Embedded Sub-Metrics Inside Smart Card -->
+                  <div class="sys-card-metrics-row">
+                    <div class="sys-m-item">
+                      <span class="sys-m-key">ACTIVE POWER</span>
+                      <span class="sys-m-val" id="val-power-kw">0.00 <small>kW</small></span>
+                    </div>
+                    <div class="sys-m-divider"></div>
+                    <div class="sys-m-item">
+                      <span class="sys-m-key">RUN DURATION</span>
+                      <span class="sys-m-val mono" id="val-run-duration">00:00:00</span>
+                    </div>
+                    <div class="sys-m-divider"></div>
+                    <div class="sys-m-item">
+                      <span class="sys-m-key">DAILY CYCLES</span>
+                      <span class="sys-m-val" id="val-cycles-count">14</span>
+                    </div>
+                  </div>
+                </section>
+
+                <!-- RIGHT PANE: 2x2 SENSOR GRID & SYSTEM TELEMETRY -->
+                <div class="system-side-col">
+                  <!-- 2x2 Sensor Metric Cards -->
+                  <div class="sensor-cards-grid">
+                    <div class="sensor-metric-card">
+                      <div class="s-top">
+                        <span class="s-title">Flow Rate</span>
+                        <div class="s-bubble blue">💧</div>
+                      </div>
+                      <div class="s-main">
+                        <span class="s-num" id="grid-val-flow">0.0</span>
+                        <span class="s-unit">L/min</span>
+                      </div>
+                      <span class="s-sub" id="grid-sub-flow">Idle</span>
+                    </div>
+
+                    <div class="sensor-metric-card">
+                      <div class="s-top">
+                        <span class="s-title">Water Volume</span>
+                        <div class="s-bubble sky">🪣</div>
+                      </div>
+                      <div class="s-main">
+                        <span class="s-num" id="grid-val-vol">3,425</span>
+                        <span class="s-unit">L</span>
+                      </div>
+                      <span class="s-sub" id="grid-sub-vol">Level: 68%</span>
+                    </div>
+
+                    <div class="sensor-metric-card">
+                      <div class="s-top">
+                        <span class="s-title">TDS Purity</span>
+                        <div class="s-bubble green">🧪</div>
+                      </div>
+                      <div class="s-main">
+                        <span class="s-num" id="grid-val-tds">142</span>
+                        <span class="s-unit">PPM</span>
+                      </div>
+                      <span class="s-sub status-green">Potable Safe</span>
+                    </div>
+
+                    <div class="sensor-metric-card">
+                      <div class="s-top">
+                        <span class="s-title">Water Temp</span>
+                        <div class="s-bubble amber">🌡️</div>
+                      </div>
+                      <div class="s-main">
+                        <span class="s-num" id="grid-val-temp">24.2</span>
+                        <span class="s-unit">°C</span>
+                      </div>
+                      <span class="s-sub">Optimal Range</span>
+                    </div>
+                  </div>
+
+                  <!-- Live Cloud MQTT Broker Node Card -->
+                  <div class="system-card broker-diag-card">
+                    <div class="diag-header">
+                      <div class="diag-title-block">
+                        <span class="diag-chip">MQTT BROKER GATEWAY</span>
+                        <h3 class="diag-host">broker.emqx.io:1883</h3>
+                      </div>
+                      <span class="diag-status-pill">ACTIVE</span>
+                    </div>
+                    <div class="diag-grid">
+                      <div class="diag-item">
+                        <span class="diag-key">Telemetry Topic</span>
+                        <span class="diag-val mono">waterpump/esp32/status</span>
+                      </div>
+                      <div class="diag-item">
+                        <span class="diag-key">Command Topic</span>
+                        <span class="diag-val mono">waterpump/esp32/control</span>
+                      </div>
+                      <div class="diag-item">
+                        <span class="diag-key">Hardware Ping</span>
+                        <span class="diag-val mono status-green">Sub-100ms Verified</span>
+                      </div>
+                      <div class="diag-item">
+                        <span class="diag-key">Failover Broker</span>
+                        <span class="diag-val mono">Mosquitto Active</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <label class="switch">
-                  <input type="checkbox" checked>
-                  <span class="slider-round"></span>
-                </label>
+
               </div>
-            </section>
+            </div>
+
+            <!-- TAB 2: TELEMETRY (24-HOUR TRENDS) -->
+            <div class="tab-pane hidden" id="tab-pane-telemetry">
+              <section class="system-card">
+                <div class="sys-card-header">
+                  <div>
+                    <h3 class="sys-heading">24-Hour Continuous Telemetry</h3>
+                    <p class="sys-sub">Real-time volumetric fluctuation and sensor recording curve</p>
+                  </div>
+                  <span class="sys-chip live">LIVE TELEMETRY STREAM</span>
+                </div>
+                <div class="chart-viewport">
+                  <svg id="svg-trend-chart" viewBox="0 0 760 200" preserveAspectRatio="none"></svg>
+                </div>
+                <div class="chart-timeline-labels">
+                  <span>00:00</span>
+                  <span>04:00</span>
+                  <span>08:00</span>
+                  <span>12:00</span>
+                  <span>16:00</span>
+                  <span>20:00</span>
+                  <span>Now</span>
+                </div>
+              </section>
+            </div>
+
+            <!-- TAB 3: AUTOMATION RULES -->
+            <div class="tab-pane hidden" id="tab-pane-automation">
+              <section class="system-card">
+                <div class="sys-card-header">
+                  <div>
+                    <h3 class="sys-heading">Autonomous Pump Threshold Registers</h3>
+                    <p class="sys-sub">Synced directly with ESP32 non-volatile EEPROM storage</p>
+                  </div>
+                  <button class="btn-save-cloud" id="btn-save-automation-rules">Save to Cloud</button>
+                </div>
+
+                <div class="rule-box">
+                  <div class="rule-label-row">
+                    <span>Auto-Start Motor When Reservoir Drops Below:</span>
+                    <span class="rule-val-badge" id="disp-autostart-pct">25%</span>
+                  </div>
+                  <input type="range" class="sys-range-slider" id="slider-autostart" min="10" max="50" value="25">
+                </div>
+
+                <div class="rule-box">
+                  <div class="rule-label-row">
+                    <span>Auto-Stop Motor When Reservoir Reaches:</span>
+                    <span class="rule-val-badge" id="disp-autostop-pct">95%</span>
+                  </div>
+                  <input type="range" class="sys-range-slider" id="slider-autostop" min="70" max="100" value="95">
+                </div>
+
+                <div class="rule-toggle-row">
+                  <div class="rule-meta">
+                    <span class="rule-meta-title">Dry-Run Auto Protection</span>
+                    <span class="rule-meta-sub">Instantly de-energizes relay pin GPIO 23 if 0 L/min flow detected during motor run</span>
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox" checked>
+                    <span class="slider-round"></span>
+                  </label>
+                </div>
+              </section>
+            </div>
+
+            <!-- TAB 4: SETTINGS -->
+            <div class="tab-pane hidden" id="tab-pane-settings">
+              <section class="system-card">
+                <div class="sys-card-header">
+                  <h3 class="sys-heading">System Console & Node Configuration</h3>
+                  <span class="sys-chip">v2.0.0</span>
+                </div>
+
+                <div class="settings-list">
+                  <div class="st-row">
+                    <span class="st-key">Active Account</span>
+                    <span class="st-val" id="settings-user-name">Admin HydroPulse</span>
+                  </div>
+                  <div class="st-row">
+                    <span class="st-key">Account Email</span>
+                    <span class="st-val" id="settings-user-email">admin@waterpump.io</span>
+                  </div>
+                  <div class="st-row">
+                    <span class="st-key">Backend Gateway Endpoint</span>
+                    <span class="st-val mono" id="settings-api-url">/api/v1 (Auto-Resolved)</span>
+                  </div>
+                  <div class="st-row">
+                    <span class="st-key">Hardware Identifier</span>
+                    <span class="st-val mono">esp32_pump_main</span>
+                  </div>
+                  <div class="st-row">
+                    <span class="st-key">Firmware OS</span>
+                    <span class="st-val mono">FreeRTOS Dual-Core ESP32</span>
+                  </div>
+                </div>
+
+                <div class="settings-action-bar">
+                  <button class="btn-danger-outline" id="btn-settings-logout">Sign Out of System Console</button>
+                </div>
+              </section>
+            </div>
+
           </div>
-
-          <!-- TAB 4: SETTINGS -->
-          <div class="tab-pane hidden" id="tab-pane-settings">
-            <section class="minimal-card">
-              <div class="m-card-header">
-                <h3 class="m-title">Device & User Profile</h3>
-                <span class="badge-outline">v2.0.0</span>
-              </div>
-
-              <div class="settings-rows">
-                <div class="s-row">
-                  <span class="s-row-key">Active Account</span>
-                  <span class="s-row-val" id="settings-user-name">Admin HydroPulse</span>
-                </div>
-                <div class="s-row">
-                  <span class="s-row-key">Email</span>
-                  <span class="s-row-val" id="settings-user-email">admin@waterpump.io</span>
-                </div>
-                <div class="s-row">
-                  <span class="s-row-key">Backend Gateway URL</span>
-                  <span class="s-row-val mono" id="settings-api-url">/api/v1 (Auto-Detected)</span>
-                </div>
-                <div class="s-row">
-                  <span class="s-row-key">Hardware Device ID</span>
-                  <span class="s-row-val mono">esp32_pump_main</span>
-                </div>
-              </div>
-
-              <div class="settings-actions">
-                <button class="btn-danger-outline" id="btn-settings-logout">Sign Out of Console</button>
-              </div>
-            </section>
-          </div>
-
         </div>
-      </div>
 
-      <!-- Mobile Bottom Navigation Bar (Visible ONLY on Mobile screens < 768px) -->
-      <nav class="mobile-bottom-nav">
-        <button class="m-nav-item active" data-tab="dashboard">
-          <span class="m-nav-icon">⚡</span>
-          <span class="m-nav-label">Dashboard</span>
-        </button>
-        <button class="m-nav-item" data-tab="telemetry">
-          <span class="m-nav-icon">📈</span>
-          <span class="m-nav-label">Telemetry</span>
-        </button>
-        <button class="m-nav-item" data-tab="automation">
-          <span class="m-nav-icon">⚙️</span>
-          <span class="m-nav-label">Automation</span>
-        </button>
-        <button class="m-nav-item" data-tab="settings">
-          <span class="m-nav-icon">🛡️</span>
-          <span class="m-nav-label">Settings</span>
-        </button>
-      </nav>
-    </main>
+        <!-- 2.3 MOBILE BOTTOM NAVIGATION BAR (Visible ONLY on Mobile screens < 768px) -->
+        <nav class="mobile-bottom-nav">
+          <button class="m-nav-item active" data-tab="dashboard">
+            <span class="m-nav-icon">⚡</span>
+            <span class="m-nav-label">Dashboard</span>
+          </button>
+          <button class="m-nav-item" data-tab="telemetry">
+            <span class="m-nav-icon">📈</span>
+            <span class="m-nav-label">Telemetry</span>
+          </button>
+          <button class="m-nav-item" data-tab="automation">
+            <span class="m-nav-icon">⚙️</span>
+            <span class="m-nav-label">Automation</span>
+          </button>
+          <button class="m-nav-item" data-tab="settings">
+            <span class="m-nav-icon">🛡️</span>
+            <span class="m-nav-label">Settings</span>
+          </button>
+        </nav>
+      </main>
+
+    </div>
 
   </div>
 
@@ -477,7 +531,7 @@
         <span class="g-pill">G</span>
         <h3 class="sheet-title">Sign In with Google</h3>
       </div>
-      <p class="sheet-sub">Choose an account to continue to HydroPulse IoT Console</p>
+      <p class="sheet-sub">Choose an account to continue to HydroPulse System Console</p>
 
       <div class="g-account-list">
         <div class="g-account-item" data-email="karthik.iotpump@gmail.com" data-first="Karthik" data-last="N">

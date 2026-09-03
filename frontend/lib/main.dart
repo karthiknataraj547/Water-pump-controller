@@ -21,14 +21,17 @@ import 'features/provisioning/presentation/provisioning_wizard_screen.dart';
 import 'features/notifications/presentation/notifications_screen.dart';
 import 'shared/widgets/animated_pressable.dart';
 
+final authStateNotifier = ValueNotifier<String?>(null);
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final router = GoRouter(
     initialLocation: '/dashboard',
+    refreshListenable: authStateNotifier,
     redirect: (context, state) async {
       const storage = FlutterSecureStorage();
-      final token = await storage.read(key: AppConstants.keyAccessToken);
+      final token = await storage.read(key: AppConstants.keyAccessToken) ?? authStateNotifier.value;
       final isLoggingIn = state.matchedLocation == '/login';
 
       if (token == null && !isLoggingIn) {
