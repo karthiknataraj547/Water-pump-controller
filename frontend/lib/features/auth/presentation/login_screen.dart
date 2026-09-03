@@ -28,6 +28,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+
+  final _firstNameFocusNode = FocusNode();
+  final _lastNameFocusNode = FocusNode();
+  final _emailFocusNode = FocusNode();
+  final _passwordFocusNode = FocusNode();
+  final _confirmPasswordFocusNode = FocusNode();
+
   bool _isLoading = false;
   bool _isSignUp = false;
   bool _obscurePassword = true;
@@ -59,7 +66,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       duration: const Duration(seconds: 8),
     )..repeat();
 
-    // 3. High-Frequency Ripple Physic Ticker
+    // 3. High-Frequency Ripple Physic Ticker (Canvas repaint driven, NO widget rebuild)
     _rippleTicker = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 16),
@@ -85,7 +92,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   void _updatePhysics() {
-    // Update and prune expanding water ripples
+    // Update and prune expanding water ripples (in-memory physics, repainted via CustomPainter)
     for (int i = _ripples.length - 1; i >= 0; i--) {
       _ripples[i].radius += 3.5;
       _ripples[i].opacity -= 0.022;
@@ -103,7 +110,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         bubble.x = _random.nextDouble();
       }
     }
-    if (mounted) setState(() {});
   }
 
   void _addTouchRipple(Offset localPos) {
@@ -127,6 +133,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     _firstNameController.dispose();
     _lastNameController.dispose();
     _confirmPasswordController.dispose();
+    _firstNameFocusNode.dispose();
+    _lastNameFocusNode.dispose();
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    _confirmPasswordFocusNode.dispose();
     super.dispose();
   }
 
@@ -140,27 +151,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
     if (firstName.isEmpty) {
       setState(() => _errorMessage = 'Please enter your first name.');
+      _firstNameFocusNode.requestFocus();
       return;
     }
     if (email.isEmpty) {
       setState(() => _errorMessage = 'Please enter your email address.');
+      _emailFocusNode.requestFocus();
       return;
     }
     final emailRegex = RegExp(r'^[\w\.-]+@([\w-]+\.)+[\w-]{2,6}$');
     if (!emailRegex.hasMatch(email)) {
       setState(() => _errorMessage = 'Please enter a valid email address.');
+      _emailFocusNode.requestFocus();
       return;
     }
     if (password.isEmpty) {
       setState(() => _errorMessage = 'Please enter a password.');
+      _passwordFocusNode.requestFocus();
       return;
     }
     if (password.length < 6) {
       setState(() => _errorMessage = 'Password must be at least 6 characters long.');
+      _passwordFocusNode.requestFocus();
       return;
     }
-    if (confirmPassword.isNotEmpty && password != confirmPassword) {
+    if (confirmPassword.isEmpty) {
+      setState(() => _errorMessage = 'Please confirm your password.');
+      _confirmPasswordFocusNode.requestFocus();
+      return;
+    }
+    if (password != confirmPassword) {
       setState(() => _errorMessage = 'Passwords do not match.');
+      _confirmPasswordFocusNode.requestFocus();
       return;
     }
 
@@ -247,10 +269,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     final email = _emailController.text.trim().toLowerCase();
     final password = _passwordController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
-      setState(() {
-        _errorMessage = 'Please enter both your email address and password.';
-      });
+    if (email.isEmpty) {
+      setState(() => _errorMessage = 'Please enter your email address.');
+      _emailFocusNode.requestFocus();
+      return;
+    }
+    if (password.isEmpty) {
+      setState(() => _errorMessage = 'Please enter your password.');
+      _passwordFocusNode.requestFocus();
       return;
     }
 
@@ -525,35 +551,40 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     final textTheme = Theme.of(context).textTheme;
     final screenSize = MediaQuery.of(context).size;
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          // ==================================================================
-          // 1. INTERACTIVE LIVE WATER PHYSICS CANVAS (TOUCH TO CREATE RIPPLES)
-          // ==================================================================
-          Positioned.fill(
-            child: Listener(
-              onPointerDown: (e) => _addTouchRipple(e.localPosition),
-              onPointerMove: (e) => _addTouchRipple(e.localPosition),
-              child: CustomPaint(
-                size: screenSize,
-                painter: _InteractiveLiveWaterPainter(
-                  wavePhase: _waterWaveController.value * 2 * math.pi,
-                  ripples: _ripples,
-                  bubbles: _bubbles,
-                  isDark: isDark,
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
+        body: Stack(
+          children: [
+            // ==================================================================
+            // 1. INTERACTIVE LIVE WATER PHYSICS CANVAS (TOUCH TO CREATE RIPPLES)
+            // ==================================================================
+            Positioned.fill(
+              child: Listener(
+                onPointerDown: (e) => _addTouchRipple(e.localPosition),
+                onPointerMove: (e) => _addTouchRipple(e.localPosition),
+                child: CustomPaint(
+                  size: screenSize,
+                  painter: _InteractiveLiveWaterPainter(
+                    repaint: _rippleTicker,
+                    waveAnimation: _waterWaveController,
+                    ripples: _ripples,
+                    bubbles: _bubbles,
+                    isDark: isDark,
+                  ),
                 ),
               ),
             ),
-          ),
 
-          // ==================================================================
-          // 2. FOREGROUND CONTENT & FROSTED GLASS LOGIN STRUCTURE
-          // ==================================================================
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+            // ==================================================================
+            // 2. FOREGROUND CONTENT & FROSTED GLASS LOGIN STRUCTURE
+            // ==================================================================
+            SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -745,72 +776,64 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
                               // Conditional First Name & Last Name Inputs for Create Account
                               if (_isSignUp) ...[
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'First Name',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                              color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 6),
-                                          TextField(
-                                            controller: _firstNameController,
-                                            textCapitalization: TextCapitalization.words,
-                                            decoration: InputDecoration(
-                                              hintText: 'First name',
-                                              prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
-                                              filled: true,
-                                              fillColor: isDark ? const Color(0xFF1E293B).withOpacity(0.6) : const Color(0xFFF1F5F9),
-                                              border: OutlineInputBorder(
-                                                borderRadius: BorderRadius.circular(14),
-                                                borderSide: BorderSide.none,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Last Name',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                              color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 6),
-                                          TextField(
-                                            controller: _lastNameController,
-                                            textCapitalization: TextCapitalization.words,
-                                            decoration: InputDecoration(
-                                              hintText: 'Last name',
-                                              prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
-                                              filled: true,
-                                              fillColor: isDark ? const Color(0xFF1E293B).withOpacity(0.6) : const Color(0xFFF1F5F9),
-                                              border: OutlineInputBorder(
-                                                borderRadius: BorderRadius.circular(14),
-                                                borderSide: BorderSide.none,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
+                                Text(
+                                  'First Name',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                                  ),
                                 ),
-                                const SizedBox(height: 16),
+                                const SizedBox(height: 6),
+                                TextField(
+                                  controller: _firstNameController,
+                                  focusNode: _firstNameFocusNode,
+                                  textCapitalization: TextCapitalization.words,
+                                  textInputAction: TextInputAction.next,
+                                  autocorrect: false,
+                                  onSubmitted: (_) => _lastNameFocusNode.requestFocus(),
+                                  decoration: InputDecoration(
+                                    hintText: 'Enter your first name',
+                                    prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+                                    filled: true,
+                                    fillColor: isDark ? const Color(0xFF1E293B).withOpacity(0.6) : const Color(0xFFF1F5F9),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                Text(
+                                  'Last Name (Optional)',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                TextField(
+                                  controller: _lastNameController,
+                                  focusNode: _lastNameFocusNode,
+                                  textCapitalization: TextCapitalization.words,
+                                  textInputAction: TextInputAction.next,
+                                  autocorrect: false,
+                                  onSubmitted: (_) => _emailFocusNode.requestFocus(),
+                                  decoration: InputDecoration(
+                                    hintText: 'Enter your last name',
+                                    prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+                                    filled: true,
+                                    fillColor: isDark ? const Color(0xFF1E293B).withOpacity(0.6) : const Color(0xFFF1F5F9),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
                               ],
 
                               // Email Input
@@ -825,12 +848,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               const SizedBox(height: 6),
                               TextField(
                                 controller: _emailController,
+                                focusNode: _emailFocusNode,
                                 keyboardType: TextInputType.emailAddress,
+                                textInputAction: TextInputAction.next,
+                                textCapitalization: TextCapitalization.none,
+                                autocorrect: false,
+                                enableSuggestions: false,
+                                onSubmitted: (_) => _passwordFocusNode.requestFocus(),
                                 decoration: InputDecoration(
                                   hintText: 'you@example.com',
                                   prefixIcon: const Icon(Icons.mail_outline_rounded, size: 20),
                                   filled: true,
                                   fillColor: isDark ? const Color(0xFF1E293B).withOpacity(0.6) : const Color(0xFFF1F5F9),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(14),
                                     borderSide: BorderSide.none,
@@ -838,7 +868,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                 ),
                               ),
 
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 14),
 
                               // Password Input
                               Text(
@@ -852,7 +882,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               const SizedBox(height: 6),
                               TextField(
                                 controller: _passwordController,
+                                focusNode: _passwordFocusNode,
                                 obscureText: _obscurePassword,
+                                textInputAction: _isSignUp ? TextInputAction.next : TextInputAction.done,
+                                textCapitalization: TextCapitalization.none,
+                                autocorrect: false,
+                                enableSuggestions: false,
+                                onSubmitted: (_) {
+                                  if (_isSignUp) {
+                                    _confirmPasswordFocusNode.requestFocus();
+                                  } else {
+                                    _handleLogin();
+                                  }
+                                },
                                 decoration: InputDecoration(
                                   hintText: '••••••••••••',
                                   prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
@@ -865,6 +907,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                   ),
                                   filled: true,
                                   fillColor: isDark ? const Color(0xFF1E293B).withOpacity(0.6) : const Color(0xFFF1F5F9),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(14),
                                     borderSide: BorderSide.none,
@@ -873,7 +916,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               ),
 
                               if (_isSignUp) ...[
-                                const SizedBox(height: 16),
+                                const SizedBox(height: 14),
                                 Text(
                                   'Confirm Password',
                                   style: TextStyle(
@@ -885,7 +928,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                 const SizedBox(height: 6),
                                 TextField(
                                   controller: _confirmPasswordController,
+                                  focusNode: _confirmPasswordFocusNode,
                                   obscureText: _obscureConfirmPassword,
+                                  textInputAction: TextInputAction.done,
+                                  textCapitalization: TextCapitalization.none,
+                                  autocorrect: false,
+                                  enableSuggestions: false,
+                                  onSubmitted: (_) => _handleRegister(),
                                   decoration: InputDecoration(
                                     hintText: 'Re-enter your password',
                                     prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
@@ -898,6 +947,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                     ),
                                     filled: true,
                                     fillColor: isDark ? const Color(0xFF1E293B).withOpacity(0.6) : const Color(0xFFF1F5F9),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(14),
                                       borderSide: BorderSide.none,
@@ -1058,8 +1108,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildAnimatedHydroStructure(bool isDark, ColorScheme colorScheme) {
     return AnimatedBuilder(
@@ -1168,20 +1219,22 @@ class _WaterBubble {
 // INTERACTIVE LIVE WATER PAINTER WITH MULTI-LAYER WAVES & REFRACTION
 // ============================================================================
 class _InteractiveLiveWaterPainter extends CustomPainter {
-  final double wavePhase;
+  final Animation<double> waveAnimation;
   final List<_WaterRipple> ripples;
   final List<_WaterBubble> bubbles;
   final bool isDark;
 
   _InteractiveLiveWaterPainter({
-    required this.wavePhase,
+    required Listenable repaint,
+    required this.waveAnimation,
     required this.ripples,
     required this.bubbles,
     required this.isDark,
-  });
+  }) : super(repaint: repaint);
 
   @override
   void paint(Canvas canvas, Size size) {
+    final wavePhase = waveAnimation.value * 2 * math.pi;
     // 1. Deep Ocean / Clear Aquatic Background Gradient
     final bgGradient = LinearGradient(
       begin: Alignment.topCenter,

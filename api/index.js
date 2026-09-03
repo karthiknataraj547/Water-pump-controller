@@ -161,14 +161,17 @@ module.exports = async (req, res) => {
   // 3. User Registration (Pushes to Database)
   if (method === 'POST' && url.includes('/api/v1/auth/register')) {
     const { email, password, firstName, lastName } = body;
-    if (!email || !password || !firstName || !lastName) {
-      return res.status(400).json({ status: 'error', message: 'First name, last name, email, and password are required.' });
+    const cleanFirstName = (firstName || '').trim();
+    const cleanLastName = (lastName || '').trim();
+    const cleanEmail = (email || '').trim().toLowerCase();
+
+    if (!cleanEmail || !password || !cleanFirstName) {
+      return res.status(400).json({ status: 'error', message: 'First name, email, and password are required.' });
     }
-    if (password.length < 8) {
-      return res.status(400).json({ status: 'error', message: 'Password must be at least 8 characters long.' });
+    if (password.length < 6) {
+      return res.status(400).json({ status: 'error', message: 'Password must be at least 6 characters long.' });
     }
 
-    const cleanEmail = email.trim().toLowerCase();
     if (usersDb.has(cleanEmail)) {
       return res.status(400).json({ status: 'error', message: 'An account with this email address already exists.' });
     }
@@ -180,8 +183,8 @@ module.exports = async (req, res) => {
       email: cleanEmail,
       passwordHash: hash,
       salt,
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
+      firstName: cleanFirstName,
+      lastName: cleanLastName || cleanFirstName,
       role: 'USER',
       createdAt: new Date().toISOString()
     };

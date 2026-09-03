@@ -308,10 +308,136 @@ document.addEventListener('DOMContentLoaded', () => {
         if (response.ok && json.status === 'success' && json.data && json.data.user) {
           completeAuthentication(json.data.user, json.data.tokens?.accessToken);
         } else {
-          showAlert(json.message || 'Access Denied: Account not found or incorrect credentials. Please register via the mobile app first.');
+          showAlert(json.message || 'Access Denied: Account not found or incorrect credentials. Please register your account first.');
         }
       } catch (err) {
         showAlert('Unable to reach the HydroPulse Cloud API. Please check your network connection.');
+      }
+    });
+  }
+
+  // Auth Tabs Switching (Sign In vs Create Account)
+  const tabSignin = document.getElementById('tab-auth-signin');
+  const tabSignup = document.getElementById('tab-auth-signup');
+  const formSignin = document.getElementById('auth-form-signin');
+  const formSignup = document.getElementById('auth-form-signup');
+  const authTitle = document.getElementById('auth-form-title');
+  const authDesc = document.getElementById('auth-form-desc');
+
+  if (tabSignin && tabSignup) {
+    tabSignin.addEventListener('click', () => {
+      tabSignin.classList.add('active');
+      tabSignup.classList.remove('active');
+      if (formSignin) formSignin.classList.remove('hidden');
+      if (formSignup) formSignup.classList.add('hidden');
+      if (authTitle) authTitle.textContent = 'System Console Sign In';
+      if (authDesc) authDesc.textContent = 'Authenticate to access hardware control registers and real-time telemetry.';
+      hideAlert();
+    });
+
+    tabSignup.addEventListener('click', () => {
+      tabSignup.classList.add('active');
+      tabSignin.classList.remove('active');
+      if (formSignin) formSignin.classList.add('hidden');
+      if (formSignup) formSignup.classList.remove('hidden');
+      if (authTitle) authTitle.textContent = 'Create HydroPulse Account';
+      if (authDesc) authDesc.textContent = 'Register an enterprise client profile to manage water pump controllers.';
+      hideAlert();
+    });
+  }
+
+  // Password peek toggle for signup
+  const btnPeekSignupPwd = document.getElementById('btn-peek-signup-pwd');
+  if (btnPeekSignupPwd) {
+    btnPeekSignupPwd.addEventListener('click', () => {
+      const pwdInput = document.getElementById('signup-password');
+      if (pwdInput) {
+        pwdInput.type = pwdInput.type === 'password' ? 'text' : 'password';
+      }
+    });
+  }
+
+  // Account Creation (Sign Up) Submission
+  if (formSignup) {
+    formSignup.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideAlert();
+
+      const firstName = document.getElementById('signup-firstname')?.value.trim();
+      const lastName = document.getElementById('signup-lastname')?.value.trim();
+      const email = document.getElementById('signup-email')?.value.trim().toLowerCase();
+      const password = document.getElementById('signup-password')?.value;
+      const confirmPassword = document.getElementById('signup-confirmpassword')?.value;
+
+      if (!firstName) {
+        showAlert('Please enter your first name.');
+        document.getElementById('signup-firstname')?.focus();
+        return;
+      }
+      if (!email) {
+        showAlert('Please enter your email address.');
+        document.getElementById('signup-email')?.focus();
+        return;
+      }
+      const emailRegex = /^[\w\.-]+@([\w-]+\.)+[\w-]{2,6}$/;
+      if (!emailRegex.test(email)) {
+        showAlert('Please enter a valid email address.');
+        document.getElementById('signup-email')?.focus();
+        return;
+      }
+      if (!password) {
+        showAlert('Please enter a password.');
+        document.getElementById('signup-password')?.focus();
+        return;
+      }
+      if (password.length < 6) {
+        showAlert('Password must be at least 6 characters long.');
+        document.getElementById('signup-password')?.focus();
+        return;
+      }
+      if (!confirmPassword) {
+        showAlert('Please confirm your password.');
+        document.getElementById('signup-confirmpassword')?.focus();
+        return;
+      }
+      if (password !== confirmPassword) {
+        showAlert('Passwords do not match.');
+        document.getElementById('signup-confirmpassword')?.focus();
+        return;
+      }
+
+      const submitBtn = document.getElementById('btn-submit-signup');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Creating Account...';
+      }
+
+      try {
+        const response = await fetch(`${apiBaseUrl}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            firstName,
+            lastName: lastName || firstName,
+            email,
+            password
+          })
+        });
+
+        const json = await response.json().catch(() => ({}));
+        if ((response.status === 200 || response.status === 201) && json.status === 'success' && json.data && json.data.user) {
+          showAlert('✓ Account created successfully! Launching HydroPulse console...', true);
+          completeAuthentication(json.data.user, json.data.tokens?.accessToken);
+        } else {
+          showAlert(json.message || 'Account registration failed. Please check details.');
+        }
+      } catch (err) {
+        showAlert('Unable to reach the HydroPulse Cloud API. Please check your network connection.');
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Create HydroPulse Account';
+        }
       }
     });
   }

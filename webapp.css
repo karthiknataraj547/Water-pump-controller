@@ -282,6 +282,52 @@ html, body {
   margin-bottom: 18px;
 }
 
+.auth-tabs {
+  display: flex;
+  background: var(--input-bg);
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 16px;
+  gap: 4px;
+}
+
+.auth-tab {
+  flex: 1;
+  padding: 9px 12px;
+  border-radius: 9px;
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.auth-tab.active {
+  background: var(--bg-card);
+  color: var(--primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.input-row-double {
+  display: flex;
+  gap: 12px;
+}
+
+.input-row-double .input-field-group {
+  flex: 1;
+}
+
+@media (max-width: 480px) {
+  .input-row-double {
+    flex-direction: column;
+    gap: 14px;
+  }
+}
+
 .auth-alert {
   padding: 10px 14px;
   border-radius: 10px;
