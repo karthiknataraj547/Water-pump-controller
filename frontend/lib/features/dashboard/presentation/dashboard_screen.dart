@@ -519,18 +519,141 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               _buildProfileRow('Linked Hardware', '0 Nodes Attached', textTheme),
               _buildProfileRow('Account Status', 'Active & Centrally Synced', textTheme),
               _buildProfileRow('Session Security', 'Encrypted JWT Bearer', textTheme),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => context.push('/settings'),
+                      icon: const Icon(Icons.manage_accounts_rounded, size: 18),
+                      label: const Text('Account Settings'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colorScheme.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      const storage = FlutterSecureStorage();
+                      await storage.deleteAll();
+                      hardwareStateService.clearDevice();
+                      if (context.mounted) {
+                        context.go('/login');
+                      }
+                    },
+                    icon: const Icon(Icons.logout_rounded, size: 16),
+                    label: const Text('Sign Out'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.danger,
+                      side: BorderSide(color: AppTheme.danger.withValues(alpha: 0.4)),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // 2. Dedicated App Updates & Maintenance Card (Accessible without hardware)
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: isDarkMode ? AppTheme.darkCard : AppTheme.lightCard,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: AppTheme.accent.withValues(alpha: 0.35),
+              width: 0.8,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppTheme.accent.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.system_update_rounded,
+                      color: AppTheme.accent,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'App Updates & Maintenance',
+                              style: textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text(
+                                'OTA ACTIVE',
+                                style: TextStyle(
+                                  color: Color(0xFF10B981),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Installed: v${AppUpdateService.currentVersion} • Build ${AppUpdateService.currentBuildNumber}',
+                          style: textTheme.bodySmall?.copyWith(fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Keep your HydroPulse client up to date. Direct in-app updates and system patches work seamlessly even before linking your ESP32 controller.',
+                style: textTheme.bodySmall?.copyWith(
+                  fontSize: 12,
+                  height: 1.4,
+                ),
+              ),
               const SizedBox(height: 14),
               SizedBox(
                 width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => context.push('/settings'),
-                  icon: const Icon(Icons.manage_accounts_rounded, size: 18),
-                  label: const Text('Manage Profile & Settings'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: colorScheme.primary,
-                    side: BorderSide(color: colorScheme.primary.withValues(alpha: 0.4)),
+                child: ElevatedButton.icon(
+                  onPressed: () => appUpdateService.checkForUpdates(context, isManual: true),
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: const Text('Check for Updates & Update App'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.accent,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                   ),
                 ),
               ),

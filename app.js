@@ -377,6 +377,26 @@ document.addEventListener('DOMContentLoaded', () => {
     qctx.fill();
   }
 
+  // 6. Dynamic Version & Release Highlights Sync
+  fetch('version.json')
+    .then(res => res.json())
+    .then(data => {
+      if (data && data.version) {
+        const pill = document.getElementById('hero-release-pill');
+        if (pill) pill.innerHTML = `Latest Release: <strong>v${data.version}</strong> Live • In-App OTA & Direct Package Installer`;
+        
+        const subLabels = document.querySelectorAll('.apk-sub-version');
+        subLabels.forEach(el => el.textContent = `v${data.version} • 55.3 MB • Direct Install`);
+
+        const specVer = document.getElementById('spec-version-badge');
+        if (specVer) specVer.innerHTML = `📱 Version: <strong>v${data.version}</strong>`;
+        
+        const specRelease = document.getElementById('spec-release-date');
+        if (specRelease && data.release_date) specRelease.innerHTML = `📅 Released: <strong>${data.release_date}</strong>`;
+      }
+    })
+    .catch(() => {});
+
   // Initialize
   drawQrPlaceholder();
   updateUI();
