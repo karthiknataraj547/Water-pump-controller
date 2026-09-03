@@ -200,7 +200,6 @@ class MainScaffold extends StatefulWidget {
 }
 
 class _MainScaffoldState extends State<MainScaffold> {
-  int _previousIndex = 0;
   StreamSubscription<LiveAppAlert>? _alertSub;
 
   @override
@@ -271,7 +270,6 @@ class _MainScaffoldState extends State<MainScaffold> {
   }
 
   void _onItemTapped(int index) {
-    _previousIndex = widget.navigationShell.currentIndex;
     widget.navigationShell.goBranch(
       index,
       initialLocation: index == widget.navigationShell.currentIndex,

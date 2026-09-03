@@ -1,11 +1,14 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/hardware/hardware_state_service.dart';
 import '../../../shared/widgets/confirmation_dialog.dart';
 import '../../../shared/widgets/animated_pressable.dart';
 import '../../../core/update/app_update_service.dart';
+import '../../../main.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -15,10 +18,48 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  String _userName = 'Admin User';
+  String _userEmail = 'admin@waterpump.io';
+  String _deviceId = 'esp32_pump_main';
+  String _initials = 'AU';
+
   @override
   void initState() {
     super.initState();
     hardwareStateService.addListener(_onStateChanged);
+    _loadUserAccountDetails();
+  }
+
+  Future<void> _loadUserAccountDetails() async {
+    const storage = FlutterSecureStorage();
+    final name = await storage.read(key: AppConstants.keyUserName);
+    final email = await storage.read(key: AppConstants.keyUserEmail);
+    final deviceId = await storage.read(key: AppConstants.keySelectedDeviceId);
+
+    if (mounted) {
+      setState(() {
+        if (name != null && name.trim().isNotEmpty) {
+          _userName = name.trim();
+        } else if (email != null && email.isNotEmpty) {
+          _userName = email.split('@')[0];
+        }
+        if (email != null && email.isNotEmpty) {
+          _userEmail = email.trim();
+        }
+        if (deviceId != null && deviceId.isNotEmpty) {
+          _deviceId = deviceId.trim();
+        }
+
+        final parts = _userName.trim().split(RegExp(r'\s+'));
+        if (parts.length >= 2 && parts[0].isNotEmpty && parts[1].isNotEmpty) {
+          _initials = '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+        } else if (_userName.isNotEmpty) {
+          _initials = _userName.substring(0, math.min(2, _userName.length)).toUpperCase();
+        } else {
+          _initials = 'HP';
+        }
+      });
+    }
   }
 
   @override
@@ -49,7 +90,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 0. User Profile Section
+            // 0. User Profile Section (Dynamic User Account Identification)
             Container(
               padding: const EdgeInsets.all(18.0),
               decoration: BoxDecoration(
@@ -67,11 +108,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         height: 48,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: colorScheme.primary.withOpacity(isDark ? 0.15 : 0.1),
+                          color: colorScheme.primary.withValues(alpha: isDark ? 0.2 : 0.12),
                         ),
                         child: Center(
                           child: Text(
-                            'KN',
+                            _initials,
                             style: TextStyle(
                               color: colorScheme.primary,
                               fontWeight: FontWeight.w700,
@@ -86,23 +127,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Karthik N',
+                              _userName,
                               style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'admin@waterpump.io',
+                              _userEmail,
                               style: textTheme.bodySmall?.copyWith(fontSize: 12),
                             ),
                             const SizedBox(height: 6),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                               decoration: BoxDecoration(
-                                color: colorScheme.primary.withOpacity(0.1),
+                                color: colorScheme.primary.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                'Primary Administrator',
+                                'Active Account Holder',
                                 style: TextStyle(color: colorScheme.primary, fontSize: 10, fontWeight: FontWeight.w600),
                               ),
                             ),
@@ -114,10 +155,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(height: 14),
                   Divider(color: isDark ? AppTheme.darkCardBorder : AppTheme.lightCardBorder, height: 1),
                   const SizedBox(height: 12),
-                  _buildInfoRow('Organization', 'HydroPulse Smart Irrigation'),
-                  _buildInfoRow('Account Status', 'Active & Verified'),
+                  _buildInfoRow('Account Name', _userName),
+                  _buildInfoRow('Email Address', _userEmail),
+                  _buildInfoRow('Paired Node', _deviceId),
+                  _buildInfoRow('Account Status', 'Active & Centrally Synced'),
                   _buildInfoRow('Session Security', 'Encrypted JWT Bearer'),
-                  _buildInfoRow('App Version', '2.0.0 (Fast Stream Engine)'),
+                  _buildInfoRow('App Version', 'v${AppConstants.appVersion} (OTA Enabled)'),
                 ],
               ),
             ),
@@ -476,6 +519,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           onConfirm: () async {
                             const storage = FlutterSecureStorage();
                             await storage.deleteAll();
+                            authStateNotifier.value = null;
                             if (mounted) {
                               context.go('/login');
                             }

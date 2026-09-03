@@ -317,13 +317,31 @@ class AppUpdateService {
                       SnackBar(
                         content: Text('Downloading HydroPulse v${info.version} APK update...'),
                         backgroundColor: const Color(0xFF10B981),
-                        duration: const Duration(seconds: 3),
+                        duration: const Duration(seconds: 4),
                       ),
                     );
+
                     final uri = Uri.parse(info.downloadUrl);
-                    if (await canLaunchUrl(uri)) {
-                      await launchUrl(uri,
-                          mode: LaunchMode.externalApplication);
+                    bool launched = false;
+                    try {
+                      launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    } catch (e) {
+                      debugPrint('[Update] Launch error mode externalApplication: $e');
+                    }
+                    if (!launched) {
+                      try {
+                        launched = await launchUrl(uri, mode: LaunchMode.platformDefault);
+                      } catch (e) {
+                        debugPrint('[Update] Launch error mode platformDefault: $e');
+                      }
+                    }
+                    if (!launched) {
+                      try {
+                        final webUri = Uri.parse(info.websiteUrl);
+                        await launchUrl(webUri, mode: LaunchMode.externalApplication);
+                      } catch (e) {
+                        debugPrint('[Update] Launch error fallback to website: $e');
+                      }
                     }
                   },
                   icon: const Icon(Icons.download_rounded),
