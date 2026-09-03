@@ -64,6 +64,21 @@ let liveState = {
 };
 
 module.exports = async (req, res) => {
+  // Support standard Node http.Server alongside Vercel Serverless
+  if (!res.status) {
+    res.status = function(code) {
+      this.statusCode = code;
+      return this;
+    };
+  }
+  if (!res.json) {
+    res.json = function(data) {
+      this.setHeader('Content-Type', 'application/json');
+      this.end(JSON.stringify(data));
+      return this;
+    };
+  }
+
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -92,7 +107,7 @@ module.exports = async (req, res) => {
   }
 
   // 1. Health Check
-  if (url === '/health' || url.endsWith('/health')) {
+  if (url.includes('/health')) {
     return res.status(200).json({
       status: 'healthy',
       timestamp: new Date().toISOString(),
@@ -186,6 +201,51 @@ module.exports = async (req, res) => {
           lastName: newUser.lastName,
           role: newUser.role,
           createdAt: newUser.createdAt
+        },
+        tokens: {
+          accessToken: token,
+          refreshToken
+        }
+      }
+    });
+  }
+
+  // 3b. Google OAuth Authentication & Registration
+  if (method === 'POST' && url.includes('/api/v1/auth/google')) {
+    const { email, firstName, lastName, googleId } = body;
+    if (!email) {
+      return res.status(400).json({ status: 'error', message: 'Google email is required.' });
+    }
+    const cleanEmail = email.trim().toLowerCase();
+    let user = usersDb.get(cleanEmail);
+    if (!user) {
+      const fName = (firstName || cleanEmail.split('@')[0] || 'Google').trim();
+      const lName = (lastName || 'User').trim();
+      user = {
+        id: `usr_g_${Date.now()}`,
+        email: cleanEmail,
+        passwordHash: 'GOOGLE_OAUTH_LINKED',
+        salt: 'GOOGLE_SALT',
+        firstName: fName,
+        lastName: lName,
+        role: 'USER',
+        googleId: googleId || `g_${Date.now()}`,
+        createdAt: new Date().toISOString()
+      };
+      usersDb.set(cleanEmail, user);
+    }
+    const token = generateToken(user.id, user.email);
+    const refreshToken = generateToken(user.id, user.email);
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+          createdAt: user.createdAt
         },
         tokens: {
           accessToken: token,

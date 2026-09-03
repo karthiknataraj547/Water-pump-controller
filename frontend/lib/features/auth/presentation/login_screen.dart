@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:dio/dio.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/theme_provider.dart';
 import '../../../core/network/api_client.dart';
@@ -169,8 +170,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     });
 
     final fullName = lastName.isNotEmpty ? '$firstName $lastName' : firstName;
-    String finalToken = 'hp_jwt_${DateTime.now().millisecondsSinceEpoch}';
-    String finalRefresh = 'hp_refresh_${DateTime.now().millisecondsSinceEpoch}';
 
     // 1. Post to backend
     try {
@@ -181,40 +180,65 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         'password': password,
       });
 
-      if ((res.statusCode == 201 || res.statusCode == 200) && res.data != null) {
+      if ((res.statusCode == 201 || res.statusCode == 200) && res.data != null && res.data['status'] == 'success') {
         final data = res.data['data'];
-        if (data != null && data['tokens'] != null) {
-          finalToken = data['tokens']['accessToken'] ?? finalToken;
-          finalRefresh = data['tokens']['refreshToken'] ?? finalRefresh;
+        final tokens = data?['tokens'];
+        final finalToken = tokens?['accessToken'] ?? 'hp_jwt_${DateTime.now().millisecondsSinceEpoch}';
+        final finalRefresh = tokens?['refreshToken'] ?? 'hp_refresh_${DateTime.now().millisecondsSinceEpoch}';
+
+        // Store user's REAL account details (no mock data)
+        const storage = FlutterSecureStorage();
+        await storage.write(key: AppConstants.keyUserEmail, value: email);
+        await storage.write(key: AppConstants.keyUserName, value: fullName);
+        await storage.write(key: AppConstants.keyAccessToken, value: finalToken);
+        await storage.write(key: AppConstants.keyRefreshToken, value: finalRefresh);
+
+        // CRITICAL: A new user has NOT added any device yet!
+        await storage.delete(key: AppConstants.keySelectedDeviceId);
+        await hardwareStateService.clearDevice();
+
+        // Refresh auth state immediately
+        authStateNotifier.value = finalToken;
+
+        if (mounted) {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✓ Account created for $fullName! Entering HydroPulse...'),
+              backgroundColor: const Color(0xFF10B981),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          context.go('/dashboard');
+        }
+      } else {
+        final msg = res.data?['message'] ?? 'Account creation failed. Please check your details.';
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = msg;
+          });
         }
       }
-    } catch (e) {
-      debugPrint('[Auth] API registration network notice: $e. Using resilient verified account engine.');
-    } finally {
-      // Store user's REAL account details (no mock data)
-      const storage = FlutterSecureStorage();
-      await storage.write(key: AppConstants.keyUserEmail, value: email);
-      await storage.write(key: AppConstants.keyUserName, value: fullName);
-      await storage.write(key: AppConstants.keyAccessToken, value: finalToken);
-      await storage.write(key: AppConstants.keyRefreshToken, value: finalRefresh);
-      
-      // CRITICAL: A new user has NOT added any device yet!
-      await storage.delete(key: AppConstants.keySelectedDeviceId);
-      await hardwareStateService.clearDevice();
-
-      // Refresh auth state immediately
-      authStateNotifier.value = finalToken;
-
+    } on DioException catch (e) {
+      String msg = 'Account creation failed. Please try again.';
+      if (e.response?.data != null && e.response?.data is Map && e.response?.data['message'] != null) {
+        msg = e.response?.data['message'];
+      } else if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.connectionError) {
+        msg = 'Unable to connect to HydroPulse Cloud API. Please check your internet connection.';
+      }
       if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✓ Account created for $fullName! Entering HydroPulse...'),
-            backgroundColor: const Color(0xFF10B981),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-        context.go('/dashboard');
+        setState(() {
+          _isLoading = false;
+          _errorMessage = msg;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Registration error: ${e.toString()}';
+        });
       }
     }
   }
@@ -235,49 +259,66 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       _errorMessage = null;
     });
 
-    String finalToken = 'jwt_auth_${DateTime.now().millisecondsSinceEpoch}';
-    String finalRefresh = 'jwt_refresh_${DateTime.now().millisecondsSinceEpoch}';
-    String resolvedName = email.split('@')[0];
-
     try {
       final res = await apiClient.post('/auth/login', data: {
         'email': email,
         'password': password,
       });
 
-      if (res.statusCode == 200 && res.data != null) {
-        if (res.data['data'] != null && res.data['data']['user'] != null) {
-          final u = res.data['data']['user'];
-          resolvedName = '${u['firstName']} ${u['lastName']}'.trim();
-        }
+      if (res.statusCode == 200 && res.data != null && res.data['status'] == 'success') {
+        final u = res.data['data']['user'];
+        final resolvedName = '${u['firstName']} ${u['lastName']}'.trim();
         final tokens = res.data['data']['tokens'];
-        if (tokens != null) {
-          finalToken = tokens['accessToken'] ?? finalToken;
-          finalRefresh = tokens['refreshToken'] ?? finalRefresh;
-        }
-      }
-    } catch (e) {
-      debugPrint('[Auth] API login notice: $e.');
-    } finally {
-      const storage = FlutterSecureStorage();
-      await storage.write(key: AppConstants.keyUserEmail, value: email);
-      await storage.write(key: AppConstants.keyUserName, value: resolvedName);
-      await storage.write(key: AppConstants.keyAccessToken, value: finalToken);
-      await storage.write(key: AppConstants.keyRefreshToken, value: finalRefresh);
+        final finalToken = tokens?['accessToken'] ?? 'jwt_auth_${DateTime.now().millisecondsSinceEpoch}';
+        final finalRefresh = tokens?['refreshToken'] ?? 'jwt_refresh_${DateTime.now().millisecondsSinceEpoch}';
 
-      // Clean out any old mock device association
-      final existingDev = await storage.read(key: AppConstants.keySelectedDeviceId);
-      if (existingDev == 'esp32_pump_main') {
+        const storage = FlutterSecureStorage();
+        await storage.write(key: AppConstants.keyUserEmail, value: email);
+        await storage.write(key: AppConstants.keyUserName, value: resolvedName);
+        await storage.write(key: AppConstants.keyAccessToken, value: finalToken);
+        await storage.write(key: AppConstants.keyRefreshToken, value: finalRefresh);
+
+        // Clean out any old mock device association
         await storage.delete(key: AppConstants.keySelectedDeviceId);
         await hardwareStateService.clearDevice();
+
+        // Trigger GoRouter refresh
+        authStateNotifier.value = finalToken;
+
+        if (mounted) {
+          setState(() => _isLoading = false);
+          context.go('/dashboard');
+        }
+      } else {
+        final msg = res.data?['message'] ?? 'Account not found or invalid password.';
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = msg;
+          });
+        }
       }
-
-      // Trigger GoRouter refresh
-      authStateNotifier.value = finalToken;
-
+    } on DioException catch (e) {
+      String msg = 'Invalid email address or password.';
+      if (e.response?.data != null && e.response?.data is Map && e.response?.data['message'] != null) {
+        msg = e.response?.data['message'];
+      } else if (e.response?.statusCode == 401) {
+        msg = 'Account not found or invalid password. Please check your credentials or register first.';
+      } else if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.connectionError) {
+        msg = 'Unable to connect to HydroPulse Cloud API. Please check your internet connection.';
+      }
       if (mounted) {
-        setState(() => _isLoading = false);
-        context.go('/dashboard');
+        setState(() {
+          _isLoading = false;
+          _errorMessage = msg;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Authentication error: ${e.toString()}';
+        });
       }
     }
   }
@@ -418,9 +459,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       _errorMessage = null;
     });
 
-    String finalToken = 'google_jwt_access_${DateTime.now().millisecondsSinceEpoch}';
-    String finalRefresh = 'google_jwt_refresh_${DateTime.now().millisecondsSinceEpoch}';
-
     try {
       final res = await apiClient.post('/auth/google', data: {
         'email': selectedAccount['email'],
@@ -429,32 +467,53 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         'googleId': 'google_oauth_${selectedAccount['email']?.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}',
       });
 
-      if (res.statusCode == 200 && res.data != null) {
+      if (res.statusCode == 200 && res.data != null && res.data['status'] == 'success') {
         final tokens = res.data['data']?['tokens'];
-        if (tokens != null) {
-          finalToken = tokens['accessToken'] ?? finalToken;
-          finalRefresh = tokens['refreshToken'] ?? finalRefresh;
+        final finalToken = tokens?['accessToken'] ?? 'google_jwt_access_${DateTime.now().millisecondsSinceEpoch}';
+        final finalRefresh = tokens?['refreshToken'] ?? 'google_jwt_refresh_${DateTime.now().millisecondsSinceEpoch}';
+
+        const storage = FlutterSecureStorage();
+        await storage.write(key: AppConstants.keyUserEmail, value: selectedAccount['email']);
+        await storage.write(key: AppConstants.keyUserName, value: selectedAccount['name']);
+        await storage.write(key: AppConstants.keyAccessToken, value: finalToken);
+        await storage.write(key: AppConstants.keyRefreshToken, value: finalRefresh);
+
+        // Clean out any old mock device association
+        await storage.delete(key: AppConstants.keySelectedDeviceId);
+        await hardwareStateService.clearDevice();
+
+        // Trigger GoRouter refresh
+        authStateNotifier.value = finalToken;
+
+        if (mounted) {
+          setState(() => _isLoading = false);
+          context.go('/dashboard');
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = res.data?['message'] ?? 'Google authentication failed.';
+          });
         }
       }
-    } catch (e) {
-      debugPrint('[Auth] Google OAuth API notice: $e');
-    } finally {
-      const storage = FlutterSecureStorage();
-      await storage.write(key: AppConstants.keyUserEmail, value: selectedAccount['email']);
-      await storage.write(key: AppConstants.keyUserName, value: selectedAccount['name']);
-      await storage.write(key: AppConstants.keyAccessToken, value: finalToken);
-      await storage.write(key: AppConstants.keyRefreshToken, value: finalRefresh);
-
-      // Clean out any old mock device association
-      await storage.delete(key: AppConstants.keySelectedDeviceId);
-      await hardwareStateService.clearDevice();
-
-      // Trigger GoRouter refresh
-      authStateNotifier.value = finalToken;
-
+    } on DioException catch (e) {
+      String msg = 'Google authentication failed.';
+      if (e.response?.data != null && e.response?.data is Map && e.response?.data['message'] != null) {
+        msg = e.response?.data['message'];
+      }
       if (mounted) {
-        setState(() => _isLoading = false);
-        context.go('/dashboard');
+        setState(() {
+          _isLoading = false;
+          _errorMessage = msg;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Google sign-in error: ${e.toString()}';
+        });
       }
     }
   }

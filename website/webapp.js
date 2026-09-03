@@ -144,19 +144,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==============================================================================
   // 3. Centralized Authentication & Account Synchronization
   // ==============================================================================
-  const apiBaseUrl = window.location.origin.includes('http')
-    ? `${window.location.origin}/api/v1`
-    : '/api/v1';
-
-  const DEFAULT_USERS = [];
-
-  function getLocalUserStore() {
-    try {
-      const data = localStorage.getItem('hydropulse_central_user_store');
-      if (data) return JSON.parse(data);
-    } catch {}
-    return [];
-  }
+  const apiBaseUrl = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? (window.location.port === '4000' ? 'http://localhost:4000/api/v1' : 'https://water-pump-controller.vercel.app/api/v1')
+    : (window.location.origin.includes('vercel.app') ? `${window.location.origin}/api/v1` : 'https://water-pump-controller.vercel.app/api/v1');
 
   let authToken = localStorage.getItem('hydropulse_auth_token') || null;
   let currentUser = null;
@@ -197,19 +187,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (authAlert) authAlert.classList.add('hidden');
   }
 
-  function completeAuthentication(user) {
+  async function completeAuthentication(user, token) {
     currentUser = user;
-    authToken = `hp_jwt_${Date.now()}`;
+    if (token) authToken = token;
+    else if (!authToken) authToken = `hp_jwt_${Date.now()}`;
     localStorage.setItem('hydropulse_auth_token', authToken);
     localStorage.setItem('hydropulse_current_user', JSON.stringify(currentUser));
 
-    showAlert('✓ Authenticated! Loading System Console...', true);
+    showAlert('✓ Authenticated! Loading HydroPulse System Console...', true);
 
-    setTimeout(() => {
+    setTimeout(async () => {
       if (authView) authView.classList.add('hidden');
       if (dashboardView) dashboardView.classList.remove('hidden');
 
-      const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email.split('@')[0];
+      const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || (user.email ? user.email.split('@')[0] : 'User');
       const initials = (user.firstName && user.lastName)
         ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
         : fullName.substring(0, 2).toUpperCase();
@@ -225,15 +216,68 @@ document.addEventListener('DOMContentLoaded', () => {
       if (sEmail) sEmail.textContent = user.email;
       if (sApi) sApi.textContent = `${apiBaseUrl} (Central Sync Active)`;
 
-      // Update topbar context
-      const topbarChip = document.querySelector('.topbar-device-chip');
-      if (topbarChip) topbarChip.textContent = `User: ${user.email}`;
+      // Fetch user's devices from the centralized backend to check for hardware
+      let userDevices = [];
+      try {
+        const devRes = await fetch(`${apiBaseUrl}/devices`, {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        if (devRes.ok) {
+          const devJson = await devRes.json();
+          if (devJson.data && Array.isArray(devJson.data)) {
+            userDevices = devJson.data;
+          }
+        }
+      } catch (e) {
+        console.warn('[Sync] Devices fetch notice:', e);
+      }
 
-      resizeTankCanvas();
-      renderTrendChart();
-      updateMetrics();
+      const hasHardware = userDevices.length > 0;
+      const hwActiveDash = document.getElementById('hw-active-dashboard');
+      const hwNoneDash = document.getElementById('hw-none-dashboard');
+      const topbarChip = document.getElementById('topbar-device-chip') || document.querySelector('.topbar-device-chip');
 
-      // Initialize live two-way MQTT & REST synchronization
+      if (!hasHardware) {
+        // RESTRICTION: No hardware added yet! Hide hardware cards, show user profile and app update engine
+        if (hwActiveDash) hwActiveDash.classList.add('hidden');
+        if (hwNoneDash) hwNoneDash.classList.remove('hidden');
+        if (topbarChip) topbarChip.textContent = 'Node: None (Awaiting Pairing)';
+
+        // Populate No-Hardware Profile View
+        const pAvatar = document.getElementById('profile-avatar-display');
+        const pName = document.getElementById('profile-name-display');
+        const pEmail = document.getElementById('profile-email-display');
+        if (pAvatar) pAvatar.textContent = initials;
+        if (pName) pName.textContent = fullName;
+        if (pEmail) pEmail.textContent = user.email;
+
+        const btnProfSettings = document.getElementById('btn-profile-to-settings');
+        if (btnProfSettings) {
+          btnProfSettings.onclick = () => switchTab('settings');
+        }
+        const btnProfSignout = document.getElementById('btn-profile-signout');
+        if (btnProfSignout) {
+          btnProfSignout.onclick = handleSignOut;
+        }
+
+        const btnCheckUpdatesWeb = document.getElementById('btn-check-updates-web');
+        if (btnCheckUpdatesWeb) {
+          btnCheckUpdatesWeb.onclick = () => {
+            alert('HydroPulse Update Engine:\nInstalled Client: v2.0.2 (Build 4)\nStatus: Running latest official release with in-app OTA and direct package installer support.');
+          };
+        }
+      } else {
+        // Hardware is attached! Show live cards, 3D tank, and telemetry
+        if (hwActiveDash) hwActiveDash.classList.remove('hidden');
+        if (hwNoneDash) hwNoneDash.classList.add('hidden');
+        if (topbarChip) topbarChip.textContent = `Node: ${userDevices[0].nodeId || userDevices[0].id || 'esp32_pump_main'}`;
+
+        resizeTankCanvas();
+        renderTrendChart();
+        updateMetrics();
+      }
+
+      // Initialize live two-way MQTT & REST synchronization with mobile app
       initMqttSync();
       initRestSync();
     }, 350);
@@ -252,31 +296,22 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // 1. Primary: Central Backend Database Authentication
+      // STRICT AUTHENTICATION: Check strictly against centralized backend database
       try {
         const response = await fetch(`${apiBaseUrl}/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
-        }).catch(() => null);
+        });
 
-        if (response && response.ok) {
-          const json = await response.json();
-          if (json.data && json.data.user) {
-            completeAuthentication(json.data.user);
-            return;
-          }
+        const json = await response.json().catch(() => ({}));
+        if (response.ok && json.status === 'success' && json.data && json.data.user) {
+          completeAuthentication(json.data.user, json.data.tokens?.accessToken);
+        } else {
+          showAlert(json.message || 'Access Denied: Account not found or incorrect credentials. Please register via the mobile app first.');
         }
-      } catch {}
-
-      // 2. Secondary: Fallback to Central Synced Local Store
-      const users = getLocalUserStore();
-      const matched = users.find(u => u.email && u.email.toLowerCase() === email);
-
-      if (matched && (!matched.password || matched.password === password)) {
-        completeAuthentication(matched);
-      } else {
-        showAlert('Account not found or invalid credentials. Please create an account via the HydroPulse mobile app first.');
+      } catch (err) {
+        showAlert('Unable to reach the HydroPulse Cloud API. Please check your network connection.');
       }
     });
   }
@@ -286,9 +321,10 @@ document.addEventListener('DOMContentLoaded', () => {
     authToken = null;
     localStorage.removeItem('hydropulse_auth_token');
     localStorage.removeItem('hydropulse_current_user');
-    localStorage.removeItem('hydropulse_central_user_store');
     sessionStorage.clear();
-    window.location.reload();
+    if (dashboardView) dashboardView.classList.add('hidden');
+    if (authView) authView.classList.remove('hidden');
+    hideAlert();
   }
 
   if (btnLogout) btnLogout.addEventListener('click', handleSignOut);
@@ -318,7 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const googleAuthForm = document.getElementById('google-auth-form');
   if (googleAuthForm) {
-    googleAuthForm.addEventListener('submit', (e) => {
+    googleAuthForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const input = document.getElementById('google-email-input');
       const email = input ? input.value.trim().toLowerCase() : '';
@@ -326,31 +362,32 @@ document.addEventListener('DOMContentLoaded', () => {
       googleModalSheet.classList.add('hidden');
       const namePart = email.split('@')[0].replace(/[\._-]/g, ' ');
       const capName = namePart ? (namePart.charAt(0).toUpperCase() + namePart.slice(1)) : 'Google User';
-      completeAuthentication({
-        firstName: capName,
-        lastName: 'Account',
-        email: email,
-        role: 'CLIENT',
-        deviceId: 'esp32_pump_main'
-      });
+
+      try {
+        const response = await fetch(`${apiBaseUrl}/auth/google`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            firstName: capName,
+            lastName: 'Account',
+            googleId: `google_web_${Date.now()}`
+          })
+        });
+        const json = await response.json();
+        if (response.ok && json.status === 'success' && json.data?.user) {
+          completeAuthentication(json.data.user, json.data.tokens?.accessToken);
+        } else {
+          showAlert(json.message || 'Google authentication failed.');
+        }
+      } catch (err) {
+        showAlert('Google authentication service unreachable.');
+      }
     });
   }
 
-  function handleSignOut() {
-    authToken = null;
-    currentUser = null;
-    localStorage.removeItem('hydropulse_auth_token');
-    localStorage.removeItem('hydropulse_current_user');
-    if (dashboardView) dashboardView.classList.add('hidden');
-    if (authView) authView.classList.remove('hidden');
-    hideAlert();
-  }
-
-  if (btnLogout) btnLogout.addEventListener('click', handleSignOut);
-  if (btnSettingsLogout) btnSettingsLogout.addEventListener('click', handleSignOut);
-
   if (authToken && currentUser) {
-    completeAuthentication(currentUser);
+    completeAuthentication(currentUser, authToken);
   }
 
   // ==============================================================================
@@ -454,9 +491,59 @@ document.addEventListener('DOMContentLoaded', () => {
   let runSeconds = 0;
   let runTimer = null;
   let wavePhase = 0;
-  let impellerSpin = 0;
+  let bubbleProgress = 0;
   let liveFlowRate = 0.0;
   let livePowerKw = 0.0;
+
+  // Interactive 3D Spatial Tilt Angles (matching Flutter SpatialWaterTank3D)
+  let tiltX = -0.06;
+  let tiltY = 0.04;
+  let targetTiltX = -0.06;
+  let targetTiltY = 0.04;
+
+  const tankDataHud = document.getElementById('tank-data-hud');
+  const tankFillingStatus = document.getElementById('tank-filling-status');
+
+  if (tankContainer) {
+    tankContainer.addEventListener('mousemove', (e) => {
+      const rect = tankContainer.getBoundingClientRect();
+      const nx = (e.clientX - rect.left) / rect.width - 0.5;
+      const ny = (e.clientY - rect.top) / rect.height - 0.5;
+      targetTiltY = nx * 0.22;
+      targetTiltX = -ny * 0.22;
+    });
+
+    tankContainer.addEventListener('mouseleave', () => {
+      targetTiltX = -0.06;
+      targetTiltY = 0.04;
+    });
+
+    tankContainer.addEventListener('touchmove', (e) => {
+      if (!e.touches[0]) return;
+      const rect = tankContainer.getBoundingClientRect();
+      const nx = (e.touches[0].clientX - rect.left) / rect.width - 0.5;
+      const ny = (e.touches[0].clientY - rect.top) / rect.height - 0.5;
+      targetTiltY = nx * 0.22;
+      targetTiltX = -ny * 0.22;
+    }, { passive: true });
+
+    tankContainer.addEventListener('touchend', () => {
+      targetTiltX = -0.06;
+      targetTiltY = 0.04;
+    });
+  }
+
+  // 22 Volumetric Micro-Bubbles
+  const tankBubbles = [];
+  for (let i = 0; i < 22; i++) {
+    tankBubbles.push({
+      x: Math.random(),
+      y: Math.random(),
+      size: Math.random() * 3.5 + 2,
+      speed: Math.random() * 0.4 + 0.3,
+      opacity: Math.random() * 0.5 + 0.3
+    });
+  }
 
   function resizeTankCanvas() {
     if (!tankContainer || !tankCanvas) return;
@@ -469,117 +556,207 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function drawTank() {
     if (!tankCtx || !tankCanvas) return;
-    tankCtx.clearRect(0, 0, tankCanvas.width, tankCanvas.height);
     const w = tankCanvas.width;
     const h = tankCanvas.height;
     if (w === 0 || h === 0) return;
 
-    const isDark = currentTheme === 'dark';
+    tankCtx.clearRect(0, 0, w, h);
 
-    const padX = w * 0.08;
-    const padY = h * 0.1;
-    const tw = w - padX * 2;
-    const th = h - padY * 2;
-    const ellipseH = th * 0.16;
+    // Dynamic fluid color palette based on tank level (matches Flutter)
+    let primaryFluid = '#00E5FF';
+    let secondaryFluid = '#0066FF';
+    let fluidGlow = '#00D2FF';
 
-    // Glass Tank Cylinder Base
+    const clampedLevel = Math.max(0, Math.min(100, waterLevel));
+    if (clampedLevel <= 20) {
+      primaryFluid = '#FF5252';
+      secondaryFluid = '#D50000';
+      fluidGlow = '#FF1744';
+    } else if (clampedLevel <= 40) {
+      primaryFluid = '#FFD600';
+      secondaryFluid = '#FF6D00';
+      fluidGlow = '#FFAB00';
+    } else if (clampedLevel >= 90) {
+      primaryFluid = '#00E676';
+      secondaryFluid = '#00B0FF';
+      fluidGlow = '#00E676';
+    }
+
+    // Dynamic ambient back-glow in container matching fluid state
+    if (tankContainer) {
+      tankContainer.style.boxShadow = `0 10px 36px ${fluidGlow}38, 0 14px 28px rgba(0, 0, 0, 0.6)`;
+    }
+
+    // Ease interactive 3D tilt
+    tiltX += (targetTiltX - tiltX) * 0.12;
+    tiltY += (targetTiltY - tiltY) * 0.12;
+    tankCanvas.style.transform = `perspective(900px) rotateX(${tiltX}rad) rotateY(${tiltY}rad)`;
+
     tankCtx.save();
-    tankCtx.fillStyle = isDark ? 'rgba(18, 25, 43, 0.45)' : 'rgba(241, 245, 249, 0.7)';
-    tankCtx.strokeStyle = isDark ? 'rgba(56, 189, 248, 0.25)' : 'rgba(2, 132, 199, 0.25)';
-    tankCtx.lineWidth = 1.6;
 
-    // Top Rim
+    // Clip to rounded tank vessel boundary (Radius: 36px equivalent)
+    const rad = Math.min(36 * (w / 340), 36);
     tankCtx.beginPath();
-    tankCtx.ellipse(padX + tw / 2, padY + ellipseH / 2, tw / 2, ellipseH / 2, 0, 0, Math.PI * 2);
-    tankCtx.fill();
-    tankCtx.stroke();
+    if (tankCtx.roundRect) {
+      tankCtx.roundRect(0, 0, w, h, rad);
+    } else {
+      tankCtx.rect(0, 0, w, h);
+    }
+    tankCtx.clip();
 
-    // Bottom Rim
-    tankCtx.beginPath();
-    tankCtx.ellipse(padX + tw / 2, padY + th - ellipseH / 2, tw / 2, ellipseH / 2, 0, 0, Math.PI);
-    tankCtx.stroke();
+    // 1. Dark Cylindrical Glass Vessel Background with 3D Depth Gradient
+    const bgGrad = tankCtx.createLinearGradient(0, 0, w, 0);
+    bgGrad.addColorStop(0.0, '#070B16');
+    bgGrad.addColorStop(0.35, '#141D33');
+    bgGrad.addColorStop(0.75, '#0B1020');
+    bgGrad.addColorStop(1.0, '#04060C');
+    tankCtx.fillStyle = bgGrad;
+    tankCtx.fillRect(0, 0, w, h);
 
-    // Vertical Walls
-    tankCtx.beginPath();
-    tankCtx.moveTo(padX, padY + ellipseH / 2);
-    tankCtx.lineTo(padX, padY + th - ellipseH / 2);
-    tankCtx.moveTo(padX + tw, padY + ellipseH / 2);
-    tankCtx.lineTo(padX + tw, padY + th - ellipseH / 2);
-    tankCtx.stroke();
-    tankCtx.restore();
+    const fillPct = clampedLevel / 100.0;
+    const waterHeight = (h - 16) * fillPct;
+    const baseWaterY = h - 8 - waterHeight;
 
-    // Fluid Body
-    const usableH = th - ellipseH;
-    const fluidH = usableH * (waterLevel / 100);
-    const fluidTopY = (padY + th - ellipseH / 2) - fluidH;
-
-    if (waterLevel > 2) {
-      tankCtx.save();
-      const fluidGrad = tankCtx.createLinearGradient(padX, fluidTopY, padX + tw, padY + th);
-      if (isDark) {
-        fluidGrad.addColorStop(0, '#38BDF8');
-        fluidGrad.addColorStop(1, '#0284C7');
-      } else {
-        fluidGrad.addColorStop(0, '#7DD3FC');
-        fluidGrad.addColorStop(1, '#0284C7');
-      }
-      tankCtx.fillStyle = fluidGrad;
-
+    if (fillPct > 0.005) {
+      // 2. Back Water Wave (Dual Harmonic Wave with Parallax)
       tankCtx.beginPath();
-      tankCtx.moveTo(padX + 2, fluidTopY);
-      tankCtx.lineTo(padX + 2, padY + th - ellipseH / 2);
-      tankCtx.ellipse(padX + tw / 2, padY + th - ellipseH / 2, tw / 2 - 2, ellipseH / 2 - 2, 0, Math.PI, 0, true);
-      tankCtx.lineTo(padX + tw - 2, fluidTopY);
-
-      for (let x = tw - 2; x >= 2; x -= 4) {
-        const amp = isPumpRunning ? 4.0 : 1.2;
-        const wy = fluidTopY + Math.sin((x / 20) + wavePhase) * amp;
-        tankCtx.lineTo(padX + x, wy);
+      tankCtx.moveTo(0, h);
+      tankCtx.lineTo(0, baseWaterY);
+      for (let x = 0; x <= w; x += 4) {
+        const normX = x / w;
+        const wy = baseWaterY +
+          Math.sin(normX * 2 * Math.PI + wavePhase * 0.8) * 7.0 +
+          Math.cos(normX * 4 * Math.PI - wavePhase * 0.6) * 3.0;
+        tankCtx.lineTo(x, wy);
       }
+      tankCtx.lineTo(w, h);
       tankCtx.closePath();
+
+      const backGrad = tankCtx.createLinearGradient(0, baseWaterY, 0, h);
+      backGrad.addColorStop(0.0, `${secondaryFluid}8C`); // 0.55 opacity
+      backGrad.addColorStop(1.0, `${secondaryFluid}40`); // 0.25 opacity
+      tankCtx.fillStyle = backGrad;
       tankCtx.fill();
 
-      // Fluid Top Surface
-      tankCtx.fillStyle = isDark ? 'rgba(125, 211, 252, 0.45)' : 'rgba(255, 255, 255, 0.6)';
+      // 3. Front Water Wave (Primary Volumetric Fluid Fill)
       tankCtx.beginPath();
-      tankCtx.ellipse(padX + tw / 2, fluidTopY, tw / 2 - 2, ellipseH / 2 - 2, 0, 0, Math.PI * 2);
+      tankCtx.moveTo(0, h);
+      tankCtx.lineTo(0, baseWaterY);
+      for (let x = 0; x <= w; x += 4) {
+        const normX = x / w;
+        const wy = baseWaterY +
+          Math.sin(normX * 2 * Math.PI - wavePhase) * 9.0 +
+          Math.sin(normX * 3.5 * Math.PI + wavePhase * 1.3) * 4.0;
+        tankCtx.lineTo(x, wy);
+      }
+      tankCtx.lineTo(w, h);
+      tankCtx.closePath();
+
+      const frontGrad = tankCtx.createLinearGradient(0, baseWaterY, 0, h);
+      frontGrad.addColorStop(0.0, `${primaryFluid}E0`);  // 0.88 opacity
+      frontGrad.addColorStop(0.4, `${secondaryFluid}EB`); // 0.92 opacity
+      frontGrad.addColorStop(1.0, '#001F54');
+      tankCtx.fillStyle = frontGrad;
       tankCtx.fill();
-      tankCtx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-      tankCtx.lineWidth = 1;
-      tankCtx.stroke();
+
+      // 4. 3D Elliptical Meniscus Surface at Fluid Height
+      tankCtx.save();
+      const meniscusR = tankCtx.createRadialGradient(w / 2, baseWaterY, 2, w / 2, baseWaterY, w * 0.47);
+      meniscusR.addColorStop(0.0, 'rgba(255, 255, 255, 0.75)');
+      meniscusR.addColorStop(0.5, `${primaryFluid}CC`);
+      meniscusR.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+      tankCtx.fillStyle = meniscusR;
+      tankCtx.beginPath();
+      tankCtx.ellipse(w / 2, baseWaterY, w * 0.46, 7, 0, 0, Math.PI * 2);
+      tankCtx.fill();
       tankCtx.restore();
+
+      // 5. Volumetric Rising Bubbles
+      for (let i = 0; i < tankBubbles.length; i++) {
+        const b = tankBubbles[i];
+        const currentY = ((b.y - (bubbleProgress * b.speed)) % 1.0 + 1.0) % 1.0;
+        const actualY = baseWaterY + (currentY * waterHeight);
+        const actualX = b.x * w + Math.sin(bubbleProgress * 2 * Math.PI + b.y * 10) * 6;
+
+        if (actualY > baseWaterY && actualY < h) {
+          tankCtx.beginPath();
+          tankCtx.arc(actualX, actualY, b.size, 0, Math.PI * 2);
+          tankCtx.fillStyle = `rgba(255, 255, 255, ${b.opacity * 0.7})`;
+          tankCtx.fill();
+
+          tankCtx.strokeStyle = `${fluidGlow}${Math.round(b.opacity * 255).toString(16).padStart(2, '0')}`;
+          tankCtx.lineWidth = 1.0;
+          tankCtx.stroke();
+        }
+      }
     }
 
-    // Rotating Motor Impeller Indicator
-    const impX = padX + tw - 32;
-    const impY = padY + th - 12;
-    tankCtx.save();
-    tankCtx.translate(impX, impY);
-    tankCtx.beginPath();
-    tankCtx.arc(0, 0, 16, 0, Math.PI * 2);
-    tankCtx.fillStyle = isPumpRunning
-      ? (isDark ? 'rgba(34, 197, 94, 0.25)' : 'rgba(22, 163, 74, 0.25)')
-      : (isDark ? 'rgba(30, 40, 60, 0.8)' : 'rgba(226, 232, 240, 0.8)');
-    tankCtx.fill();
-    tankCtx.strokeStyle = isPumpRunning ? '#22C55E' : '#94A3B8';
+    // 6. Laser-Etched 3D Graduation Rings & Tick Marks
+    tankCtx.strokeStyle = 'rgba(74, 101, 149, 0.55)';
     tankCtx.lineWidth = 1.5;
+    tankCtx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    tankCtx.font = 'bold 9px monospace';
+    tankCtx.textBaseline = 'middle';
+
+    const levels = [0.25, 0.50, 0.75, 1.0];
+    for (let i = 0; i < levels.length; i++) {
+      const lvl = levels[i];
+      const y = h * (1.0 - lvl);
+      // Left tick
+      tankCtx.beginPath();
+      tankCtx.moveTo(12, y);
+      tankCtx.lineTo(28, y);
+      tankCtx.stroke();
+      // Right tick
+      tankCtx.beginPath();
+      tankCtx.moveTo(w - 28, y);
+      tankCtx.lineTo(w - 12, y);
+      tankCtx.stroke();
+      // Label
+      tankCtx.fillText(`${(lvl * 100).toFixed(0)}%`, 34, y);
+    }
+
+    // 7. 3D Cylindrical Curved Glass Highlights & Reflections
+    const glassGrad = tankCtx.createLinearGradient(0, 0, w, 0);
+    glassGrad.addColorStop(0.05, 'rgba(255, 255, 255, 0.28)');
+    glassGrad.addColorStop(0.22, 'rgba(255, 255, 255, 0.04)');
+    glassGrad.addColorStop(0.85, 'rgba(255, 255, 255, 0.00)');
+    glassGrad.addColorStop(0.98, 'rgba(255, 255, 255, 0.12)');
+    tankCtx.fillStyle = glassGrad;
+    tankCtx.fillRect(0, 0, w, h);
+
+    // 8. Outer Spatial Glass Border
+    const borderGrad = tankCtx.createLinearGradient(0, 0, w, h);
+    borderGrad.addColorStop(0.0, 'rgba(255, 255, 255, 0.45)');
+    borderGrad.addColorStop(0.5, `${fluidGlow}B3`);
+    borderGrad.addColorStop(1.0, '#1E293B');
+    tankCtx.strokeStyle = borderGrad;
+    tankCtx.lineWidth = 2.5;
+    tankCtx.beginPath();
+    if (tankCtx.roundRect) {
+      tankCtx.roundRect(1.25, 1.25, w - 2.5, h - 2.5, rad);
+    } else {
+      tankCtx.rect(1.25, 1.25, w - 2.5, h - 2.5);
+    }
     tankCtx.stroke();
 
-    tankCtx.rotate(impellerSpin);
-    tankCtx.strokeStyle = isPumpRunning ? (isDark ? '#38BDF8' : '#0284C7') : '#94A3B8';
-    tankCtx.lineWidth = 2;
-    for (let i = 0; i < 4; i++) {
-      tankCtx.rotate(Math.PI / 2);
-      tankCtx.beginPath();
-      tankCtx.moveTo(0, 0);
-      tankCtx.lineTo(0, -10);
-      tankCtx.stroke();
-    }
     tankCtx.restore();
 
-    wavePhase += isPumpRunning ? 0.08 : 0.03;
+    // Update Holographic HUD Badge colors & pump status
+    if (tankDataHud) {
+      tankDataHud.style.borderColor = `${fluidGlow}8C`;
+      tankDataHud.style.boxShadow = `0 0 20px ${fluidGlow}45, 0 8px 24px rgba(0, 0, 0, 0.6)`;
+    }
+    if (tankFillingStatus) {
+      if (isPumpRunning) tankFillingStatus.classList.remove('hidden');
+      else tankFillingStatus.classList.add('hidden');
+    }
+
+    // Update wave and bubble progress
+    wavePhase += isPumpRunning ? 0.09 : 0.035;
+    bubbleProgress = (bubbleProgress + (isPumpRunning ? 0.018 : 0.008)) % 1.0;
+
     if (isPumpRunning) {
-      impellerSpin += 0.2;
       if (waterLevel < 98) {
         waterLevel += 0.025;
         updateMetrics();

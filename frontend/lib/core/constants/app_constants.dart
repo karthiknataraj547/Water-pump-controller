@@ -1,10 +1,11 @@
 class AppConstants {
   static const String appName = 'HydroPulse IoT';
-  static const String appVersion = '2.0.1';
+  static const String appVersion = '2.0.2';
 
-  // API & MQTT Backend (Cloud IoT Broker)
-  static const String apiBaseUrl = 'http://localhost:4000/api/v1';
-  static String activeApiBaseUrl = 'http://localhost:4000/api/v1';
+  // API & MQTT Backend (Centralized HydroPulse Cloud Sync)
+  static const String cloudApiBaseUrl = 'https://water-pump-controller.vercel.app/api/v1';
+  static const String apiBaseUrl = 'https://water-pump-controller.vercel.app/api/v1';
+  static String activeApiBaseUrl = 'https://water-pump-controller.vercel.app/api/v1';
 
   static const String mqttBrokerHost = 'broker.emqx.io';
   static const int mqttBrokerPort = 1883;

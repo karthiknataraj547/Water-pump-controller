@@ -230,7 +230,7 @@
             </button>
             <div class="topbar-context">
               <span class="topbar-section-title" id="page-title">Hardware Console / Overview</span>
-              <span class="topbar-device-chip">Node: esp32_pump_main</span>
+              <span class="topbar-device-chip" id="topbar-device-chip">Node: None</span>
             </div>
           </div>
 
@@ -251,7 +251,143 @@
 
             <!-- TAB 1: DASHBOARD (2-COLUMN SYSTEM LAYOUT) -->
             <div class="tab-pane active" id="tab-pane-dashboard">
-              <div class="system-grid-2col">
+
+              <!-- RESTRICTION VIEW: NO HARDWARE ATTACHED (Profile & App Updates) -->
+              <div id="hw-none-dashboard" class="no-hardware-dashboard hidden">
+                <!-- 1. USER PROFILE IDENTIFICATION CARD -->
+                <section class="system-card profile-id-card">
+                  <div class="sys-card-header">
+                    <div class="user-badge-header">
+                      <span class="user-verified-badge">✓ Verified Account Holder</span>
+                      <span class="sys-chip">SECURE PROFILE</span>
+                    </div>
+                  </div>
+                  
+                  <div class="profile-card-body">
+                    <div class="profile-avatar-large" id="profile-avatar-display">HP</div>
+                    <div class="profile-meta">
+                      <h2 class="profile-full-name" id="profile-name-display">Authenticated User</h2>
+                      <span class="profile-email-text" id="profile-email-display">user@example.com</span>
+                      <div class="profile-tags">
+                        <span class="profile-tag green">● Central Cloud Synced</span>
+                        <span class="profile-tag blue">Role: Client Account</span>
+                        <span class="profile-tag orange">0 Nodes Attached</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="profile-stats-grid">
+                    <div class="profile-stat-box">
+                      <span class="p-stat-key">LINKED HARDWARE</span>
+                      <span class="p-stat-val">0 Controllers</span>
+                      <span class="p-stat-sub">Awaiting Mobile Pairing</span>
+                    </div>
+                    <div class="profile-stat-box">
+                      <span class="p-stat-key">CLOUD DATABASE SYNC</span>
+                      <span class="p-stat-val" style="color: #10b981;">CONNECTED</span>
+                      <span class="p-stat-sub">Central Serverless API</span>
+                    </div>
+                    <div class="profile-stat-box">
+                      <span class="p-stat-key">SECURITY PROTOCOL</span>
+                      <span class="p-stat-val">PBKDF2-SHA512</span>
+                      <span class="p-stat-sub">Hardware Enforced</span>
+                    </div>
+                  </div>
+
+                  <div class="profile-action-bar">
+                    <button class="btn-primary-action" id="btn-profile-to-settings">
+                      <span>⚙️ Account Settings</span>
+                    </button>
+                    <button class="btn-danger-outline" id="btn-profile-signout">
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                </section>
+
+                <!-- 2. APP UPDATE ENGINE & MAINTENANCE CARD -->
+                <section class="system-card app-update-engine-card">
+                  <div class="sys-card-header">
+                    <div>
+                      <span class="sys-chip green">OTA UPDATE ENGINE</span>
+                      <h3 class="sys-heading">Client Application Version & Patches</h3>
+                    </div>
+                    <div class="sys-chip-badge">OTA ACTIVE</div>
+                  </div>
+
+                  <div class="ota-card-body">
+                    <div class="ota-icon-box">📱</div>
+                    <div class="ota-details">
+                      <div class="ota-version-row">
+                        <span class="ota-version-number" id="ota-current-version">v2.0.2 • Build 4</span>
+                        <span class="ota-tag">Production Release</span>
+                      </div>
+                      <p class="ota-description">
+                        Your HydroPulse system is equipped with direct in-app OTA updates and background patch delivery. System updates and client downloads are available even before pairing hardware controllers.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="ota-specs-row">
+                    <div class="ota-spec-item">
+                      <span class="spec-label">Package Size:</span>
+                      <span class="spec-value">55.3 MB (57,964,543 bytes)</span>
+                    </div>
+                    <div class="ota-spec-item">
+                      <span class="spec-label">Target Architecture:</span>
+                      <span class="spec-value">arm64-v8a / armeabi-v7a</span>
+                    </div>
+                    <div class="ota-spec-item">
+                      <span class="spec-label">Installation Type:</span>
+                      <span class="spec-value">Direct Android Package Archive</span>
+                    </div>
+                  </div>
+
+                  <div class="ota-action-bar">
+                    <a href="releases/HydroPulse_WaterPumpController.apk" class="btn-primary-action" download id="btn-ota-download-apk">
+                      <span>📥 Download Android APK v2.0.2 (55.3 MB)</span>
+                    </a>
+                    <button class="btn-secondary-action" id="btn-check-updates-web">
+                      <span>🔄 Check for App Updates</span>
+                    </button>
+                  </div>
+                </section>
+
+                <!-- 3. HARDWARE PAIRING GUIDE CARD -->
+                <section class="system-card hardware-pairing-guide-card">
+                  <div class="sys-card-header">
+                    <div>
+                      <span class="sys-chip">SETUP WIZARD</span>
+                      <h3 class="sys-heading">Link Your ESP32 Pump Gateway</h3>
+                    </div>
+                  </div>
+                  <div class="pairing-steps-list">
+                    <div class="pairing-step-item">
+                      <div class="step-num">1</div>
+                      <div class="step-content">
+                        <span class="step-title">Install Mobile Application</span>
+                        <span class="step-desc">Download and install HydroPulse APK on your Android device using the button above.</span>
+                      </div>
+                    </div>
+                    <div class="pairing-step-item">
+                      <div class="step-num">2</div>
+                      <div class="step-content">
+                        <span class="step-title">Power On ESP32 Gateway Node</span>
+                        <span class="step-desc">Ensure your ESP32 controller is powered. The status LED will pulse blue in pairing mode.</span>
+                      </div>
+                    </div>
+                    <div class="pairing-step-item">
+                      <div class="step-num">3</div>
+                      <div class="step-content">
+                        <span class="step-title">Launch Provisioning Wizard</span>
+                        <span class="step-desc">Scan via Bluetooth LE or WiFi Direct in the mobile app. Once paired, this web console will automatically activate your live 3D water tank and controls!</span>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+
+              <!-- ACTIVE HARDWARE DASHBOARD (Visible ONLY When Hardware is Linked) -->
+              <div class="system-grid-2col" id="hw-active-dashboard">
 
                 <!-- LEFT PANE: SMART WATER SYSTEM CARD -->
                 <section class="system-card smart-water-system-card">
@@ -266,12 +402,19 @@
                     </div>
                   </div>
 
-                  <!-- 3D Cylindrical Water Tank Canvas (Fluid Responsive) -->
+                  <!-- 3D Cylindrical Spatial Water Tank Canvas (Fluid Responsive) -->
                   <div class="tank-canvas-wrapper" id="tank-canvas-container">
                     <canvas id="water-tank-canvas"></canvas>
-                    <div class="tank-data-hud">
+                    <div class="tank-data-hud" id="tank-data-hud">
+                      <div class="tank-filling-indicator hidden" id="tank-filling-status">
+                        <span>▲</span>
+                        <span>FILLING ACTIVE</span>
+                      </div>
                       <span class="tank-pct-number" id="tank-pct-text">68.5%</span>
                       <span class="tank-liters-number" id="tank-vol-text">3,425 / 5,000 L</span>
+                    </div>
+                    <div class="tank-tilt-tip">
+                      <span>👆 Move cursor / touch to tilt 3D spatial view</span>
                     </div>
                   </div>
 
