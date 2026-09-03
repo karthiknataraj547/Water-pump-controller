@@ -149,7 +149,7 @@
           </div>
           <div class="sidebar-brand-text">
             <span class="sb-title">HydroPulse</span>
-            <span class="sb-edition">System Console v2.0</span>
+            <span class="sb-edition">System Console v2.0.2</span>
           </div>
         </div>
 
@@ -463,17 +463,25 @@
               <section class="system-card">
                 <div class="sys-card-header">
                   <h3 class="sys-heading">System Console & Node Configuration</h3>
-                  <span class="sys-chip">v2.0.0</span>
+                  <span class="sys-chip">v2.0.2</span>
                 </div>
 
                 <div class="settings-list">
                   <div class="st-row">
                     <span class="st-key">Active Account</span>
-                    <span class="st-val" id="settings-user-name">Admin HydroPulse</span>
+                    <span class="st-val" id="settings-user-name">Authenticated User</span>
                   </div>
                   <div class="st-row">
                     <span class="st-key">Account Email</span>
-                    <span class="st-val" id="settings-user-email">admin@waterpump.io</span>
+                    <span class="st-val" id="settings-user-email">Session Active</span>
+                  </div>
+                  <div class="st-row">
+                    <span class="st-key">Client Release Version</span>
+                    <span class="st-val" id="settings-app-version">v2.0.2 (Build 4)</span>
+                  </div>
+                  <div class="st-row">
+                    <span class="st-key">Mobile APK Package Size</span>
+                    <span class="st-val">55.3 MB (57,964,543 bytes)</span>
                   </div>
                   <div class="st-row">
                     <span class="st-key">Backend Gateway Endpoint</span>
@@ -481,7 +489,7 @@
                   </div>
                   <div class="st-row">
                     <span class="st-key">Hardware Identifier</span>
-                    <span class="st-val mono">esp32_pump_main</span>
+                    <span class="st-val mono" id="settings-hw-id">No Hardware Linked</span>
                   </div>
                   <div class="st-row">
                     <span class="st-key">Firmware OS</span>
@@ -489,7 +497,10 @@
                   </div>
                 </div>
 
-                <div class="settings-action-bar">
+                <div class="settings-action-bar" style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
+                  <a href="releases/HydroPulse_WaterPumpController.apk" class="btn-primary-action" download style="text-decoration: none; padding: 10px 18px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">
+                    <span>📥 Download Android APK v2.0.2 (55.3 MB)</span>
+                  </a>
                   <button class="btn-danger-outline" id="btn-settings-logout">Sign Out of System Console</button>
                 </div>
               </section>
