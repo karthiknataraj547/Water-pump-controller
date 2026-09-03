@@ -1,39 +1,58 @@
 /* ==============================================================================
-   HydroPulse IoT - Minimalist UI Matching Flutter Mobile Design
-   Supports Both Dark Mode and Light Mode with Dynamic Theming
+   HydroPulse IoT - Minimalist Responsive Web Console
+   Fully Adaptive for Mobile & Laptop / Desktop in Dark and Light Themes
    ============================================================================== */
 
 :root, [data-theme="dark"] {
-  /* Flutter AppTheme Dark Mode Colors */
+  --bg-app: #0B0F19;
+  --bg-surface: #121826;
+  --bg-card: #141C2E;
+  --bg-card-hover: #1A243B;
+  --bg-subtle: rgba(255, 255, 255, 0.04);
+  --input-bg: #0F1626;
+
+  --border-card: rgba(255, 255, 255, 0.08);
+  --border-focus: #38BDF8;
+
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+
   --primary: #0EA5E9;
-  --primary-light: #7DD3FC;
+  --primary-light: #38BDF8;
   --primary-dark: #0284C7;
   --accent: #22C55E;
   --warning: #F59E0B;
   --danger: #EF4444;
   --danger-dark: #DC2626;
 
-  --bg-app: #16161E;
-  --bg-surface: #1E1E2A;
-  --bg-card: #252536;
-  --border-card: #35354A;
-  --border-subtle: rgba(255, 255, 255, 0.08);
+  --tank-bg: #0A0D15;
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.4);
+  --shadow-motor: 0 4px 16px rgba(14, 165, 233, 0.3);
+  --shadow-running: 0 4px 16px rgba(239, 68, 68, 0.35);
 
-  --text-primary: #F1F5F9;
-  --text-secondary: #94A3B8;
-  --text-tertiary: #64748B;
-
-  --tank-bg: #111118;
-  --input-bg: rgba(30, 30, 42, 0.85);
-  --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.35);
-  --shadow-toggle: 0 4px 16px rgba(14, 165, 233, 0.35);
-
-  --water-cyan: #38BDF8;
-  --water-emerald: #22C55E;
+  --water-top: #38BDF8;
+  --water-bot: #0284C7;
+  --water-wave-line: rgba(255, 255, 255, 0.5);
+  --glass-stroke: rgba(56, 189, 248, 0.25);
+  --glass-bg: rgba(18, 24, 38, 0.4);
 }
 
 [data-theme="light"] {
-  /* Flutter AppTheme Light Mode Colors */
+  --bg-app: #F8FAFC;
+  --bg-surface: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #F1F5F9;
+  --bg-subtle: rgba(0, 0, 0, 0.02);
+  --input-bg: #F8FAFC;
+
+  --border-card: #E2E8F0;
+  --border-focus: #0284C7;
+
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+
   --primary: #0284C7;
   --primary-light: #38BDF8;
   --primary-dark: #0369A1;
@@ -42,74 +61,74 @@
   --danger: #DC2626;
   --danger-dark: #B91C1C;
 
-  --bg-app: #F8FAFC;
-  --bg-surface: #FFFFFF;
-  --bg-card: #FFFFFF;
-  --border-card: #E2E8F0;
-  --border-subtle: rgba(0, 0, 0, 0.06);
-
-  --text-primary: #0F172A;
-  --text-secondary: #475569;
-  --text-tertiary: #94A3B8;
-
   --tank-bg: #F1F5F9;
-  --input-bg: #F8FAFC;
-  --shadow-card: 0 4px 16px rgba(15, 23, 42, 0.06);
-  --shadow-toggle: 0 4px 16px rgba(2, 132, 199, 0.25);
+  --shadow-card: 0 2px 12px rgba(15, 23, 42, 0.06);
+  --shadow-motor: 0 4px 16px rgba(2, 132, 199, 0.2);
+  --shadow-running: 0 4px 16px rgba(220, 38, 38, 0.25);
 
-  --water-cyan: #0284C7;
-  --water-emerald: #16A34A;
+  --water-top: #7DD3FC;
+  --water-bot: #0284C7;
+  --water-wave-line: rgba(255, 255, 255, 0.7);
+  --glass-stroke: rgba(2, 132, 199, 0.25);
+  --glass-bg: rgba(241, 245, 249, 0.6);
 }
 
+/* Base Styles */
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
   -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
-body {
+html, body {
+  width: 100%;
+  min-height: 100vh;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   background-color: var(--bg-app);
   color: var(--text-primary);
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  min-height: 100vh;
   line-height: 1.5;
   overflow-x: hidden;
-  position: relative;
 }
 
-/* Background Interactive Water Physics Canvas */
+/* Ambient Fluid Background Canvas */
 #water-bg-canvas {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  pointer-events: all;
+  pointer-events: none;
   z-index: 0;
 }
 
-.flutter-app-shell {
+.app-shell {
   position: relative;
   z-index: 1;
+  width: 100%;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-}
-
-.screen-view {
-  width: 100%;
 }
 
 .hidden {
   display: none !important;
 }
 
+/* Monospace Helpers */
+.mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.status-green {
+  color: var(--accent) !important;
+}
+
 /* ==============================================================================
-   1. AUTHENTICATION SCREEN (MATCHING FLUTTER LOGIN SCREEN)
+   1. AUTHENTICATION VIEW (MINIMALIST SIGN IN ONLY)
    ============================================================================== */
-.auth-layout {
+.auth-view {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -117,17 +136,17 @@ body {
   justify-content: center;
   padding: 24px 16px;
   position: relative;
+  width: 100%;
 }
 
-.auth-top-actions {
+.auth-theme-header {
   position: absolute;
   top: 20px;
   right: 20px;
-  z-index: 10;
 }
 
 .theme-toggle-btn {
-  background: var(--bg-card);
+  background: var(--bg-surface);
   border: 1px solid var(--border-card);
   border-radius: 12px;
   width: 40px;
@@ -135,17 +154,17 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 16px;
   cursor: pointer;
   box-shadow: var(--shadow-card);
-  font-size: 16px;
 }
 
 .theme-toggle-btn:hover {
   border-color: var(--primary);
-  transform: scale(1.05);
+  transform: scale(1.04);
 }
 
-.auth-card-wrapper {
+.auth-card-container {
   width: 100%;
   max-width: 420px;
   display: flex;
@@ -153,93 +172,89 @@ body {
   align-items: center;
 }
 
-/* Flutter-Matching Resonance Rings & Droplet */
-.hydro-droplet-container {
+/* Brand Hero */
+.brand-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.brand-icon-wrap {
   position: relative;
-  width: 88px;
-  height: 88px;
+  width: 72px;
+  height: 72px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
-.hydro-resonance-outer {
+.brand-pulse-ring {
   position: absolute;
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  border: 1.5px solid var(--primary);
+  border: 1.5px solid var(--primary-light);
   opacity: 0.35;
-  animation: hydro-pulse 2.2s infinite ease-in-out;
+  animation: pulse-ring 2.4s infinite ease-in-out;
 }
 
-.hydro-resonance-inner {
-  position: absolute;
-  width: 80%;
-  height: 80%;
-  border-radius: 50%;
-  border: 1.5px solid var(--accent);
-  opacity: 0.45;
-  animation: hydro-pulse 2.2s infinite ease-in-out 0.4s;
-}
-
-@keyframes hydro-pulse {
+@keyframes pulse-ring {
   0% { transform: scale(0.85); opacity: 0.8; }
-  50% { transform: scale(1.18); opacity: 0.15; }
+  50% { transform: scale(1.2); opacity: 0.1; }
   100% { transform: scale(0.85); opacity: 0.8; }
 }
 
-.hydro-droplet-circle {
+.brand-droplet-badge {
   width: 48px;
   height: 48px;
-  border-radius: 16px;
+  border-radius: 14px;
   background: var(--bg-card);
-  border: 1px solid var(--primary);
+  border: 1px solid var(--border-card);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 16px rgba(14, 165, 233, 0.3);
+  box-shadow: 0 4px 16px rgba(14, 165, 233, 0.25);
 }
 
-.droplet-icon {
-  width: 26px;
-  height: 26px;
+.droplet-svg {
+  width: 24px;
+  height: 24px;
 }
 
-.brand-heading {
+.brand-title {
   font-size: 26px;
   font-weight: 800;
   letter-spacing: -0.5px;
   color: var(--text-primary);
-  margin-bottom: 4px;
 }
 
-.brand-subheading {
+.brand-subtitle {
   font-size: 13px;
   color: var(--text-secondary);
-  margin-bottom: 24px;
   text-align: center;
+  margin-top: 2px;
 }
 
-/* Frosted Glass Login Card */
-.flutter-frosted-card {
+/* Minimalist Auth Card */
+.auth-card {
   width: 100%;
   background: var(--bg-card);
   border: 1px solid var(--border-card);
   border-radius: 20px;
-  padding: 24px;
+  padding: 26px 22px;
   box-shadow: var(--shadow-card);
 }
 
-.sync-status-row {
+.auth-badge-row {
   display: flex;
   justify-content: center;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
-.sync-pill {
-  display: flex;
+.cloud-sync-chip {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 4px 12px;
@@ -251,127 +266,108 @@ body {
   color: var(--accent);
 }
 
-.sync-dot {
+.sync-ping {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: var(--accent);
 }
 
-.flutter-tab-switch {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  padding: 4px;
-  margin-bottom: 20px;
-}
-
-.tab-pill {
-  padding: 8px;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  font-family: inherit;
+.auth-form-title {
+  font-size: 18px;
   font-weight: 700;
-  font-size: 13px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  text-align: center;
 }
 
-.tab-pill.active {
-  background: var(--bg-card);
-  color: var(--primary);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+.auth-form-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-bottom: 18px;
 }
 
-.flutter-alert-banner {
+.auth-alert {
   padding: 10px 14px;
   border-radius: 10px;
   font-size: 12px;
   font-weight: 500;
   margin-bottom: 16px;
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
   color: var(--danger);
 }
 
-.flutter-alert-banner.success {
-  background: rgba(34, 197, 94, 0.12);
-  border-color: rgba(34, 197, 94, 0.35);
+.auth-alert.success {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.3);
   color: var(--accent);
 }
 
-.flutter-auth-form {
+.auth-form {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
-.flutter-input-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.flutter-input-group {
+.input-field-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.flutter-input-group label {
+.input-field-group label {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary);
 }
 
-.flutter-input-box {
+.input-box {
   position: relative;
   display: flex;
   align-items: center;
 }
 
-.input-prefix-icon {
+.field-icon {
   position: absolute;
   left: 12px;
-  font-size: 14px;
-  opacity: 0.6;
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
 }
 
-.flutter-input-box input {
+.input-box input {
   width: 100%;
   background: var(--input-bg);
   border: 1px solid var(--border-card);
   border-radius: 12px;
-  padding: 11px 14px 11px 38px;
+  padding: 12px 38px 12px 38px;
   color: var(--text-primary);
   font-family: inherit;
   font-size: 14px;
   outline: none;
 }
 
-.flutter-input-box input:focus {
-  border-color: var(--primary);
+.input-box input:focus {
+  border-color: var(--border-focus);
   box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
 }
 
-.btn-pwd-peek {
+.btn-pwd-toggle {
   position: absolute;
   right: 12px;
-  background: transparent;
+  background: none;
   border: none;
   cursor: pointer;
   opacity: 0.6;
 }
 
-.btn-flutter-primary {
-  margin-top: 6px;
+.btn-primary-action {
+  margin-top: 4px;
   width: 100%;
   padding: 13px;
-  border-radius: 14px;
+  border-radius: 12px;
   background: var(--primary);
   color: #FFFFFF;
   font-family: inherit;
@@ -379,65 +375,42 @@ body {
   font-size: 14px;
   border: none;
   cursor: pointer;
-  box-shadow: var(--shadow-toggle);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  box-shadow: var(--shadow-motor);
 }
 
-.btn-flutter-primary:hover {
+.btn-primary-action:hover {
   background: var(--primary-dark);
-  transform: translateY(-1px);
 }
 
-.btn-content {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.btn-spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #FFF;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.flutter-divider-or {
+.auth-divider {
   display: flex;
   align-items: center;
   margin: 16px 0;
-  color: var(--text-tertiary);
+  color: var(--text-muted);
   font-size: 11px;
   font-weight: 700;
 }
 
-.flutter-divider-or::before,
-.flutter-divider-or::after {
+.auth-divider::before,
+.auth-divider::after {
   content: '';
   flex: 1;
   border-bottom: 1px solid var(--border-card);
 }
 
-.flutter-divider-or span {
+.auth-divider span {
   padding: 0 10px;
 }
 
-.btn-flutter-google {
+.btn-google-auth {
   width: 100%;
   padding: 11px;
   background: var(--bg-surface);
   border: 1px solid var(--border-card);
-  border-radius: 14px;
+  border-radius: 12px;
   color: var(--text-primary);
   font-family: inherit;
-  font-weight: 700;
+  font-weight: 600;
   font-size: 13px;
   display: flex;
   align-items: center;
@@ -446,54 +419,107 @@ body {
   cursor: pointer;
 }
 
-.btn-flutter-google:hover {
-  background: var(--bg-card);
-  border-color: var(--primary);
+.btn-google-auth:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-focus);
 }
 
-.google-g-badge {
-  font-weight: 900;
-  font-size: 16px;
-  color: #4285F4;
+.google-logo {
+  width: 18px;
+  height: 18px;
 }
 
-.auth-bottom-links {
+/* Mobile App Only Registration Banner */
+.mobile-registration-banner {
+  margin-top: 20px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-card);
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.banner-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.banner-body {
+  flex: 1;
+}
+
+.banner-heading {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.banner-text {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin-bottom: 10px;
+}
+
+.btn-mobile-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  background: rgba(14, 165, 233, 0.12);
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.btn-mobile-download:hover {
+  background: var(--primary);
+  color: #FFFFFF;
+}
+
+.dl-svg {
+  width: 14px;
+  height: 14px;
+}
+
+.auth-footer-links {
   margin-top: 18px;
   text-align: center;
 }
 
-.link-back-site {
+.footer-link {
   font-size: 12px;
-  color: var(--text-tertiary);
+  color: var(--text-muted);
   text-decoration: none;
 }
 
-.link-back-site:hover {
+.footer-link:hover {
   color: var(--primary);
 }
 
-.water-touch-caption {
-  font-size: 11px;
-  color: var(--text-tertiary);
-  margin-top: 14px;
-  text-align: center;
-}
-
 /* ==============================================================================
-   2. MAIN DASHBOARD SCREEN (MATCHING FLUTTER SCREENS)
+   2. MAIN CONSOLE DASHBOARD VIEW (MULTI-DEVICE RESPONSIVE)
    ============================================================================== */
-.dashboard-layout {
+.dashboard-view {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  width: 100%;
 }
 
-/* Flutter AppBar */
-.flutter-app-bar {
+/* Universal Header */
+.app-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 24px;
+  padding: 12px 16px;
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border-card);
   position: sticky;
@@ -502,13 +528,13 @@ body {
   box-shadow: var(--shadow-card);
 }
 
-.app-bar-left {
+.header-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
-.app-bar-logo-badge {
+.header-logo-badge {
   width: 36px;
   height: 36px;
   border-radius: 10px;
@@ -518,131 +544,194 @@ body {
   justify-content: center;
 }
 
-.app-bar-meta {
+.h-droplet {
+  width: 20px;
+  height: 20px;
+}
+
+.header-title-block {
   display: flex;
   flex-direction: column;
 }
 
-.app-bar-title-row {
+.title-row {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.device-title {
+.app-title {
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: -0.3px;
   color: var(--text-primary);
 }
 
-.hw-status-pill {
-  display: flex;
+.status-pill {
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 2px 8px;
-  border-radius: 8px;
+  gap: 5px;
+  padding: 2px 7px;
+  border-radius: 6px;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.5px;
 }
 
-.hw-status-pill.online {
+.status-pill.online {
   background: rgba(34, 197, 94, 0.12);
   color: var(--accent);
-  border: 0.5px solid rgba(34, 197, 94, 0.25);
+  border: 1px solid rgba(34, 197, 94, 0.3);
 }
 
-.hw-status-pill.online .hw-dot {
+.status-indicator-dot {
   width: 5px;
   height: 5px;
   border-radius: 50%;
   background: var(--accent);
 }
 
-.device-subtitle {
-  font-size: 11px;
-  color: var(--text-tertiary);
-}
-
-.app-bar-actions {
+.subtitle-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
-.user-profile-widget {
+/* Desktop Navigation Tabs (Hidden on mobile, visible on laptop/desktop) */
+.desktop-nav-tabs {
+  display: none;
+  gap: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  padding: 4px;
+  border-radius: 12px;
+}
+
+.d-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.d-nav-btn:hover {
+  color: var(--text-primary);
+}
+
+.d-nav-btn.active {
+  background: var(--bg-surface);
+  color: var(--primary);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.header-right {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding-left: 12px;
+}
+
+.user-profile-menu {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 8px;
   border-left: 1px solid var(--border-card);
 }
 
-.user-avatar-circle {
+.avatar-circle {
   width: 32px;
   height: 32px;
   border-radius: 50%;
   background: var(--primary);
   color: #FFFFFF;
   font-weight: 800;
-  font-size: 12px;
+  font-size: 11px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.user-name-column {
-  display: flex;
+.user-meta-desktop {
+  display: none;
   flex-direction: column;
 }
 
-.user-full-name {
+.user-name {
   font-size: 12px;
   font-weight: 700;
   color: var(--text-primary);
 }
 
-.user-role-label {
+.user-role {
   font-size: 9px;
   font-weight: 800;
   color: var(--accent);
 }
 
-.btn-action-icon {
+.btn-header-logout {
   background: transparent;
   border: none;
-  color: var(--text-tertiary);
+  color: var(--text-muted);
   cursor: pointer;
+  padding: 4px;
   display: flex;
   align-items: center;
-  padding: 4px;
 }
 
-.btn-action-icon:hover {
+.btn-header-logout:hover {
   color: var(--danger);
 }
 
-/* Main Body Layout */
-.dashboard-scrollable-body {
+.logout-svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Scrollable Container */
+.content-scroll-area {
   flex: 1;
-  padding: 20px 16px 120px;
+  padding: 16px;
+  overflow-y: auto;
   display: flex;
   justify-content: center;
 }
 
-.dashboard-center-column {
+.responsive-max-wrapper {
   width: 100%;
-  max-width: 680px;
+  max-width: 1120px;
 }
 
-.tab-page {
+.tab-pane {
+  width: 100%;
+}
+
+/* Dashboard Responsive Grid Layout */
+.dashboard-grid-layout {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
+  width: 100%;
 }
 
-/* SMART WATER SYSTEM CARD (MATCHING smart_water_system_card.dart) */
-.smart-water-card {
+.dashboard-side-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Smart Water System Card */
+.smart-card {
   background: var(--bg-card);
   border: 1px solid var(--border-card);
   border-radius: 20px;
@@ -650,39 +739,39 @@ body {
   box-shadow: var(--shadow-card);
 }
 
-.smart-card-top {
+.smart-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
-.system-chip {
+.system-badge {
   font-size: 10px;
   font-weight: 800;
   color: var(--primary);
   background: rgba(14, 165, 233, 0.12);
-  padding: 3px 8px;
+  padding: 2px 7px;
   border-radius: 6px;
 }
 
-.system-heading {
+.card-heading {
   font-size: 16px;
   font-weight: 700;
-  margin-top: 4px;
   color: var(--text-primary);
+  margin-top: 3px;
 }
 
-.mode-segmented-control {
+.mode-toggle-group {
   display: grid;
   grid-template-columns: 1fr 1fr;
   background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-card);
   border-radius: 8px;
-  padding: 3px;
+  padding: 2px;
 }
 
-.seg-btn {
+.mode-pill {
   padding: 4px 10px;
   border: none;
   background: transparent;
@@ -694,35 +783,33 @@ body {
   cursor: pointer;
 }
 
-.seg-btn.active {
+.mode-pill.active {
   background: var(--bg-card);
   color: var(--primary);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
 }
 
-/* 3D Volumetric Cylindrical Tank Canvas */
-.tank-viewport-card {
+/* Fluid 3D Water Tank Canvas */
+.tank-canvas-card {
   position: relative;
   width: 100%;
-  height: 260px;
+  height: 250px;
   background: var(--tank-bg);
   border-radius: 14px;
   border: 1px solid var(--border-card);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   overflow: hidden;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 #water-tank-canvas {
   width: 100%;
   height: 100%;
+  display: block;
 }
 
-.tank-level-overlay {
+.tank-data-overlay {
   position: absolute;
-  top: 14px;
+  top: 12px;
   left: 50%;
   transform: translateX(-50%);
   background: var(--bg-card);
@@ -730,93 +817,89 @@ body {
   padding: 4px 14px;
   border-radius: 20px;
   text-align: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
-.tank-pct-number {
+.tank-pct {
   display: block;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 800;
   color: var(--primary);
 }
 
-.tank-vol-number {
+.tank-liters {
   font-size: 10px;
   color: var(--text-secondary);
 }
 
 /* Motor Actuation Button */
-.motor-toggle-container {
-  margin-bottom: 10px;
+.pump-controls-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
 }
 
-.btn-motor-toggle {
+.btn-motor-actuation {
   width: 100%;
-  padding: 16px;
-  border-radius: 16px;
+  min-height: 54px;
+  padding: 12px 16px;
+  border-radius: 14px;
   border: none;
   background: var(--primary);
   color: #FFFFFF;
   cursor: pointer;
-  box-shadow: var(--shadow-toggle);
+  box-shadow: var(--shadow-motor);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  transition: all 0.2s;
+  justify-content: center;
 }
 
-.btn-motor-toggle:hover {
+.btn-motor-actuation:hover {
   background: var(--primary-dark);
-  transform: translateY(-1px);
 }
 
-.btn-motor-toggle.active-running {
+.btn-motor-actuation.active-running {
   background: var(--danger);
-  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.35);
+  box-shadow: var(--shadow-running);
 }
 
-.btn-motor-toggle.active-running:hover {
+.btn-motor-actuation.active-running:hover {
   background: var(--danger-dark);
 }
 
-.motor-action-icon {
-  font-size: 18px;
-}
-
-.motor-action-title {
-  font-size: 17px;
+.motor-title {
+  font-size: 16px;
   font-weight: 800;
   letter-spacing: 0.5px;
 }
 
-.motor-action-sub {
+.motor-subtext {
   font-size: 11px;
   opacity: 0.85;
 }
 
-/* Emergency Stop Button */
-.btn-emergency-stop {
+.btn-e-stop {
   width: 100%;
-  padding: 11px;
+  min-height: 42px;
+  padding: 10px;
   border-radius: 12px;
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.3);
   color: var(--danger);
   font-family: inherit;
-  font-weight: 800;
+  font-weight: 700;
   font-size: 12px;
   cursor: pointer;
-  margin-bottom: 16px;
-  transition: all 0.2s;
 }
 
-.btn-emergency-stop:hover {
+.btn-e-stop:hover {
   background: rgba(239, 68, 68, 0.2);
 }
 
-/* Sub-Metrics Inside Smart Card */
-.smart-card-metrics-grid {
+/* Embedded Metrics Row */
+.embedded-metrics-row {
   display: grid;
   grid-template-columns: 1fr auto 1fr auto 1fr;
   align-items: center;
@@ -824,72 +907,62 @@ body {
   border-top: 1px solid var(--border-card);
 }
 
-.card-metric-item {
+.e-metric {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
 }
 
-.metric-icon {
-  font-size: 16px;
-  margin-bottom: 2px;
-}
-
-.metric-key {
+.e-label {
   font-size: 9px;
   font-weight: 700;
-  color: var(--text-tertiary);
+  color: var(--text-muted);
 }
 
-.metric-val {
+.e-value {
   font-size: 14px;
   font-weight: 800;
   color: var(--text-primary);
 }
 
-.metric-val.mono {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
-}
-
-.metric-v-divider {
+.e-divider {
   width: 1px;
-  height: 24px;
+  height: 22px;
   background: var(--border-card);
 }
 
-/* 2x2 Sensor Metric Grid (Matching Flutter MetricCard) */
-.sensor-metric-grid {
+/* 2x2 Sensor Metric Cards */
+.sensor-grid-2x2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
 
-.metric-card-box {
+.sensor-card {
   background: var(--bg-card);
   border: 1px solid var(--border-card);
   border-radius: 16px;
-  padding: 16px;
+  padding: 14px;
   box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
 }
 
-.metric-card-top {
+.s-card-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
-.m-title {
+.s-card-title {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary);
 }
 
-.m-icon-bubble {
+.s-icon {
   width: 28px;
   height: 28px;
   border-radius: 8px;
@@ -899,42 +972,97 @@ body {
   font-size: 14px;
 }
 
-.m-icon-bubble.blue { background: rgba(14, 165, 233, 0.12); }
-.m-icon-bubble.sky { background: rgba(56, 189, 248, 0.12); }
-.m-icon-bubble.green { background: rgba(34, 197, 94, 0.12); }
-.m-icon-bubble.amber { background: rgba(245, 158, 11, 0.12); }
+.s-icon.blue { background: rgba(14, 165, 233, 0.12); }
+.s-icon.sky { background: rgba(56, 189, 248, 0.12); }
+.s-icon.green { background: rgba(34, 197, 94, 0.12); }
+.s-icon.amber { background: rgba(245, 158, 11, 0.12); }
 
-.m-val-wrap {
+.s-card-val-row {
   display: flex;
   align-items: baseline;
   gap: 4px;
-  margin-bottom: 2px;
 }
 
-.m-val {
+.s-val {
   font-size: 20px;
   font-weight: 800;
   color: var(--text-primary);
 }
 
-.m-unit {
+.s-unit {
   font-size: 11px;
   font-weight: 600;
   color: var(--text-secondary);
 }
 
-.m-sub {
+.s-subtext {
   font-size: 10px;
-  color: var(--text-tertiary);
+  color: var(--text-muted);
+  margin-top: 2px;
 }
 
-.m-sub.accent {
+/* Cloud Broker Card */
+.cloud-broker-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: var(--shadow-card);
+}
+
+.broker-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.broker-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.broker-badge {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.broker-host {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.broker-status-pill {
+  font-size: 9px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(34, 197, 94, 0.12);
   color: var(--accent);
-  font-weight: 600;
 }
 
-/* Section Cards (Telemetry, Automation, Settings) */
-.content-section-card {
+.broker-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.b-key {
+  display: block;
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+.b-val {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* Minimalist Secondary Cards */
+.minimal-card {
   background: var(--bg-card);
   border: 1px solid var(--border-card);
   border-radius: 20px;
@@ -942,25 +1070,25 @@ body {
   box-shadow: var(--shadow-card);
 }
 
-.section-heading-row {
+.m-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
-.sec-title {
-  font-size: 16px;
+.m-title {
+  font-size: 15px;
   font-weight: 700;
   color: var(--text-primary);
 }
 
-.sec-desc {
+.m-desc {
   font-size: 11px;
   color: var(--text-secondary);
 }
 
-.live-stream-badge {
+.badge-accent {
   font-size: 10px;
   font-weight: 800;
   padding: 3px 8px;
@@ -969,10 +1097,18 @@ body {
   color: var(--accent);
 }
 
-.svg-trend-container {
+.badge-outline {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-card);
+  color: var(--text-muted);
+}
+
+.chart-container {
   width: 100%;
   height: 180px;
-  margin-bottom: 8px;
 }
 
 #svg-trend-chart {
@@ -980,15 +1116,16 @@ body {
   height: 100%;
 }
 
-.timeline-labels {
+.chart-time-labels {
   display: flex;
   justify-content: space-between;
   font-family: 'JetBrains Mono', monospace;
   font-size: 10px;
-  color: var(--text-tertiary);
+  color: var(--text-muted);
+  margin-top: 6px;
 }
 
-.rule-slider-item {
+.rule-slider-group {
   margin-bottom: 16px;
 }
 
@@ -997,16 +1134,16 @@ body {
   justify-content: space-between;
   font-size: 12px;
   font-weight: 600;
-  margin-bottom: 6px;
   color: var(--text-secondary);
+  margin-bottom: 6px;
 }
 
-.r-val {
+.rule-val-pill {
   font-weight: 800;
   color: var(--primary);
 }
 
-.flutter-range-slider {
+.minimal-slider {
   width: 100%;
   height: 6px;
   border-radius: 3px;
@@ -1015,7 +1152,7 @@ body {
   cursor: pointer;
 }
 
-.rule-toggle-row {
+.toggle-rule-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1023,17 +1160,20 @@ body {
   border-top: 1px solid var(--border-card);
 }
 
-.rule-title {
+.rule-name {
+  display: block;
   font-size: 12px;
   font-weight: 700;
+  color: var(--text-primary);
 }
 
-.rule-hint {
+.rule-sub {
+  display: block;
   font-size: 10px;
-  color: var(--text-tertiary);
+  color: var(--text-muted);
 }
 
-.btn-save-cloud {
+.btn-action-sm {
   background: rgba(14, 165, 233, 0.12);
   border: 1px solid var(--primary);
   color: var(--primary);
@@ -1045,27 +1185,23 @@ body {
   cursor: pointer;
 }
 
-/* Switch Toggle */
-.switch-toggle {
+/* Switch */
+.switch {
   position: relative;
   display: inline-block;
-  width: 44px;
+  width: 42px;
   height: 24px;
 }
 
-.switch-toggle input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
+.switch input { opacity: 0; width: 0; height: 0; }
 
 .slider-round {
   position: absolute;
   cursor: pointer;
   inset: 0;
   background-color: var(--border-card);
-  transition: .3s;
   border-radius: 24px;
+  transition: 0.2s;
 }
 
 .slider-round:before {
@@ -1076,24 +1212,20 @@ body {
   left: 3px;
   bottom: 3px;
   background-color: white;
-  transition: .3s;
   border-radius: 50%;
+  transition: 0.2s;
 }
 
-input:checked + .slider-round {
-  background-color: var(--accent);
-}
+input:checked + .slider-round { background-color: var(--accent); }
+input:checked + .slider-round:before { transform: translateX(18px); }
 
-input:checked + .slider-round:before {
-  transform: translateX(20px);
-}
-
-.settings-list {
+/* Settings */
+.settings-rows {
   display: flex;
   flex-direction: column;
 }
 
-.settings-row {
+.s-row {
   display: flex;
   justify-content: space-between;
   padding: 12px 0;
@@ -1101,143 +1233,131 @@ input:checked + .slider-round:before {
   font-size: 12px;
 }
 
-.st-key {
-  color: var(--text-secondary);
+.s-row-key { color: var(--text-secondary); }
+.s-row-val { font-weight: 600; color: var(--text-primary); }
+
+.settings-actions {
+  margin-top: 18px;
 }
 
-.st-val {
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.st-val.bold { font-weight: 700; }
-.st-val.status-green { color: var(--accent); }
-.st-val.mono { font-family: 'JetBrains Mono', monospace; }
-
-.settings-actions-wrap {
-  margin-top: 20px;
-}
-
-.btn-flutter-danger {
+.btn-danger-outline {
   width: 100%;
-  padding: 12px;
+  padding: 11px;
   border-radius: 12px;
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.3);
   color: var(--danger);
   font-family: inherit;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
 }
 
-/* Bottom Navigation Bar (Matching Flutter BottomNavigationBar) */
-.flutter-bottom-nav {
+/* Mobile Bottom Navigation (Visible ONLY on Mobile < 768px) */
+.mobile-bottom-nav {
   position: fixed;
   bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
   width: 100%;
-  max-width: 680px;
   background: var(--bg-surface);
   border-top: 1px solid var(--border-card);
   display: flex;
   justify-content: space-around;
   padding: 8px 0;
   z-index: 100;
-  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1);
 }
 
-.nav-tab-button {
+.m-nav-item {
   display: flex;
   flex-direction: column;
   align-items: center;
   background: transparent;
   border: none;
-  color: var(--text-tertiary);
+  color: var(--text-muted);
   cursor: pointer;
-  padding: 4px 12px;
-  transition: color 0.2s;
+  padding: 4px 10px;
 }
 
-.nav-tab-button.active {
+.m-nav-item.active {
   color: var(--primary);
 }
 
-.nav-btn-icon {
+.m-nav-icon {
   font-size: 18px;
 }
 
-.nav-btn-label {
+.m-nav-label {
   font-size: 10px;
   font-weight: 700;
   margin-top: 2px;
 }
 
-/* Google Account Picker Modal */
-.flutter-modal-overlay {
+/* Modal BottomSheet */
+.modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(6px);
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
   z-index: 200;
   display: flex;
   align-items: flex-end;
   justify-content: center;
 }
 
-.flutter-bottom-sheet {
+.modal-bottom-sheet {
   background: var(--bg-card);
   width: 100%;
-  max-width: 460px;
-  border-radius: 24px 24px 0 0;
-  padding: 20px 24px 32px;
+  max-width: 440px;
+  border-radius: 20px 20px 0 0;
+  padding: 20px 24px 30px;
   box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
 }
 
-.sheet-drag-handle {
-  width: 40px;
+.sheet-drag-pill {
+  width: 36px;
   height: 4px;
   background: var(--border-card);
   border-radius: 2px;
   margin: 0 auto 16px;
 }
 
-.sheet-header-row {
+.sheet-header {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 4px;
 }
 
-.google-logo-pill {
+.g-pill {
   font-weight: 900;
   font-size: 18px;
   color: #4285F4;
 }
 
-.sheet-heading {
+.sheet-title {
   font-size: 18px;
   font-weight: 700;
   color: var(--text-primary);
 }
 
 .sheet-sub {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-secondary);
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
-.google-account-list {
+.g-account-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
-.google-user-item {
+.g-account-item {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1248,13 +1368,13 @@ input:checked + .slider-round:before {
   cursor: pointer;
 }
 
-.google-user-item:hover {
-  border-color: var(--primary);
+.g-account-item:hover {
+  border-color: var(--border-focus);
 }
 
-.google-avatar-circle {
-  width: 36px;
-  height: 36px;
+.g-avatar {
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -1264,26 +1384,26 @@ input:checked + .slider-round:before {
   color: #FFF;
 }
 
-.google-avatar-circle.blue { background: #0284C7; }
-.google-avatar-circle.green { background: #16A34A; }
+.g-avatar.blue { background: #0284C7; }
+.g-avatar.green { background: #16A34A; }
 
-.google-user-details {
+.g-meta {
   display: flex;
   flex-direction: column;
 }
 
-.g-name {
+.g-meta-name {
   font-size: 13px;
   font-weight: 700;
   color: var(--text-primary);
 }
 
-.g-email {
+.g-meta-email {
   font-size: 11px;
   color: var(--text-secondary);
 }
 
-.btn-sheet-cancel {
+.btn-sheet-close {
   padding: 12px;
   background: var(--bg-surface);
   border: 1px solid var(--border-card);
@@ -1291,4 +1411,65 @@ input:checked + .slider-round:before {
   color: var(--text-primary);
   font-weight: 600;
   cursor: pointer;
+}
+
+/* ==============================================================================
+   3. RESPONSIVE BREAKPOINTS (LAPTOP / DESKTOP OPTIMIZATIONS)
+   ============================================================================== */
+@media (min-width: 768px) {
+  /* Show Desktop Top Navigation and Hide Mobile Bottom Navigation */
+  .desktop-nav-tabs {
+    display: flex;
+  }
+
+  .mobile-bottom-nav {
+    display: none;
+  }
+
+  .user-meta-desktop {
+    display: flex;
+  }
+
+  .app-header {
+    padding: 14px 32px;
+  }
+
+  .content-scroll-area {
+    padding: 28px 32px;
+  }
+
+  /* 2-Column Responsive Dashboard Layout on Laptop / Desktop */
+  .dashboard-grid-layout {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  .smart-card {
+    padding: 26px;
+  }
+
+  .tank-canvas-card {
+    height: 300px;
+  }
+
+  .sensor-card {
+    padding: 18px;
+  }
+}
+
+@media (max-width: 767px) {
+  /* Mobile Spacing Protection for Bottom Navigation */
+  .content-scroll-area {
+    padding-bottom: 90px;
+  }
+
+  .smart-card {
+    padding: 16px;
+  }
+
+  .tank-canvas-card {
+    height: 230px;
+  }
 }

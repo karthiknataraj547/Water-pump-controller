@@ -2,363 +2,363 @@
 <html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HydroPulse IoT | Smart Volumetric Water Management System</title>
-  <meta name="description" content="Minimalist Web Application for HydroPulse IoT, matching the Flutter mobile application design with Light and Dark mode support.">
-  
-  <!-- Plus Jakarta Sans & JetBrains Mono (Exact Flutter App Fonts) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>HydroPulse IoT | Smart Water Management System</title>
+  <meta name="description" content="Minimalist, responsive web console for HydroPulse IoT smart volumetric water management and pump automation.">
+  <meta name="theme-color" content="#0B0F19">
+
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
   <link rel="stylesheet" href="webapp.css">
 </head>
 <body>
 
-  <!-- Interactive Live Water Physics Canvas (Matching Flutter Login Screen) -->
+  <!-- Fluid Ambient Background Canvas (Touch ripples & buoyant micro-bubbles) -->
   <canvas id="water-bg-canvas"></canvas>
 
-  <div class="flutter-app-shell">
+  <div class="app-shell" id="app-shell">
 
-    <!-- ====================================================================
-         1. AUTHENTICATION SCREEN (MATCHING FLUTTER LOGIN SCREEN)
-         ==================================================================== -->
-    <div id="auth-screen" class="screen-view auth-layout active">
-      
-      <!-- Top Bar with Theme Switcher -->
-      <div class="auth-top-actions">
-        <button type="button" class="theme-toggle-btn" id="btn-theme-auth" title="Toggle Theme" aria-label="Toggle Theme">
+    <!-- =========================================================================
+         1. AUTHENTICATION VIEW (SIGN IN ONLY - NO PROVISION FOR ACCOUNT CREATION)
+         ========================================================================= -->
+    <section class="auth-view" id="auth-view">
+      <div class="auth-theme-header">
+        <button class="theme-toggle-btn" id="btn-theme-auth" title="Toggle Light / Dark Mode" aria-label="Toggle Theme">
           <span class="theme-icon" id="theme-icon-auth">☀️</span>
         </button>
       </div>
 
-      <div class="auth-card-wrapper">
-        
-        <!-- Animated 3D Hydro Resonance Droplet Structure -->
-        <div class="hydro-droplet-container">
-          <div class="hydro-resonance-outer"></div>
-          <div class="hydro-resonance-inner"></div>
-          <div class="hydro-droplet-circle">
-            <svg class="droplet-icon" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" fill="url(#flutter-blue-grad)"/>
-              <defs>
-                <linearGradient id="flutter-blue-grad" x1="6.34" y1="2.69" x2="17.66" y2="20" gradientUnits="userSpaceOnUse">
-                  <stop stop-color="#38BDF8"/>
-                  <stop offset="1" stop-color="#0284C7"/>
-                </linearGradient>
-              </defs>
-            </svg>
+      <div class="auth-card-container">
+        <!-- Minimalist Brand Droplet & Title -->
+        <div class="brand-hero">
+          <div class="brand-icon-wrap">
+            <div class="brand-pulse-ring"></div>
+            <div class="brand-droplet-badge">
+              <svg viewBox="0 0 24 24" fill="none" class="droplet-svg">
+                <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" fill="url(#brandGrad)" />
+                <defs>
+                  <linearGradient id="brandGrad" x1="12" y1="2.69" x2="12" y2="22" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#38BDF8"/>
+                    <stop offset="1" stop-color="#0284C7"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
           </div>
+          <h1 class="brand-title">HydroPulse</h1>
+          <p class="brand-subtitle">Smart Volumetric Water Management Console</p>
         </div>
 
-        <h1 class="brand-heading">HydroPulse IoT</h1>
-        <p class="brand-subheading">Smart Volumetric Water Management System</p>
-
-        <!-- Frosted Glass Login Card (Matching Flutter Login Screen) -->
-        <div class="flutter-frosted-card">
-          
-          <!-- Cloud Synchronization Status Badge -->
-          <div class="sync-status-row">
-            <div class="sync-pill" id="sync-pill">
-              <span class="sync-dot online"></span>
-              <span class="sync-text" id="sync-status-txt">Cloud Database Active</span>
-            </div>
+        <!-- Minimalist Sign In Card -->
+        <div class="auth-card">
+          <div class="auth-badge-row">
+            <span class="cloud-sync-chip">
+              <span class="sync-ping"></span>
+              Centralized Cloud Sync Active
+            </span>
           </div>
 
-          <!-- Auth Tab Switcher: Sign In vs Create Account -->
-          <div class="flutter-tab-switch">
-            <button type="button" class="tab-pill active" id="tab-auth-signin">Sign In</button>
-            <button type="button" class="tab-pill" id="tab-auth-signup">Create Account</button>
-          </div>
+          <h2 class="auth-form-title">Sign In to Your Account</h2>
+          <p class="auth-form-desc">Enter your credentials to access live hardware telemetry and pump controls.</p>
 
-          <!-- Alert / Status Notice -->
-          <div class="flutter-alert-banner hidden" id="auth-alert-banner"></div>
+          <div class="auth-alert hidden" id="auth-alert"></div>
 
-          <!-- Form: Sign In -->
-          <form id="auth-form-signin" class="flutter-auth-form active">
-            <div class="flutter-input-group">
+          <form class="auth-form" id="auth-form-signin" novalidate>
+            <div class="input-field-group">
               <label for="signin-email">Email Address</label>
-              <div class="flutter-input-box">
-                <span class="input-prefix-icon">✉️</span>
-                <input type="email" id="signin-email" placeholder="admin@waterpump.io" value="admin@waterpump.io" required autocomplete="email">
+              <div class="input-box">
+                <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+                <input type="email" id="signin-email" placeholder="name@domain.com" value="admin@waterpump.io" autocomplete="email" required>
               </div>
             </div>
 
-            <div class="flutter-input-group">
+            <div class="input-field-group">
               <label for="signin-password">Password</label>
-              <div class="flutter-input-box">
-                <span class="input-prefix-icon">🔒</span>
-                <input type="password" id="signin-password" placeholder="••••••••••••" value="AdminPassword123!" required autocomplete="current-password">
-                <button type="button" class="btn-pwd-peek" id="peek-signin-pwd">👁️</button>
+              <div class="input-box">
+                <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <input type="password" id="signin-password" placeholder="••••••••" value="AdminPassword123!" autocomplete="current-password" required>
+                <button type="button" class="btn-pwd-toggle" id="btn-peek-pwd" title="Show / Hide Password">👁️</button>
               </div>
             </div>
 
-            <button type="submit" class="btn-flutter-primary" id="btn-submit-signin">
-              <span class="btn-content">
-                <span class="btn-icon">✉️</span>
-                <span class="btn-label">Sign In with Email</span>
-              </span>
-              <span class="btn-spinner hidden"></span>
+            <button type="submit" class="btn-primary-action" id="btn-submit-signin">
+              <span class="btn-text">Sign In to Dashboard</span>
             </button>
           </form>
 
-          <!-- Form: Create Account -->
-          <form id="auth-form-signup" class="flutter-auth-form hidden">
-            <div class="flutter-input-row">
-              <div class="flutter-input-group">
-                <label for="signup-firstname">First Name</label>
-                <div class="flutter-input-box">
-                  <span class="input-prefix-icon">👤</span>
-                  <input type="text" id="signup-firstname" placeholder="Karthik" required autocomplete="given-name">
-                </div>
-              </div>
-              <div class="flutter-input-group">
-                <label for="signup-lastname">Last Name</label>
-                <div class="flutter-input-box">
-                  <span class="input-prefix-icon">👤</span>
-                  <input type="text" id="signup-lastname" placeholder="Nataraj" required autocomplete="family-name">
-                </div>
-              </div>
-            </div>
-
-            <div class="flutter-input-group">
-              <label for="signup-email">Email Address</label>
-              <div class="flutter-input-box">
-                <span class="input-prefix-icon">✉️</span>
-                <input type="email" id="signup-email" placeholder="karthik.iotpump@gmail.com" required autocomplete="email">
-              </div>
-            </div>
-
-            <div class="flutter-input-group">
-              <label for="signup-password">Password (Min 8 Characters)</label>
-              <div class="flutter-input-box">
-                <span class="input-prefix-icon">🔒</span>
-                <input type="password" id="signup-password" placeholder="••••••••••••" minlength="8" required autocomplete="new-password">
-                <button type="button" class="btn-pwd-peek" id="peek-signup-pwd">👁️</button>
-              </div>
-            </div>
-
-            <button type="submit" class="btn-flutter-primary" id="btn-submit-signup">
-              <span class="btn-content">
-                <span class="btn-icon">👤</span>
-                <span class="btn-label">Create Account & Sync</span>
-              </span>
-              <span class="btn-spinner hidden"></span>
-            </button>
-          </form>
-
-          <!-- Divider OR -->
-          <div class="flutter-divider-or">
+          <div class="auth-divider">
             <span>OR</span>
           </div>
 
-          <!-- Continue with Google Button -->
-          <button type="button" class="btn-flutter-google" id="btn-open-google-login">
-            <span class="google-g-badge">G</span>
+          <button type="button" class="btn-google-auth" id="btn-google-auth">
+            <svg class="google-logo" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+              <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+              <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+              <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+            </svg>
             <span>Continue with Google</span>
           </button>
 
-          <div class="auth-bottom-links">
-            <a href="index.html" class="link-back-site">← Return to Product Website</a>
+          <!-- Customer Notice: Mobile App Only Account Creation -->
+          <div class="mobile-registration-banner">
+            <div class="banner-icon">📱</div>
+            <div class="banner-body">
+              <h3 class="banner-heading">Need a New Account?</h3>
+              <p class="banner-text">Customer registration is exclusively available through the official HydroPulse mobile app.</p>
+              <a href="releases/HydroPulse_WaterPumpController.apk" class="btn-mobile-download" download>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="dl-svg">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                <span>Download Android Mobile App</span>
+              </a>
+            </div>
           </div>
-
         </div>
 
-        <p class="water-touch-caption">Touch anywhere on screen to create live water ripples</p>
+        <div class="auth-footer-links">
+          <a href="index.html" class="footer-link">← Return to Product Overview</a>
+        </div>
       </div>
-    </div>
+    </section>
 
-    <!-- ====================================================================
-         2. MAIN DASHBOARD SCREEN (MATCHING FLUTTER APP SCREENS)
-         ==================================================================== -->
-    <div id="main-dashboard-screen" class="screen-view dashboard-layout hidden">
-      
-      <!-- Top Navigation Header (Matching Flutter AppBar) -->
-      <header class="flutter-app-bar">
-        <div class="app-bar-left">
-          <div class="app-bar-logo-badge">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none">
-              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" fill="url(#flutter-blue-grad)"/>
+    <!-- =========================================================================
+         2. MAIN CONSOLE DASHBOARD VIEW (ADAPTS FOR MOBILE & LAPTOP DEVICES)
+         ========================================================================= -->
+    <main class="dashboard-view hidden" id="dashboard-view">
+      <!-- Universal Responsive Minimalist Navigation Header -->
+      <header class="app-header">
+        <div class="header-left">
+          <div class="header-logo-badge">
+            <svg viewBox="0 0 24 24" fill="none" class="h-droplet">
+              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" fill="#0EA5E9" />
             </svg>
           </div>
-          <div class="app-bar-meta">
-            <div class="app-bar-title-row">
-              <span class="device-title" id="bar-device-name">HydroPulse</span>
-              <!-- Hardware Online Animated Badge (Sub-100ms Ping) -->
-              <span class="hw-status-pill online" id="bar-hw-pill">
-                <span class="hw-dot"></span>
-                <span class="hw-text" id="bar-hw-state">ONLINE</span>
+          <div class="header-title-block">
+            <div class="title-row">
+              <span class="app-title">HydroPulse</span>
+              <span class="status-pill online" id="status-pill" title="Strict physical hardware heartbeat verified">
+                <span class="status-indicator-dot"></span>
+                <span>ONLINE</span>
               </span>
             </div>
-            <span class="device-subtitle" id="bar-device-id">ID: esp32_pump_main • Hardware Ping 22ms</span>
+            <div class="subtitle-row">
+              <span class="device-tag">ESP32 Main Gateway</span>
+              <span class="separator">•</span>
+              <span class="ping-tag" id="header-ping-text">Ping 22ms</span>
+            </div>
           </div>
         </div>
 
-        <div class="app-bar-actions">
-          <!-- Theme Switcher (Smooth Sun / Moon Toggle) -->
-          <button type="button" class="theme-toggle-btn" id="btn-theme-dash" title="Toggle Theme" aria-label="Toggle Theme">
+        <!-- Desktop Navigation Tabs (Visible on Laptop / Desktop screens) -->
+        <nav class="desktop-nav-tabs">
+          <button class="d-nav-btn active" data-tab="dashboard">
+            <span class="d-nav-icon">⚡</span>
+            <span>Dashboard</span>
+          </button>
+          <button class="d-nav-btn" data-tab="telemetry">
+            <span class="d-nav-icon">📈</span>
+            <span>Telemetry</span>
+          </button>
+          <button class="d-nav-btn" data-tab="automation">
+            <span class="d-nav-icon">⚙️</span>
+            <span>Automation</span>
+          </button>
+          <button class="d-nav-btn" data-tab="settings">
+            <span class="d-nav-icon">🛡️</span>
+            <span>Settings</span>
+          </button>
+        </nav>
+
+        <div class="header-right">
+          <!-- Light / Dark Mode Toggle Button -->
+          <button class="theme-toggle-btn" id="btn-theme-dash" title="Toggle Light / Dark Mode" aria-label="Toggle Theme">
             <span class="theme-icon" id="theme-icon-dash">☀️</span>
           </button>
 
-          <!-- User Profile & Sign Out Dropdown -->
-          <div class="user-profile-widget">
-            <div class="user-avatar-circle" id="user-avatar-badge">KN</div>
-            <div class="user-name-column">
-              <span class="user-full-name" id="user-display-name">Karthik Nataraj</span>
-              <span class="user-role-label">ADMINISTRATOR</span>
+          <!-- User Profile & Sign Out Widget -->
+          <div class="user-profile-menu">
+            <div class="avatar-circle" id="user-avatar-badge">AH</div>
+            <div class="user-meta-desktop">
+              <span class="user-name" id="user-display-name">Admin HydroPulse</span>
+              <span class="user-role">ADMINISTRATOR</span>
             </div>
-            <button type="button" class="btn-action-icon" id="btn-logout" title="Sign Out">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
+            <button class="btn-header-logout" id="btn-logout" title="Sign Out" aria-label="Sign Out">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="logout-svg">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
               </svg>
             </button>
           </div>
         </div>
       </header>
 
-      <!-- Main Dashboard Container -->
-      <main class="dashboard-scrollable-body">
-        <div class="dashboard-center-column">
+      <!-- Scrollable Multi-Device Content Container -->
+      <div class="content-scroll-area">
+        <div class="responsive-max-wrapper">
 
-          <!-- TAB CONTENT 1: DASHBOARD -->
-          <section id="tab-page-dashboard" class="tab-page active">
-            
-            <!-- SMART WATER SYSTEM CARD (MATCHING smart_water_system_card.dart) -->
-            <div class="smart-water-card">
-              
-              <!-- Card Header: Title & AUTO/MANUAL Segmented Switch -->
-              <div class="smart-card-top">
-                <div class="smart-card-title-wrap">
-                  <span class="system-chip">HYDRO SYSTEM</span>
-                  <h2 class="system-heading">ESP32 Main Gateway</h2>
+          <!-- TAB 1: DASHBOARD CONSOLE -->
+          <div class="tab-pane active" id="tab-pane-dashboard">
+            <div class="dashboard-grid-layout">
+
+              <!-- COLUMN 1: SMART WATER SYSTEM CARD -->
+              <section class="smart-card">
+                <div class="smart-card-header">
+                  <div class="card-title-group">
+                    <span class="system-badge">HYDRO SYSTEM</span>
+                    <h2 class="card-heading">ESP32 Main Gateway</h2>
+                  </div>
+                  <div class="mode-toggle-group">
+                    <button class="mode-pill active" id="btn-mode-auto">AUTO</button>
+                    <button class="mode-pill" id="btn-mode-manual">MANUAL</button>
+                  </div>
                 </div>
 
-                <div class="mode-segmented-control">
-                  <button type="button" class="seg-btn active" id="btn-mode-auto">AUTO</button>
-                  <button type="button" class="seg-btn" id="btn-mode-manual">MANUAL</button>
+                <!-- 3D Fluid Tank Canvas Container (Dynamically responsive) -->
+                <div class="tank-canvas-card" id="tank-canvas-container">
+                  <canvas id="water-tank-canvas"></canvas>
+                  <div class="tank-data-overlay">
+                    <span class="tank-pct" id="tank-pct-text">68.5%</span>
+                    <span class="tank-liters" id="tank-vol-text">3,425 / 5,000 L</span>
+                  </div>
                 </div>
-              </div>
 
-              <!-- 3D Volumetric Cylindrical Tank Viewport -->
-              <div class="tank-viewport-card">
-                <canvas id="water-tank-canvas" width="360" height="280"></canvas>
-                <div class="tank-level-overlay">
-                  <span class="tank-pct-number" id="tank-pct-text">68.5%</span>
-                  <span class="tank-vol-number" id="tank-vol-text">3,425 / 5,000 L</span>
+                <!-- Primary Motor Control Button -->
+                <div class="pump-controls-wrap">
+                  <button class="btn-motor-actuation" id="btn-pump-toggle">
+                    <span class="motor-action-icon">⚡</span>
+                    <span class="motor-title" id="txt-pump-label">START MOTOR</span>
+                    <span class="motor-subtext" id="txt-pump-sub">Relay: Pin GPIO 23</span>
+                  </button>
+
+                  <button class="btn-e-stop" id="btn-emergency-stop">
+                    <span>🛑 EMERGENCY STOP (E-STOP)</span>
+                  </button>
                 </div>
-              </div>
 
-              <!-- START / STOP MOTOR BUTTON -->
-              <div class="motor-toggle-container">
-                <button type="button" class="btn-motor-toggle" id="btn-pump-toggle">
-                  <span class="motor-action-icon">⚡</span>
-                  <span class="motor-action-title" id="txt-pump-label">START MOTOR</span>
-                  <span class="motor-action-sub" id="txt-pump-sub">Relay Pin: GPIO 23</span>
-                </button>
-              </div>
-
-              <!-- EMERGENCY STOP (E-STOP) BUTTON -->
-              <button type="button" class="btn-emergency-stop" id="btn-emergency-stop">
-                <span>🛑 EMERGENCY STOP (E-STOP)</span>
-              </button>
-
-              <!-- SUB-METRICS: POWER, RUN TIME, CYCLES IN THE SAME CARD -->
-              <div class="smart-card-metrics-grid">
-                <div class="card-metric-item">
-                  <span class="metric-icon">⚡</span>
-                  <span class="metric-key">POWER</span>
-                  <span class="metric-val" id="val-power-kw">0.00 <small>kW</small></span>
+                <!-- Embedded System Metrics -->
+                <div class="embedded-metrics-row">
+                  <div class="e-metric">
+                    <span class="e-label">POWER</span>
+                    <span class="e-value" id="val-power-kw">0.00 <small>kW</small></span>
+                  </div>
+                  <div class="e-divider"></div>
+                  <div class="e-metric">
+                    <span class="e-label">RUN TIME</span>
+                    <span class="e-value mono" id="val-run-duration">00:00:00</span>
+                  </div>
+                  <div class="e-divider"></div>
+                  <div class="e-metric">
+                    <span class="e-label">CYCLES</span>
+                    <span class="e-value" id="val-cycles-count">14</span>
+                  </div>
                 </div>
-                <div class="metric-v-divider"></div>
-                <div class="card-metric-item">
-                  <span class="metric-icon">⏱️</span>
-                  <span class="metric-key">RUN TIME</span>
-                  <span class="metric-val mono" id="val-run-duration">00:00:00</span>
+              </section>
+
+              <!-- COLUMN 2: 2x2 SENSOR GRID & QUICK TELEMETRY -->
+              <div class="dashboard-side-col">
+                <!-- 2x2 Sensor Metric Cards -->
+                <div class="sensor-grid-2x2">
+                  <div class="sensor-card">
+                    <div class="s-card-top">
+                      <span class="s-card-title">Flow Rate</span>
+                      <div class="s-icon blue">💧</div>
+                    </div>
+                    <div class="s-card-val-row">
+                      <span class="s-val" id="grid-val-flow">0.0</span>
+                      <span class="s-unit">L/min</span>
+                    </div>
+                    <span class="s-subtext" id="grid-sub-flow">Idle</span>
+                  </div>
+
+                  <div class="sensor-card">
+                    <div class="s-card-top">
+                      <span class="s-card-title">Volume</span>
+                      <div class="s-icon sky">🪣</div>
+                    </div>
+                    <div class="s-card-val-row">
+                      <span class="s-val" id="grid-val-vol">3,425</span>
+                      <span class="s-unit">L</span>
+                    </div>
+                    <span class="s-subtext" id="grid-sub-vol">Level: 68%</span>
+                  </div>
+
+                  <div class="sensor-card">
+                    <div class="s-card-top">
+                      <span class="s-card-title">TDS Purity</span>
+                      <div class="s-icon green">🧪</div>
+                    </div>
+                    <div class="s-card-val-row">
+                      <span class="s-val" id="grid-val-tds">142</span>
+                      <span class="s-unit">PPM</span>
+                    </div>
+                    <span class="s-subtext status-green">Potable Water</span>
+                  </div>
+
+                  <div class="sensor-card">
+                    <div class="s-card-top">
+                      <span class="s-card-title">Water Temp</span>
+                      <div class="s-icon amber">🌡️</div>
+                    </div>
+                    <div class="s-card-val-row">
+                      <span class="s-val" id="grid-val-temp">24.2</span>
+                      <span class="s-unit">°C</span>
+                    </div>
+                    <span class="s-subtext">Optimal Range</span>
+                  </div>
                 </div>
-                <div class="metric-v-divider"></div>
-                <div class="card-metric-item">
-                  <span class="metric-icon">🔄</span>
-                  <span class="metric-key">CYCLES</span>
-                  <span class="metric-val" id="val-cycles-count">14</span>
+
+                <!-- Live Cloud MQTT Broker Connection Card -->
+                <div class="cloud-broker-card">
+                  <div class="broker-top-row">
+                    <div class="broker-info">
+                      <span class="broker-badge">EMQX CLOUD BROKER</span>
+                      <span class="broker-host">broker.emqx.io:1883</span>
+                    </div>
+                    <span class="broker-status-pill">CONNECTED</span>
+                  </div>
+                  <div class="broker-details-grid">
+                    <div class="b-item">
+                      <span class="b-key">Active Topic</span>
+                      <span class="b-val mono">waterpump/esp32/status</span>
+                    </div>
+                    <div class="b-item">
+                      <span class="b-key">Hardware Ping</span>
+                      <span class="b-val mono status-green">Sub-100ms Verified</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
             </div>
+          </div>
 
-            <!-- 2x2 SENSOR METRICS GRID (MATCHING Flutter MetricCard) -->
-            <div class="sensor-metric-grid">
-              
-              <!-- Metric 1: Flow Rate -->
-              <div class="metric-card-box">
-                <div class="metric-card-top">
-                  <span class="m-title">Flow Rate</span>
-                  <div class="m-icon-bubble blue">🌊</div>
-                </div>
-                <div class="m-val-wrap">
-                  <span class="m-val" id="grid-val-flow">0.0</span>
-                  <span class="m-unit">L/min</span>
-                </div>
-                <span class="m-sub" id="grid-sub-flow">Idle</span>
-              </div>
-
-              <!-- Metric 2: Water Volume -->
-              <div class="metric-card-box">
-                <div class="metric-card-top">
-                  <span class="m-title">Volume</span>
-                  <div class="m-icon-bubble sky">💧</div>
-                </div>
-                <div class="m-val-wrap">
-                  <span class="m-val" id="grid-val-vol">3,425</span>
-                  <span class="m-unit">Liters</span>
-                </div>
-                <span class="m-sub" id="grid-sub-vol">Level: 68%</span>
-              </div>
-
-              <!-- Metric 3: Water Purity (TDS) -->
-              <div class="metric-card-box">
-                <div class="metric-card-top">
-                  <span class="m-title">TDS Purity</span>
-                  <div class="m-icon-bubble green">🧪</div>
-                </div>
-                <div class="m-val-wrap">
-                  <span class="m-val" id="grid-val-tds">118</span>
-                  <span class="m-unit">PPM</span>
-                </div>
-                <span class="m-sub accent" id="grid-sub-tds">Excellent Potable</span>
-              </div>
-
-              <!-- Metric 4: Water Temperature -->
-              <div class="metric-card-box">
-                <div class="metric-card-top">
-                  <span class="m-title">Water Temp</span>
-                  <div class="m-icon-bubble amber">🌡️</div>
-                </div>
-                <div class="m-val-wrap">
-                  <span class="m-val" id="grid-val-temp">24.5</span>
-                  <span class="m-unit">°C</span>
-                </div>
-                <span class="m-sub" id="grid-sub-temp">Optimal Thermal</span>
-              </div>
-
-            </div>
-
-          </section>
-
-          <!-- TAB CONTENT 2: TELEMETRY (24-HOUR TREND) -->
-          <section id="tab-page-telemetry" class="tab-page hidden">
-            <div class="content-section-card">
-              <div class="section-heading-row">
+          <!-- TAB 2: TELEMETRY & HISTORICAL TRENDS -->
+          <div class="tab-pane hidden" id="tab-pane-telemetry">
+            <section class="minimal-card">
+              <div class="m-card-header">
                 <div>
-                  <h3 class="sec-title">24-Hour Water Level Trend</h3>
-                  <p class="sec-desc">Continuous telemetry history charted in real time</p>
+                  <h3 class="m-title">24-Hour Telemetry & Volumetric Curves</h3>
+                  <p class="m-desc">Continuous historical recording from ultrasonic & flow sensors</p>
                 </div>
-                <span class="live-stream-badge">LIVE STREAM</span>
+                <span class="badge-accent">LIVE REAL-TIME STREAM</span>
               </div>
-
-              <div class="svg-trend-container">
+              <div class="chart-container">
                 <svg id="svg-trend-chart" viewBox="0 0 760 200" preserveAspectRatio="none"></svg>
               </div>
-
-              <div class="timeline-labels">
+              <div class="chart-time-labels">
                 <span>00:00</span>
                 <span>04:00</span>
                 <span>08:00</span>
@@ -367,144 +367,137 @@
                 <span>20:00</span>
                 <span>Now</span>
               </div>
-            </div>
-          </section>
+            </section>
+          </div>
 
-          <!-- TAB CONTENT 3: AUTOMATION (SAFETY RULES) -->
-          <section id="tab-page-automation" class="tab-page hidden">
-            <div class="content-section-card">
-              <div class="section-heading-row">
+          <!-- TAB 3: AUTOMATION RULES -->
+          <div class="tab-pane hidden" id="tab-pane-automation">
+            <section class="minimal-card">
+              <div class="m-card-header">
                 <div>
-                  <h3 class="sec-title">Autonomous Safety Rules</h3>
-                  <p class="sec-desc">Automatic thresholds stored and synced to the cloud database</p>
+                  <h3 class="m-title">Automated Motor Actuation Thresholds</h3>
+                  <p class="m-desc">Synchronized directly with ESP32 EEPROM safety registers</p>
                 </div>
-                <button type="button" class="btn-save-cloud" id="btn-save-automation-rules">Save to Cloud</button>
+                <button class="btn-action-sm" id="btn-save-automation-rules">Save to Cloud</button>
               </div>
 
-              <div class="rule-slider-item">
+              <div class="rule-slider-group">
                 <div class="rule-label-row">
-                  <span class="r-key">Auto-Start Pump Level (Low Tank)</span>
-                  <span class="r-val" id="disp-autostart-pct">25%</span>
+                  <span>Auto-Start Pump When Level Drops Below:</span>
+                  <span class="rule-val-pill" id="disp-autostart-pct">25%</span>
                 </div>
-                <input type="range" min="10" max="45" value="25" class="flutter-range-slider" id="slider-autostart">
+                <input type="range" class="minimal-slider" id="slider-autostart" min="10" max="50" value="25">
               </div>
 
-              <div class="rule-slider-item">
+              <div class="rule-slider-group">
                 <div class="rule-label-row">
-                  <span class="r-key">Auto-Stop Pump Level (Tank Full)</span>
-                  <span class="r-val" id="disp-autostop-pct">95%</span>
+                  <span>Auto-Stop Pump When Tank Reaches:</span>
+                  <span class="rule-val-pill" id="disp-autostop-pct">95%</span>
                 </div>
-                <input type="range" min="70" max="100" value="95" class="flutter-range-slider" id="slider-autostop">
+                <input type="range" class="minimal-slider" id="slider-autostop" min="70" max="100" value="95">
               </div>
 
-              <div class="rule-toggle-row">
-                <div class="rule-info">
-                  <span class="rule-title">Dry Run Cutoff Protection</span>
-                  <p class="rule-hint">Shuts down pump within 10 seconds if flow rate &lt; 2 L/min</p>
+              <div class="toggle-rule-item">
+                <div class="rule-text-block">
+                  <span class="rule-name">Dry-Run Auto Protection</span>
+                  <span class="rule-sub">Immediately cuts power if 0 L/min flow detected while motor is active</span>
                 </div>
-                <label class="switch-toggle">
-                  <input type="checkbox" id="switch-dry-run" checked>
+                <label class="switch">
+                  <input type="checkbox" checked>
                   <span class="slider-round"></span>
                 </label>
               </div>
-            </div>
-          </section>
+            </section>
+          </div>
 
-          <!-- TAB CONTENT 4: SETTINGS & ACCOUNT SYNC -->
-          <section id="tab-page-settings" class="tab-page hidden">
-            <div class="content-section-card">
-              <div class="section-heading-row">
-                <div>
-                  <h3 class="sec-title">Account & Database Synchronization</h3>
-                  <p class="sec-desc">Centralized multi-device credentials and hardware binding</p>
+          <!-- TAB 4: SETTINGS -->
+          <div class="tab-pane hidden" id="tab-pane-settings">
+            <section class="minimal-card">
+              <div class="m-card-header">
+                <h3 class="m-title">Device & User Profile</h3>
+                <span class="badge-outline">v2.0.0</span>
+              </div>
+
+              <div class="settings-rows">
+                <div class="s-row">
+                  <span class="s-row-key">Active Account</span>
+                  <span class="s-row-val" id="settings-user-name">Admin HydroPulse</span>
+                </div>
+                <div class="s-row">
+                  <span class="s-row-key">Email</span>
+                  <span class="s-row-val" id="settings-user-email">admin@waterpump.io</span>
+                </div>
+                <div class="s-row">
+                  <span class="s-row-key">Backend Gateway URL</span>
+                  <span class="s-row-val mono" id="settings-api-url">/api/v1 (Auto-Detected)</span>
+                </div>
+                <div class="s-row">
+                  <span class="s-row-key">Hardware Device ID</span>
+                  <span class="s-row-val mono">esp32_pump_main</span>
                 </div>
               </div>
 
-              <div class="settings-list">
-                <div class="settings-row">
-                  <span class="st-key">Registered User</span>
-                  <span class="st-val bold" id="settings-user-name">Karthik Nataraj</span>
-                </div>
-                <div class="settings-row">
-                  <span class="st-key">Email Address</span>
-                  <span class="st-val" id="settings-user-email">karthik.iotpump@gmail.com</span>
-                </div>
-                <div class="settings-row">
-                  <span class="st-key">Database Sync Status</span>
-                  <span class="st-val status-green">✓ Active & Synchronized</span>
-                </div>
-                <div class="settings-row">
-                  <span class="st-key">Active Controller Node</span>
-                  <span class="st-val mono">esp32_pump_main (GPIO 23)</span>
-                </div>
-                <div class="settings-row">
-                  <span class="st-key">Software Version</span>
-                  <span class="st-val">v2.0.0 (Build 2)</span>
-                </div>
+              <div class="settings-actions">
+                <button class="btn-danger-outline" id="btn-settings-logout">Sign Out of Console</button>
               </div>
-
-              <div class="settings-actions-wrap">
-                <button type="button" class="btn-flutter-danger" id="btn-settings-logout">Sign Out of All Devices</button>
-              </div>
-            </div>
-          </section>
+            </section>
+          </div>
 
         </div>
-      </main>
+      </div>
 
-      <!-- Bottom Navigation Bar (Matching Flutter BottomNavigationBar) -->
-      <nav class="flutter-bottom-nav">
-        <button type="button" class="nav-tab-button active" data-tab="dashboard">
-          <span class="nav-btn-icon">⚡</span>
-          <span class="nav-btn-label">Dashboard</span>
+      <!-- Mobile Bottom Navigation Bar (Visible ONLY on Mobile screens < 768px) -->
+      <nav class="mobile-bottom-nav">
+        <button class="m-nav-item active" data-tab="dashboard">
+          <span class="m-nav-icon">⚡</span>
+          <span class="m-nav-label">Dashboard</span>
         </button>
-        <button type="button" class="nav-tab-button" data-tab="telemetry">
-          <span class="nav-btn-icon">📈</span>
-          <span class="nav-btn-label">Telemetry</span>
+        <button class="m-nav-item" data-tab="telemetry">
+          <span class="m-nav-icon">📈</span>
+          <span class="m-nav-label">Telemetry</span>
         </button>
-        <button type="button" class="nav-tab-button" data-tab="automation">
-          <span class="nav-btn-icon">🛡️</span>
-          <span class="nav-btn-label">Automation</span>
+        <button class="m-nav-item" data-tab="automation">
+          <span class="m-nav-icon">⚙️</span>
+          <span class="m-nav-label">Automation</span>
         </button>
-        <button type="button" class="nav-tab-button" data-tab="settings">
-          <span class="nav-btn-icon">⚙️</span>
-          <span class="nav-btn-label">Settings</span>
+        <button class="m-nav-item" data-tab="settings">
+          <span class="m-nav-icon">🛡️</span>
+          <span class="m-nav-label">Settings</span>
         </button>
       </nav>
-
-    </div>
+    </main>
 
   </div>
 
-  <!-- Google Account Selection BottomSheet (Matching Flutter Google Login Modal) -->
-  <div class="flutter-modal-overlay hidden" id="google-modal-sheet">
-    <div class="flutter-bottom-sheet">
-      <div class="sheet-drag-handle"></div>
-      <div class="sheet-header-row">
-        <span class="google-logo-pill">G</span>
-        <h3 class="sheet-heading">Sign in with Google</h3>
+  <!-- Google Account Selection Modal BottomSheet -->
+  <div class="modal-overlay hidden" id="google-modal-sheet">
+    <div class="modal-bottom-sheet">
+      <div class="sheet-drag-pill"></div>
+      <div class="sheet-header">
+        <span class="g-pill">G</span>
+        <h3 class="sheet-title">Sign In with Google</h3>
       </div>
-      <p class="sheet-sub">Choose an account to continue to HydroPulse IoT</p>
+      <p class="sheet-sub">Choose an account to continue to HydroPulse IoT Console</p>
 
-      <div class="google-account-list">
-        <div class="google-user-item" data-email="karthik.iotpump@gmail.com" data-first="Karthik" data-last="Nataraj">
-          <div class="google-avatar-circle blue">KN</div>
-          <div class="google-user-details">
-            <span class="g-name">Karthik Nataraj</span>
-            <span class="g-email">karthik.iotpump@gmail.com</span>
+      <div class="g-account-list">
+        <div class="g-account-item" data-email="karthik.iotpump@gmail.com" data-first="Karthik" data-last="N">
+          <div class="g-avatar blue">KN</div>
+          <div class="g-meta">
+            <span class="g-meta-name">Karthik N</span>
+            <span class="g-meta-email">karthik.iotpump@gmail.com</span>
           </div>
         </div>
 
-        <div class="google-user-item" data-email="admin@waterpump.io" data-first="Admin" data-last="HydroPulse">
-          <div class="google-avatar-circle green">AH</div>
-          <div class="google-user-details">
-            <span class="g-name">Admin HydroPulse</span>
-            <span class="g-email">admin@waterpump.io</span>
+        <div class="g-account-item" data-email="admin@waterpump.io" data-first="Admin" data-last="HydroPulse">
+          <div class="g-avatar green">AH</div>
+          <div class="g-meta">
+            <span class="g-meta-name">Admin HydroPulse</span>
+            <span class="g-meta-email">admin@waterpump.io</span>
           </div>
         </div>
       </div>
 
-      <button type="button" class="btn-sheet-cancel" id="btn-close-google-sheet">Cancel</button>
+      <button type="button" class="btn-sheet-close" id="btn-close-google-sheet">Cancel</button>
     </div>
   </div>
 

@@ -1,9 +1,11 @@
 class AppConstants {
   static const String appName = 'HydroPulse IoT';
-  static const String appVersion = '1.0.0';
+  static const String appVersion = '2.0.0';
 
   // API & MQTT Backend (Cloud IoT Broker)
   static const String apiBaseUrl = 'http://localhost:4000/api/v1';
+  static String activeApiBaseUrl = 'http://localhost:4000/api/v1';
+
   static const String mqttBrokerHost = 'broker.emqx.io';
   static const int mqttBrokerPort = 1883;
   static const int mqttWsPort = 9001;
@@ -21,4 +23,7 @@ class AppConstants {
   static const String keyRefreshToken = 'jwt_refresh_token';
   static const String keySelectedDeviceId = 'selected_device_id';
   static const String keyThemeMode = 'app_theme_mode';
+  static const String keyUserEmail = 'user_account_email';
+  static const String keyUserName = 'user_account_name';
+  static const String keyCustomApiBaseUrl = 'custom_api_base_url';
 }
