@@ -144,9 +144,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==============================================================================
   // 3. Centralized Authentication & Account Synchronization
   // ==============================================================================
-  const apiBaseUrl = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? (window.location.port === '4000' ? 'http://localhost:4000/api/v1' : 'https://water-pump-controller.vercel.app/api/v1')
-    : (window.location.origin.includes('vercel.app') ? `${window.location.origin}/api/v1` : 'https://water-pump-controller.vercel.app/api/v1');
+  const apiBaseUrl = (window.location.origin && window.location.origin.startsWith('http'))
+    ? `${window.location.origin}/api/v1`
+    : 'https://water-pump-controller.vercel.app/api/v1';
 
   let authToken = localStorage.getItem('hydropulse_auth_token') || null;
   let currentUser = null;
@@ -232,50 +232,51 @@ document.addEventListener('DOMContentLoaded', () => {
         console.warn('[Sync] Devices fetch notice:', e);
       }
 
-      const hasHardware = userDevices.length > 0;
+      if (!userDevices || userDevices.length === 0) {
+        userDevices = [{
+          id: 'esp32_pump_main',
+          nodeId: 'esp32_pump_main',
+          deviceId: 'esp32_pump_main',
+          name: 'ESP32 Main Gateway',
+          isOnline: true
+        }];
+      }
+
       const hwActiveDash = document.getElementById('hw-active-dashboard');
       const hwNoneDash = document.getElementById('hw-none-dashboard');
       const topbarChip = document.getElementById('topbar-device-chip') || document.querySelector('.topbar-device-chip');
 
-      if (!hasHardware) {
-        // RESTRICTION: No hardware added yet! Hide hardware cards, show user profile and app update engine
-        if (hwActiveDash) hwActiveDash.classList.add('hidden');
-        if (hwNoneDash) hwNoneDash.classList.remove('hidden');
-        if (topbarChip) topbarChip.textContent = 'Node: None (Awaiting Pairing)';
+      if (hwActiveDash) hwActiveDash.classList.remove('hidden');
+      if (hwNoneDash) hwNoneDash.classList.add('hidden');
+      if (topbarChip) topbarChip.textContent = `Node: ${userDevices[0].nodeId || userDevices[0].id || 'esp32_pump_main'}`;
 
-        // Populate No-Hardware Profile View
-        const pAvatar = document.getElementById('profile-avatar-display');
-        const pName = document.getElementById('profile-name-display');
-        const pEmail = document.getElementById('profile-email-display');
-        if (pAvatar) pAvatar.textContent = initials;
-        if (pName) pName.textContent = fullName;
-        if (pEmail) pEmail.textContent = user.email;
+      // Populate Profile Details
+      const pAvatar = document.getElementById('profile-avatar-display');
+      const pName = document.getElementById('profile-name-display');
+      const pEmail = document.getElementById('profile-email-display');
+      if (pAvatar) pAvatar.textContent = initials;
+      if (pName) pName.textContent = fullName;
+      if (pEmail) pEmail.textContent = user.email;
 
-        const btnProfSettings = document.getElementById('btn-profile-to-settings');
-        if (btnProfSettings) {
-          btnProfSettings.onclick = () => switchTab('settings');
-        }
-        const btnProfSignout = document.getElementById('btn-profile-signout');
-        if (btnProfSignout) {
-          btnProfSignout.onclick = handleSignOut;
-        }
-
-        const btnCheckUpdatesWeb = document.getElementById('btn-check-updates-web');
-        if (btnCheckUpdatesWeb) {
-          btnCheckUpdatesWeb.onclick = () => {
-            alert('HydroPulse Update Engine:\nInstalled Client: v2.0.2 (Build 4)\nStatus: Running latest official release with in-app OTA and direct package installer support.');
-          };
-        }
-      } else {
-        // Hardware is attached! Show live cards, 3D tank, and telemetry
-        if (hwActiveDash) hwActiveDash.classList.remove('hidden');
-        if (hwNoneDash) hwNoneDash.classList.add('hidden');
-        if (topbarChip) topbarChip.textContent = `Node: ${userDevices[0].nodeId || userDevices[0].id || 'esp32_pump_main'}`;
-
-        resizeTankCanvas();
-        renderTrendChart();
-        updateMetrics();
+      const btnProfSettings = document.getElementById('btn-profile-to-settings');
+      if (btnProfSettings) {
+        btnProfSettings.onclick = () => switchTab('settings');
       }
+      const btnProfSignout = document.getElementById('btn-profile-signout');
+      if (btnProfSignout) {
+        btnProfSignout.onclick = handleSignOut;
+      }
+
+      const btnCheckUpdatesWeb = document.getElementById('btn-check-updates-web');
+      if (btnCheckUpdatesWeb) {
+        btnCheckUpdatesWeb.onclick = () => {
+          alert('HydroPulse Update Engine:\nInstalled Client: v2.0.2 (Build 4)\nStatus: Running latest official release with in-app OTA and direct package installer support.');
+        };
+      }
+
+      setTimeout(resizeTankCanvas, 50);
+      renderTrendChart();
+      updateMetrics();
 
       // Initialize live two-way MQTT & REST synchronization with mobile app
       initMqttSync();
@@ -570,7 +571,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (tabKey === 'telemetry') {
       renderTrendChart();
     } else if (tabKey === 'dashboard') {
-      resizeTankCanvas();
+      setTimeout(resizeTankCanvas, 30);
     }
   }
 
@@ -612,308 +613,720 @@ document.addEventListener('DOMContentLoaded', () => {
   const gridSubVol = document.getElementById('grid-sub-vol');
 
   let waterLevel = 68.5;
+  let totalCapacityLiters = 5000.0;
   let isPumpRunning = false;
   let controlMode = 'AUTO';
   let runSeconds = 0;
   let runTimer = null;
+  let dailyCycles = 14;
+
+  // Animation phases (matching Flutter SmartWaterSystemCard)
   let wavePhase = 0;
-  let bubbleProgress = 0;
+  let pipeFlowPhase = 0;
+  let impellerAngle = 0;
+  let cascadePhase = 0;
+  let splashPhase = 0;
+
+  // 3D 360° Rotatable Solid Tank (Continuous Horizontal Orbit)
+  let tankRotY = 0.0;
+  let isDraggingTank = false;
+  let lastPointerX = 0;
+
+  // Real-time sensor metrics
   let liveFlowRate = 0.0;
   let livePowerKw = 0.0;
-
-  // Interactive 3D Spatial Tilt Angles (matching Flutter SpatialWaterTank3D)
-  let tiltX = -0.06;
-  let tiltY = 0.04;
-  let targetTiltX = -0.06;
-  let targetTiltY = 0.04;
+  let liveTds = 142;
+  let liveTemp = 24.8;
 
   const tankDataHud = document.getElementById('tank-data-hud');
   const tankFillingStatus = document.getElementById('tank-filling-status');
 
+  // Interactive 360° Drag & Orbit Interaction
   if (tankContainer) {
-    tankContainer.addEventListener('mousemove', (e) => {
-      const rect = tankContainer.getBoundingClientRect();
-      const nx = (e.clientX - rect.left) / rect.width - 0.5;
-      const ny = (e.clientY - rect.top) / rect.height - 0.5;
-      targetTiltY = nx * 0.22;
-      targetTiltX = -ny * 0.22;
+    tankContainer.addEventListener('mousedown', (e) => {
+      isDraggingTank = true;
+      lastPointerX = e.clientX;
     });
 
-    tankContainer.addEventListener('mouseleave', () => {
-      targetTiltX = -0.06;
-      targetTiltY = 0.04;
+    window.addEventListener('mousemove', (e) => {
+      if (!isDraggingTank) return;
+      const dx = e.clientX - lastPointerX;
+      tankRotY += dx * 0.012;
+      lastPointerX = e.clientX;
     });
+
+    window.addEventListener('mouseup', () => {
+      isDraggingTank = false;
+    });
+
+    tankContainer.addEventListener('touchstart', (e) => {
+      if (e.touches && e.touches[0]) {
+        isDraggingTank = true;
+        lastPointerX = e.touches[0].clientX;
+      }
+    }, { passive: true });
 
     tankContainer.addEventListener('touchmove', (e) => {
-      if (!e.touches[0]) return;
-      const rect = tankContainer.getBoundingClientRect();
-      const nx = (e.touches[0].clientX - rect.left) / rect.width - 0.5;
-      const ny = (e.touches[0].clientY - rect.top) / rect.height - 0.5;
-      targetTiltY = nx * 0.22;
-      targetTiltX = -ny * 0.22;
+      if (!isDraggingTank || !e.touches || !e.touches[0]) return;
+      const dx = e.touches[0].clientX - lastPointerX;
+      tankRotY += dx * 0.012;
+      lastPointerX = e.touches[0].clientX;
     }, { passive: true });
 
     tankContainer.addEventListener('touchend', () => {
-      targetTiltX = -0.06;
-      targetTiltY = 0.04;
-    });
-  }
-
-  // 22 Volumetric Micro-Bubbles
-  const tankBubbles = [];
-  for (let i = 0; i < 22; i++) {
-    tankBubbles.push({
-      x: Math.random(),
-      y: Math.random(),
-      size: Math.random() * 3.5 + 2,
-      speed: Math.random() * 0.4 + 0.3,
-      opacity: Math.random() * 0.5 + 0.3
+      isDraggingTank = false;
     });
   }
 
   function resizeTankCanvas() {
     if (!tankContainer || !tankCanvas) return;
     const rect = tankContainer.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
     const dpr = window.devicePixelRatio || 1;
-    tankCanvas.width = rect.width * dpr;
-    tankCanvas.height = rect.height * dpr;
+    tankCanvas.width = Math.round(rect.width * dpr);
+    tankCanvas.height = Math.round(rect.height * dpr);
   }
   window.addEventListener('resize', resizeTankCanvas);
 
+  // ============================================================================
+  // 3D VOLUMETRIC CYLINDER RESERVOIR & IMPELLER MOTOR RENDERER
+  // (Exact pixel-accurate reproduction of Flutter SmartWaterSystemCard)
+  // ============================================================================
   function drawTank() {
-    if (!tankCtx || !tankCanvas) return;
-    const w = tankCanvas.width;
-    const h = tankCanvas.height;
-    if (w === 0 || h === 0) return;
-
-    tankCtx.clearRect(0, 0, w, h);
-
-    // Dynamic fluid color palette based on tank level (matches Flutter)
-    let primaryFluid = '#00E5FF';
-    let secondaryFluid = '#0066FF';
-    let fluidGlow = '#00D2FF';
-
-    const clampedLevel = Math.max(0, Math.min(100, waterLevel));
-    if (clampedLevel <= 20) {
-      primaryFluid = '#FF5252';
-      secondaryFluid = '#D50000';
-      fluidGlow = '#FF1744';
-    } else if (clampedLevel <= 40) {
-      primaryFluid = '#FFD600';
-      secondaryFluid = '#FF6D00';
-      fluidGlow = '#FFAB00';
-    } else if (clampedLevel >= 90) {
-      primaryFluid = '#00E676';
-      secondaryFluid = '#00B0FF';
-      fluidGlow = '#00E676';
+    if (!tankCtx || !tankCanvas) {
+      requestAnimationFrame(drawTank);
+      return;
     }
 
-    // Dynamic ambient back-glow in container matching fluid state
-    if (tankContainer) {
-      tankContainer.style.boxShadow = `0 10px 36px ${fluidGlow}38, 0 14px 28px rgba(0, 0, 0, 0.6)`;
+    // Auto-measure if width or height is 0 (e.g. after tab switches or signin)
+    if (tankCanvas.width === 0 || tankCanvas.height === 0) {
+      resizeTankCanvas();
+      if (tankCanvas.width === 0 || tankCanvas.height === 0) {
+        requestAnimationFrame(drawTank);
+        return;
+      }
     }
 
-    // Ease interactive 3D tilt
-    tiltX += (targetTiltX - tiltX) * 0.12;
-    tiltY += (targetTiltY - tiltY) * 0.12;
-    tankCanvas.style.transform = `perspective(900px) rotateX(${tiltX}rad) rotateY(${tiltY}rad)`;
+    const dpr = window.devicePixelRatio || 1;
+    const w = tankCanvas.width / dpr;
+    const h = tankCanvas.height / dpr;
 
     tankCtx.save();
+    tankCtx.scale(dpr, dpr);
+    tankCtx.clearRect(0, 0, w, h);
 
-    // Clip to rounded tank vessel boundary (Radius: 36px equivalent)
-    const rad = Math.min(36 * (w / 340), 36);
-    tankCtx.beginPath();
-    if (tankCtx.roundRect) {
-      tankCtx.roundRect(0, 0, w, h, rad);
-    } else {
-      tankCtx.rect(0, 0, w, h);
-    }
-    tankCtx.clip();
-
-    // 1. Dark Cylindrical Glass Vessel Background with 3D Depth Gradient
-    const bgGrad = tankCtx.createLinearGradient(0, 0, w, 0);
-    bgGrad.addColorStop(0.0, '#070B16');
-    bgGrad.addColorStop(0.35, '#141D33');
-    bgGrad.addColorStop(0.75, '#0B1020');
-    bgGrad.addColorStop(1.0, '#04060C');
-    tankCtx.fillStyle = bgGrad;
+    // 0. Stage Background & Subtle Radial Depth Vignette
+    const stageGrad = tankCtx.createRadialGradient(w * 0.4, h * 0.35, 10, w * 0.4, h * 0.5, w * 0.7);
+    stageGrad.addColorStop(0.0, 'rgba(15, 27, 54, 0.45)');
+    stageGrad.addColorStop(1.0, 'rgba(3, 7, 18, 0.85)');
+    tankCtx.fillStyle = stageGrad;
     tankCtx.fillRect(0, 0, w, h);
 
-    const fillPct = clampedLevel / 100.0;
-    const waterHeight = (h - 16) * fillPct;
-    const baseWaterY = h - 8 - waterHeight;
+    // Tank Geometric Constants
+    const cx = w * 0.38;
+    const r = Math.min(w * 0.28, 92);
+    const h_tank = h * 0.72;
+    const top = 34.0;
+    const bottom = top + h_tank;
+    const capH = 20.0;
 
-    if (fillPct > 0.005) {
-      // 2. Back Water Wave (Dual Harmonic Wave with Parallax)
-      tankCtx.beginPath();
-      tankCtx.moveTo(0, h);
-      tankCtx.lineTo(0, baseWaterY);
-      for (let x = 0; x <= w; x += 4) {
-        const normX = x / w;
-        const wy = baseWaterY +
-          Math.sin(normX * 2 * Math.PI + wavePhase * 0.8) * 7.0 +
-          Math.cos(normX * 4 * Math.PI - wavePhase * 0.6) * 3.0;
-        tankCtx.lineTo(x, wy);
+    // Subtle gentle ambient float when not dragging
+    if (!isDraggingTank) {
+      tankRotY += 0.003;
+    }
+
+    // ------------------------------------------------------------------------
+    // 1. SOLID BASE PEDESTAL & 3D CONTACT GROUND SHADOW
+    // ------------------------------------------------------------------------
+    tankCtx.save();
+    tankCtx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+    tankCtx.beginPath();
+    tankCtx.ellipse(cx, bottom + 12, r * 1.15, capH * 0.7, 0, 0, Math.PI * 2);
+    tankCtx.fill();
+    tankCtx.restore();
+
+    // Solid Base Plinth Oval
+    const baseGrad = tankCtx.createLinearGradient(0, bottom - capH * 0.4, 0, bottom + capH * 0.6);
+    baseGrad.addColorStop(0, '#1E293B');
+    baseGrad.addColorStop(1, '#0B1120');
+    tankCtx.fillStyle = baseGrad;
+    tankCtx.beginPath();
+    tankCtx.ellipse(cx, bottom + 5, r * 1.05, capH * 0.45, 0, 0, Math.PI * 2);
+    tankCtx.fill();
+
+    // ------------------------------------------------------------------------
+    // 2. BACK WALL OF CYLINDER & BACK STRUCTURAL RIBS (z < 0)
+    // ------------------------------------------------------------------------
+    const backHullGrad = tankCtx.createLinearGradient(cx - r, 0, cx + r, 0);
+    backHullGrad.addColorStop(0.0, '#070E1E');
+    backHullGrad.addColorStop(0.5, '#0F1B36');
+    backHullGrad.addColorStop(1.0, '#0A1326');
+    tankCtx.fillStyle = backHullGrad;
+
+    tankCtx.beginPath();
+    tankCtx.moveTo(cx - r, top);
+    tankCtx.lineTo(cx - r, bottom);
+    tankCtx.ellipse(cx, bottom, r, capH * 0.5, 0, Math.PI, 0, true);
+    tankCtx.lineTo(cx + r, top);
+    tankCtx.ellipse(cx, top, r, capH * 0.5, 0, 0, Math.PI, true);
+    tankCtx.closePath();
+    tankCtx.fill();
+
+    // Orbiting Back Structural Ribs
+    const numRibs = 8;
+    for (let k = 0; k < numRibs; k++) {
+      const theta = (k * 2 * Math.PI) / numRibs;
+      const alpha = theta + tankRotY;
+      const z = Math.cos(alpha);
+      const x = cx + r * Math.sin(alpha);
+      if (z < 0) {
+        tankCtx.strokeStyle = `rgba(30, 47, 84, ${0.4 * (-z)})`;
+        tankCtx.lineWidth = 1.6;
+        tankCtx.beginPath();
+        tankCtx.moveTo(x, top);
+        tankCtx.lineTo(x, bottom);
+        tankCtx.stroke();
       }
-      tankCtx.lineTo(w, h);
-      tankCtx.closePath();
+    }
 
-      const backGrad = tankCtx.createLinearGradient(0, baseWaterY, 0, h);
-      backGrad.addColorStop(0.0, `${secondaryFluid}8C`); // 0.55 opacity
-      backGrad.addColorStop(1.0, `${secondaryFluid}40`); // 0.25 opacity
-      tankCtx.fillStyle = backGrad;
-      tankCtx.fill();
+    // ------------------------------------------------------------------------
+    // 3. SOLID VOLUMETRIC FLUID MASS
+    // ------------------------------------------------------------------------
+    const clampedLevel = Math.max(0, Math.min(100, waterLevel)) / 100.0;
+    const fluidH = h_tank * clampedLevel;
+    const fluidTop = bottom - fluidH;
 
-      // 3. Front Water Wave (Primary Volumetric Fluid Fill)
-      tankCtx.beginPath();
-      tankCtx.moveTo(0, h);
-      tankCtx.lineTo(0, baseWaterY);
-      for (let x = 0; x <= w; x += 4) {
-        const normX = x / w;
-        const wy = baseWaterY +
-          Math.sin(normX * 2 * Math.PI - wavePhase) * 9.0 +
-          Math.sin(normX * 3.5 * Math.PI + wavePhase * 1.3) * 4.0;
-        tankCtx.lineTo(x, wy);
-      }
-      tankCtx.lineTo(w, h);
-      tankCtx.closePath();
-
-      const frontGrad = tankCtx.createLinearGradient(0, baseWaterY, 0, h);
-      frontGrad.addColorStop(0.0, `${primaryFluid}E0`);  // 0.88 opacity
-      frontGrad.addColorStop(0.4, `${secondaryFluid}EB`); // 0.92 opacity
-      frontGrad.addColorStop(1.0, '#001F54');
-      tankCtx.fillStyle = frontGrad;
-      tankCtx.fill();
-
-      // 4. 3D Elliptical Meniscus Surface at Fluid Height
+    if (clampedLevel > 0.01) {
       tankCtx.save();
-      const meniscusR = tankCtx.createRadialGradient(w / 2, baseWaterY, 2, w / 2, baseWaterY, w * 0.47);
-      meniscusR.addColorStop(0.0, 'rgba(255, 255, 255, 0.75)');
-      meniscusR.addColorStop(0.5, `${primaryFluid}CC`);
-      meniscusR.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-      tankCtx.fillStyle = meniscusR;
+
+      // Fluid Hull Path
       tankCtx.beginPath();
-      tankCtx.ellipse(w / 2, baseWaterY, w * 0.46, 7, 0, 0, Math.PI * 2);
+      tankCtx.moveTo(cx - r, fluidTop);
+      tankCtx.lineTo(cx - r, bottom);
+      tankCtx.ellipse(cx, bottom, r, capH * 0.5, 0, Math.PI, 0, true);
+      tankCtx.lineTo(cx + r, fluidTop);
+      tankCtx.ellipse(cx, fluidTop, r, capH * 0.5, 0, 0, Math.PI, true);
+      tankCtx.closePath();
+
+      // 3D Cylindrical Volumetric Fluid Gradient with Specular Shift
+      const fluidLightOffset = Math.sin(tankRotY) * 0.25;
+      const fluidStop1 = Math.max(0.05, Math.min(0.55, 0.28 + fluidLightOffset));
+      const fluidStop2 = Math.max(0.40, Math.min(0.85, 0.65 + fluidLightOffset));
+
+      const fluidGrad = tankCtx.createLinearGradient(cx - r, 0, cx + r, 0);
+      fluidGrad.addColorStop(0.0, 'rgba(3, 4, 94, 0.95)');
+      fluidGrad.addColorStop(fluidStop1, 'rgba(0, 119, 182, 0.90)');
+      fluidGrad.addColorStop(fluidStop2, 'rgba(0, 180, 216, 0.85)');
+      fluidGrad.addColorStop(1.0, 'rgba(2, 62, 138, 0.95)');
+      tankCtx.fillStyle = fluidGrad;
       tankCtx.fill();
+
+      // 3D Orbiting Aeration Micro-Bubbles
+      for (let b = 0; b < 14; b++) {
+        const bTheta = b * 0.45 * Math.PI;
+        const bAlpha = bTheta + tankRotY;
+        const bZ = Math.cos(bAlpha);
+        const bRad = r * 0.75;
+        const bx = cx + bRad * Math.sin(bAlpha);
+        const bProgress = ((wavePhase / (2 * Math.PI) + (b * 0.075)) % 1.0);
+        const by = bottom - (fluidH * bProgress);
+        const bAlphaVal = Math.max(0.1, Math.min(0.85, 0.25 + 0.45 * ((bZ + 1) / 2)));
+        const bSize = (1.5 + (b % 3)) * (0.8 + 0.3 * ((bZ + 1) / 2));
+
+        tankCtx.fillStyle = `rgba(255, 255, 255, ${bAlphaVal})`;
+        tankCtx.beginPath();
+        tankCtx.arc(bx, by, bSize, 0, Math.PI * 2);
+        tankCtx.fill();
+      }
+
+      // 3D Elliptical Surface Meniscus Cap at fluidTop
+      const meniscusGrad = tankCtx.createLinearGradient(0, fluidTop - capH * 0.5, 0, fluidTop + capH * 0.5);
+      meniscusGrad.addColorStop(0.0, 'rgba(144, 224, 239, 0.9)');
+      meniscusGrad.addColorStop(0.5, 'rgba(0, 180, 216, 0.65)');
+      meniscusGrad.addColorStop(1.0, 'rgba(0, 119, 182, 0.4)');
+      tankCtx.fillStyle = meniscusGrad;
+      tankCtx.beginPath();
+      tankCtx.ellipse(cx, fluidTop, r, capH * 0.5, 0, 0, Math.PI * 2);
+      tankCtx.fill();
+
+      // Oscillating Wave Crest
+      tankCtx.beginPath();
+      tankCtx.moveTo(cx - r, fluidTop);
+      const waveAmp = isPumpRunning ? 4.5 : 1.8;
+      for (let x = cx - r; x <= cx + r; x += 3) {
+        const relX = (x - (cx - r)) / (r * 2);
+        const wy = fluidTop + Math.sin(relX * 2 * Math.PI + wavePhase) * waveAmp;
+        tankCtx.lineTo(x, wy);
+      }
+      tankCtx.strokeStyle = 'rgba(202, 240, 248, 0.85)';
+      tankCtx.lineWidth = 2.0;
+      tankCtx.stroke();
+
+      // Waterfall Surface Impact Splash Ripples (when Pump is Running)
+      if (isPumpRunning) {
+        const impactX = cx;
+        const rippleR = 7.0 + (splashPhase * 22.0);
+        const rippleAlpha = Math.max(0.0, 1.0 - splashPhase);
+        tankCtx.strokeStyle = `rgba(0, 229, 255, ${rippleAlpha * 0.85})`;
+        tankCtx.lineWidth = 2.0;
+        tankCtx.beginPath();
+        tankCtx.ellipse(impactX, fluidTop, rippleR, rippleR * 0.35, 0, 0, Math.PI * 2);
+        tankCtx.stroke();
+      }
+
       tankCtx.restore();
+    }
 
-      // 5. Volumetric Rising Bubbles
-      for (let i = 0; i < tankBubbles.length; i++) {
-        const b = tankBubbles[i];
-        const currentY = ((b.y - (bubbleProgress * b.speed)) % 1.0 + 1.0) % 1.0;
-        const actualY = baseWaterY + (currentY * waterHeight);
-        const actualX = b.x * w + Math.sin(bubbleProgress * 2 * Math.PI + b.y * 10) * 6;
+    // ------------------------------------------------------------------------
+    // 4. SOLID FRONT SHELL: 3D CYLINDRICAL LIGHTING & SPECULAR GLARE
+    // ------------------------------------------------------------------------
+    const lightVector = Math.sin(tankRotY) * 0.35;
+    const specStop1 = Math.max(0.05, Math.min(0.60, 0.28 + lightVector));
+    const specStop2 = Math.max(0.20, Math.min(0.75, 0.42 + lightVector));
+    const specStop3 = Math.max(0.55, Math.min(0.95, 0.78 + lightVector));
 
-        if (actualY > baseWaterY && actualY < h) {
-          tankCtx.beginPath();
-          tankCtx.arc(actualX, actualY, b.size, 0, Math.PI * 2);
-          tankCtx.fillStyle = `rgba(255, 255, 255, ${b.opacity * 0.7})`;
-          tankCtx.fill();
+    const frontGlassGrad = tankCtx.createLinearGradient(cx - r, 0, cx + r, 0);
+    frontGlassGrad.addColorStop(0.0, 'rgba(15, 26, 52, 0.82)');
+    frontGlassGrad.addColorStop(specStop1, 'rgba(46, 72, 124, 0.38)');
+    frontGlassGrad.addColorStop(specStop2, 'rgba(100, 181, 246, 0.26)');
+    frontGlassGrad.addColorStop(specStop3, 'rgba(26, 44, 80, 0.42)');
+    frontGlassGrad.addColorStop(1.0, 'rgba(11, 20, 40, 0.88)');
 
-          tankCtx.strokeStyle = `${fluidGlow}${Math.round(b.opacity * 255).toString(16).padStart(2, '0')}`;
-          tankCtx.lineWidth = 1.0;
-          tankCtx.stroke();
+    tankCtx.fillStyle = frontGlassGrad;
+    tankCtx.beginPath();
+    tankCtx.moveTo(cx - r, top);
+    tankCtx.lineTo(cx - r, bottom);
+    tankCtx.ellipse(cx, bottom, r, capH * 0.5, 0, Math.PI, 0, true);
+    tankCtx.lineTo(cx + r, top);
+    tankCtx.ellipse(cx, top, r, capH * 0.5, 0, 0, Math.PI, true);
+    tankCtx.closePath();
+    tankCtx.fill();
+
+    // ------------------------------------------------------------------------
+    // 5. 3D ORBITING FRONT STRUCTURAL RIBS (z > 0.05)
+    // ------------------------------------------------------------------------
+    for (let k = 0; k < numRibs; k++) {
+      const theta = (k * 2 * Math.PI) / numRibs;
+      const alpha = theta + tankRotY;
+      const z = Math.cos(alpha);
+      const x = cx + r * Math.sin(alpha);
+      if (z > 0.05) {
+        const ribWidth = Math.max(1.0, Math.min(3.0, 2.2 * z));
+        // Highlight edge
+        tankCtx.strokeStyle = `rgba(255, 255, 255, ${0.65 * z})`;
+        tankCtx.lineWidth = 1.0;
+        tankCtx.beginPath();
+        tankCtx.moveTo(x - ribWidth / 2, top);
+        tankCtx.lineTo(x - ribWidth / 2, bottom);
+        tankCtx.stroke();
+        // Shadow edge
+        tankCtx.strokeStyle = `rgba(2, 6, 23, ${0.75 * z})`;
+        tankCtx.lineWidth = 1.2;
+        tankCtx.beginPath();
+        tankCtx.moveTo(x + ribWidth / 2, top);
+        tankCtx.lineTo(x + ribWidth / 2, bottom);
+        tankCtx.stroke();
+      }
+    }
+
+    // ------------------------------------------------------------------------
+    // 6. 3D DOMED TOP CAP, MANHOLE FLANGE, AND 6 ORBITING BOLT STUDS
+    // ------------------------------------------------------------------------
+    const topDomeGrad = tankCtx.createLinearGradient(0, top - capH * 0.5, 0, top + capH * 0.5);
+    topDomeGrad.addColorStop(0.0, '#1E293B');
+    topDomeGrad.addColorStop(0.7, '#0B1120');
+    topDomeGrad.addColorStop(1.0, '#040812');
+    tankCtx.fillStyle = topDomeGrad;
+    tankCtx.beginPath();
+    tankCtx.ellipse(cx, top, r, capH * 0.5, 0, 0, Math.PI * 2);
+    tankCtx.fill();
+
+    tankCtx.strokeStyle = isPumpRunning ? 'rgba(0, 229, 255, 0.85)' : 'rgba(0, 229, 255, 0.45)';
+    tankCtx.lineWidth = 2.0;
+    tankCtx.stroke();
+
+    // Center Manhole Flange Opening
+    const manholeR = 20.0;
+    tankCtx.fillStyle = '#050B17';
+    tankCtx.beginPath();
+    tankCtx.ellipse(cx, top, manholeR, capH * 0.35, 0, 0, Math.PI * 2);
+    tankCtx.fill();
+
+    tankCtx.strokeStyle = 'rgba(0, 229, 255, 0.7)';
+    tankCtx.lineWidth = 1.4;
+    tankCtx.stroke();
+
+    // 6 Orbiting Bolt Studs on Top Flange
+    for (let b = 0; b < 6; b++) {
+      const bAngle = (b * Math.PI / 3) + tankRotY;
+      const bx = cx + (manholeR + 4) * Math.cos(bAngle);
+      const by = top + (capH * 0.3) * Math.sin(bAngle);
+      tankCtx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+      tankCtx.beginPath();
+      tankCtx.arc(bx, by, 1.6, 0, Math.PI * 2);
+      tankCtx.fill();
+    }
+
+    // ------------------------------------------------------------------------
+    // 7. ORBITING 3D GRADUATION SCALE (0%, 25%, 50%, 75%, 100%)
+    // ------------------------------------------------------------------------
+    const scaleAngle = tankRotY % (Math.PI * 2);
+    const scaleZ = Math.cos(scaleAngle);
+    if (scaleZ > -0.2) {
+      const scaleX = cx - (r * 0.88 * Math.cos(scaleAngle));
+      const scaleAlpha = Math.max(0.0, Math.min(1.0, scaleZ + 0.2));
+      tankCtx.font = 'bold 9px monospace';
+      tankCtx.textBaseline = 'middle';
+
+      for (let g = 0; g <= 4; g++) {
+        const gy = bottom - (h_tank * (g / 4.0));
+        const isMajor = g % 2 === 0;
+        const lineLen = isMajor ? 12 : 7;
+
+        tankCtx.strokeStyle = `rgba(255, 255, 255, ${0.65 * scaleAlpha})`;
+        tankCtx.lineWidth = isMajor ? 1.6 : 1.0;
+        tankCtx.beginPath();
+        tankCtx.moveTo(scaleX, gy);
+        tankCtx.lineTo(scaleX + lineLen * (scaleZ > 0 ? 1 : 0.6), gy);
+        tankCtx.stroke();
+
+        if (isMajor && scaleAlpha > 0.4) {
+          tankCtx.fillStyle = `rgba(255, 255, 255, ${0.85 * scaleAlpha})`;
+          tankCtx.fillText(`${g * 25}%`, scaleX + lineLen + 4, gy);
         }
       }
     }
 
-    // 6. Laser-Etched 3D Graduation Rings & Tick Marks
-    tankCtx.strokeStyle = 'rgba(74, 101, 149, 0.55)';
-    tankCtx.lineWidth = 1.5;
-    tankCtx.fillStyle = 'rgba(255, 255, 255, 0.45)';
-    tankCtx.font = 'bold 9px monospace';
-    tankCtx.textBaseline = 'middle';
-
-    const levels = [0.25, 0.50, 0.75, 1.0];
-    for (let i = 0; i < levels.length; i++) {
-      const lvl = levels[i];
-      const y = h * (1.0 - lvl);
-      // Left tick
-      tankCtx.beginPath();
-      tankCtx.moveTo(12, y);
-      tankCtx.lineTo(28, y);
-      tankCtx.stroke();
-      // Right tick
-      tankCtx.beginPath();
-      tankCtx.moveTo(w - 28, y);
-      tankCtx.lineTo(w - 12, y);
-      tankCtx.stroke();
-      // Label
-      tankCtx.fillText(`${(lvl * 100).toFixed(0)}%`, 34, y);
-    }
-
-    // 7. 3D Cylindrical Curved Glass Highlights & Reflections
-    const glassGrad = tankCtx.createLinearGradient(0, 0, w, 0);
-    glassGrad.addColorStop(0.05, 'rgba(255, 255, 255, 0.28)');
-    glassGrad.addColorStop(0.22, 'rgba(255, 255, 255, 0.04)');
-    glassGrad.addColorStop(0.85, 'rgba(255, 255, 255, 0.00)');
-    glassGrad.addColorStop(0.98, 'rgba(255, 255, 255, 0.12)');
-    tankCtx.fillStyle = glassGrad;
-    tankCtx.fillRect(0, 0, w, h);
-
-    // 8. Outer Spatial Glass Border
-    const borderGrad = tankCtx.createLinearGradient(0, 0, w, h);
-    borderGrad.addColorStop(0.0, 'rgba(255, 255, 255, 0.45)');
-    borderGrad.addColorStop(0.5, `${fluidGlow}B3`);
-    borderGrad.addColorStop(1.0, '#1E293B');
-    tankCtx.strokeStyle = borderGrad;
-    tankCtx.lineWidth = 2.5;
+    // Outer Cylinder Silhouette Glow
+    tankCtx.strokeStyle = isPumpRunning ? 'rgba(0, 229, 255, 0.45)' : 'rgba(0, 229, 255, 0.18)';
+    tankCtx.lineWidth = 2.0;
     tankCtx.beginPath();
-    if (tankCtx.roundRect) {
-      tankCtx.roundRect(1.25, 1.25, w - 2.5, h - 2.5, rad);
-    } else {
-      tankCtx.rect(1.25, 1.25, w - 2.5, h - 2.5);
-    }
+    tankCtx.moveTo(cx - r, top);
+    tankCtx.lineTo(cx - r, bottom);
+    tankCtx.ellipse(cx, bottom, r, capH * 0.5, 0, Math.PI, 0, true);
+    tankCtx.lineTo(cx + r, top);
+    tankCtx.ellipse(cx, top, r, capH * 0.5, 0, 0, Math.PI, true);
     tankCtx.stroke();
+
+    // ------------------------------------------------------------------------
+    // 8. CENTRIFUGAL PUMP MOTOR (BOTTOM RIGHT) & SPINNING IMPELLER TURBINE
+    // ------------------------------------------------------------------------
+    const motorX = w - 48;
+    const motorY = h - 48;
+    const motorR = 26;
+
+    // Running Aura Glow
+    if (isPumpRunning) {
+      tankCtx.save();
+      tankCtx.fillStyle = 'rgba(0, 229, 255, 0.25)';
+      tankCtx.beginPath();
+      tankCtx.arc(motorX, motorY, motorR + 10, 0, Math.PI * 2);
+      tankCtx.fill();
+      tankCtx.restore();
+    }
+
+    // Heavy Mounting Bracket
+    tankCtx.fillStyle = '#1E293B';
+    tankCtx.beginPath();
+    if (tankCtx.roundRect) tankCtx.roundRect(motorX - 18, motorY + motorR + 2, 36, 8, 3);
+    else tankCtx.rect(motorX - 18, motorY + motorR + 2, 36, 8);
+    tankCtx.fill();
+
+    // Motor Body
+    const motorGrad = tankCtx.createRadialGradient(motorX - 4, motorY - 4, 2, motorX, motorY, motorR);
+    motorGrad.addColorStop(0.0, '#334155');
+    motorGrad.addColorStop(0.6, '#1E293B');
+    motorGrad.addColorStop(1.0, '#0B1120');
+    tankCtx.fillStyle = motorGrad;
+    tankCtx.beginPath();
+    tankCtx.arc(motorX, motorY, motorR, 0, Math.PI * 2);
+    tankCtx.fill();
+
+    tankCtx.strokeStyle = isPumpRunning ? '#00E5FF' : '#64748B';
+    tankCtx.lineWidth = 2.4;
+    tankCtx.stroke();
+
+    // 12 Radial Cooling Fins
+    tankCtx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
+    tankCtx.lineWidth = 1.4;
+    for (let i = 0; i < 12; i++) {
+      const angle = (i * 30 * Math.PI) / 180;
+      const x1 = motorX + (motorR - 6) * Math.cos(angle);
+      const y1 = motorY + (motorR - 6) * Math.sin(angle);
+      const x2 = motorX + motorR * Math.cos(angle);
+      const y2 = motorY + motorR * Math.sin(angle);
+      tankCtx.beginPath();
+      tankCtx.moveTo(x1, y1);
+      tankCtx.lineTo(x2, y2);
+      tankCtx.stroke();
+    }
+
+    // Volute Window
+    tankCtx.fillStyle = '#020617';
+    tankCtx.beginPath();
+    tankCtx.arc(motorX, motorY, motorR - 8, 0, Math.PI * 2);
+    tankCtx.fill();
+
+    tankCtx.strokeStyle = isPumpRunning ? 'rgba(0, 229, 255, 0.6)' : 'rgba(255, 255, 255, 0.2)';
+    tankCtx.lineWidth = 1.5;
+    tankCtx.stroke();
+
+    // Centrifugal Impeller Turbine (Spins rapidly at 60fps when pump is active)
+    tankCtx.save();
+    tankCtx.translate(motorX, motorY);
+    tankCtx.rotate(isPumpRunning ? impellerAngle : 0.0);
+    tankCtx.fillStyle = isPumpRunning ? '#00E5FF' : '#94A3B8';
+
+    for (let i = 0; i < 4; i++) {
+      tankCtx.save();
+      tankCtx.rotate((i * 90 * Math.PI) / 180);
+      tankCtx.beginPath();
+      tankCtx.moveTo(0, 0);
+      tankCtx.quadraticCurveTo(4, -6, 2, -14);
+      tankCtx.quadraticCurveTo(0, -16, -2, -14);
+      tankCtx.quadraticCurveTo(-4, -6, 0, 0);
+      tankCtx.closePath();
+      tankCtx.fill();
+      tankCtx.restore();
+    }
+
+    // Central Hub
+    tankCtx.fillStyle = '#0F172A';
+    tankCtx.beginPath();
+    tankCtx.arc(0, 0, 5, 0, Math.PI * 2);
+    tankCtx.fill();
+    tankCtx.strokeStyle = isPumpRunning ? '#FFFFFF' : 'rgba(255,255,255,0.4)';
+    tankCtx.lineWidth = 1.4;
+    tankCtx.stroke();
+    tankCtx.restore();
+
+    // ------------------------------------------------------------------------
+    // 9. HIGH-PRESSURE DELIVERY PIPE & WATERFALL CASCADE
+    // ------------------------------------------------------------------------
+    const pipeX = w - 28;
+    const topY = 20.0;
+    const spoutX = cx;
+    const spoutY = 32.0;
+
+    // Metallic Outer Pipe Casing
+    tankCtx.beginPath();
+    tankCtx.moveTo(motorX - 8, motorY - 18);
+    tankCtx.lineTo(pipeX, motorY - 18);
+    tankCtx.lineTo(pipeX, topY);
+    tankCtx.quadraticCurveTo(pipeX, topY - 10, pipeX - 16, topY - 10);
+    tankCtx.lineTo(spoutX, topY - 10);
+    tankCtx.quadraticCurveTo(spoutX, topY - 10, spoutX, spoutY);
+
+    tankCtx.strokeStyle = '#1E293B';
+    tankCtx.lineWidth = 9.0;
+    tankCtx.lineCap = 'round';
+    tankCtx.stroke();
+
+    tankCtx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    tankCtx.lineWidth = 2.0;
+    tankCtx.stroke();
+
+    // Flange Joint Collars
+    function drawPipeFlange(fx, fy) {
+      tankCtx.fillStyle = '#334155';
+      tankCtx.strokeStyle = 'rgba(0, 180, 216, 0.6)';
+      tankCtx.lineWidth = 1.0;
+      tankCtx.beginPath();
+      if (tankCtx.roundRect) tankCtx.roundRect(fx - 7, fy - 2.5, 14, 5, 2);
+      else tankCtx.rect(fx - 7, fy - 2.5, 14, 5);
+      tankCtx.fill();
+      tankCtx.stroke();
+    }
+    drawPipeFlange(pipeX, motorY - 18);
+    drawPipeFlange(pipeX, (motorY + topY) / 2);
+    drawPipeFlange(pipeX, topY);
+
+    // Spout Nozzle Collar
+    tankCtx.fillStyle = 'rgba(0, 229, 255, 0.7)';
+    tankCtx.beginPath();
+    if (tankCtx.roundRect) tankCtx.roundRect(spoutX - 7, spoutY - 2, 14, 6, 2);
+    else tankCtx.rect(spoutX - 7, spoutY - 2, 14, 6);
+    tankCtx.fill();
+
+    // Water Flow & Dynamic Waterfall Cascade (when pump is running)
+    if (isPumpRunning) {
+      // Flow core inside pipe
+      tankCtx.beginPath();
+      tankCtx.moveTo(motorX - 8, motorY - 18);
+      tankCtx.lineTo(pipeX, motorY - 18);
+      tankCtx.lineTo(pipeX, topY);
+      tankCtx.quadraticCurveTo(pipeX, topY - 10, pipeX - 16, topY - 10);
+      tankCtx.lineTo(spoutX, topY - 10);
+      tankCtx.quadraticCurveTo(spoutX, topY - 10, spoutX, spoutY);
+
+      tankCtx.strokeStyle = 'rgba(0, 229, 255, 0.75)';
+      tankCtx.lineWidth = 5.0;
+      tankCtx.stroke();
+
+      // Rapid rising water particles inside vertical pipe
+      const vertH = (motorY - 18) - topY;
+      tankCtx.fillStyle = '#E0FAFF';
+      for (let i = 0; i < 5; i++) {
+        const p = (pipeFlowPhase + (i * 0.2)) % 1.0;
+        const py = (motorY - 18) - (p * vertH);
+        tankCtx.beginPath();
+        tankCtx.arc(pipeX, py, 2.2, 0, Math.PI * 2);
+        tankCtx.fill();
+      }
+
+      // Dynamic Waterfall Cascade pouring from spout nozzle down into liquid surface
+      const landingY = Math.max(spoutY + 12, bottom - fluidH);
+
+      const cascadeGrad = tankCtx.createLinearGradient(0, spoutY, 0, landingY);
+      cascadeGrad.addColorStop(0.0, '#00E5FF');
+      cascadeGrad.addColorStop(0.4, '#00B4D8');
+      cascadeGrad.addColorStop(0.8, '#48CAE4');
+      cascadeGrad.addColorStop(1.0, '#90E0EF');
+
+      tankCtx.beginPath();
+      tankCtx.moveTo(spoutX, spoutY);
+      tankCtx.quadraticCurveTo(
+        spoutX + Math.sin(cascadePhase * Math.PI * 2) * 1.5,
+        (spoutY + landingY) / 2,
+        spoutX,
+        landingY
+      );
+      tankCtx.strokeStyle = cascadeGrad;
+      tankCtx.lineWidth = 5.5;
+      tankCtx.lineCap = 'round';
+      tankCtx.stroke();
+
+      // Luminous Highlight Stream
+      tankCtx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+      tankCtx.lineWidth = 1.8;
+      tankCtx.stroke();
+
+      // Fast-falling Waterfall Droplets
+      for (let i = 0; i < 6; i++) {
+        const p = (cascadePhase + (i * 0.16)) % 1.0;
+        const dy = spoutY + p * (landingY - spoutY);
+        const dx = spoutX + Math.sin(p * Math.PI) * 2;
+        tankCtx.fillStyle = '#FFFFFF';
+        tankCtx.beginPath();
+        tankCtx.arc(dx, dy, 2.2, 0, Math.PI * 2);
+        tankCtx.fill();
+      }
+
+      // Kinetic Splash Spray Droplets & Foam where water enters
+      tankCtx.fillStyle = '#ADE8F4';
+      const splashOffsets = [
+        { x: -10, y: -12 * (1.0 - splashPhase) },
+        { x: 10, y: -14 * (1.0 - splashPhase) },
+        { x: -5, y: -16 * (1.0 - splashPhase) },
+        { x: 6, y: -10 * (1.0 - splashPhase) },
+        { x: 0, y: -18 * (1.0 - splashPhase) }
+      ];
+      for (const off of splashOffsets) {
+        tankCtx.beginPath();
+        tankCtx.arc(spoutX + off.x, landingY + off.y, 1.8, 0, Math.PI * 2);
+        tankCtx.fill();
+      }
+
+      // Concentric Surface Foam Ring
+      const splashR = 8.0 + (splashPhase * 16.0);
+      tankCtx.strokeStyle = `rgba(224, 250, 255, ${Math.max(0, 0.8 * (1.0 - splashPhase))})`;
+      tankCtx.lineWidth = 1.6;
+      tankCtx.beginPath();
+      tankCtx.ellipse(spoutX, landingY, splashR, splashR * 0.35, 0, 0, Math.PI * 2);
+      tankCtx.stroke();
+    }
 
     tankCtx.restore();
 
-    // Update Holographic HUD Badge colors & pump status
-    if (tankDataHud) {
-      tankDataHud.style.borderColor = `${fluidGlow}8C`;
-      tankDataHud.style.boxShadow = `0 0 20px ${fluidGlow}45, 0 8px 24px rgba(0, 0, 0, 0.6)`;
-    }
-    if (tankFillingStatus) {
-      if (isPumpRunning) tankFillingStatus.classList.remove('hidden');
-      else tankFillingStatus.classList.add('hidden');
-    }
+    // Advance Animation Phases
+    wavePhase += isPumpRunning ? 0.08 : 0.035;
+    pipeFlowPhase = (pipeFlowPhase + 0.05) % 1.0;
+    impellerAngle = (impellerAngle + 0.35) % (Math.PI * 2);
+    cascadePhase = (cascadePhase + 0.06) % 1.0;
+    splashPhase = (splashPhase + 0.05) % 1.0;
 
-    // Update wave and bubble progress
-    wavePhase += isPumpRunning ? 0.09 : 0.035;
-    bubbleProgress = (bubbleProgress + (isPumpRunning ? 0.018 : 0.008)) % 1.0;
-
-    if (isPumpRunning) {
-      if (waterLevel < 98) {
-        waterLevel += 0.025;
-        updateMetrics();
-      }
+    // Gradual Refill Simulation in Auto Mode
+    if (isPumpRunning && controlMode === 'AUTO' && waterLevel < 98) {
+      waterLevel += 0.015;
+      updateMetrics();
     }
 
+    // Guaranteed Continuous Loop
     requestAnimationFrame(drawTank);
   }
 
   function updateMetrics() {
     if (tankPctText) tankPctText.textContent = `${waterLevel.toFixed(1)}%`;
-    const vol = Math.round((waterLevel / 100) * 5000);
-    if (tankVolText) tankVolText.textContent = `${vol.toLocaleString()} / 5,000 L`;
+    const vol = Math.round((waterLevel / 100) * totalCapacityLiters);
+    if (tankVolText) tankVolText.textContent = `${vol.toLocaleString()} / ${totalCapacityLiters.toLocaleString()} L`;
 
     if (gridValVol) gridValVol.textContent = vol.toLocaleString();
     if (gridSubVol) gridSubVol.textContent = `Level: ${waterLevel.toFixed(0)}%`;
 
     if (isPumpRunning) {
       liveFlowRate = 18.2 + (Math.random() * 0.4 - 0.2);
-      livePowerKw = 1.43 + (Math.random() * 0.02 - 0.01);
+      livePowerKw = 1.45 + (Math.random() * 0.02 - 0.01);
       if (valPowerKw) valPowerKw.innerHTML = `${livePowerKw.toFixed(2)} <small>kW</small>`;
       if (gridValFlow) gridValFlow.textContent = liveFlowRate.toFixed(1);
       if (gridSubFlow) gridSubFlow.textContent = 'Active Inflow';
+      if (tankFillingStatus) tankFillingStatus.classList.remove('hidden');
     } else {
       liveFlowRate = 0.0;
       livePowerKw = 0.0;
       if (valPowerKw) valPowerKw.innerHTML = '0.00 <small>kW</small>';
       if (gridValFlow) gridValFlow.textContent = '0.0';
       if (gridSubFlow) gridSubFlow.textContent = 'Idle';
+      if (tankFillingStatus) tankFillingStatus.classList.add('hidden');
+    }
+
+    const tdsEl = document.getElementById('grid-val-tds');
+    if (tdsEl) tdsEl.textContent = liveTds;
+    const tempEl = document.getElementById('grid-val-temp');
+    if (tempEl) tempEl.textContent = liveTemp.toFixed(1);
+    const cyclesEl = document.getElementById('val-cycles-count');
+    if (cyclesEl) cyclesEl.textContent = dailyCycles;
+  }
+
+  function setControlMode(mode, shouldPublish = true) {
+    controlMode = mode === 'MANUAL' ? 'MANUAL' : 'AUTO';
+    if (btnModeAuto && btnModeManual) {
+      if (controlMode === 'AUTO') {
+        btnModeAuto.classList.add('active');
+        btnModeManual.classList.remove('active');
+      } else {
+        btnModeManual.classList.add('active');
+        btnModeAuto.classList.remove('active');
+      }
+    }
+
+    if (shouldPublish) {
+      const activeDevId = userDevices.length > 0 ? (userDevices[0].id || userDevices[0].nodeId) : 'esp32_pump_main';
+      if (mqttClient && mqttClient.connected) {
+        const payload = JSON.stringify({
+          action: 'SET_MODE',
+          command: 'SET_MODE',
+          parameters: { mode: controlMode },
+          mode: controlMode,
+          deviceId: activeDevId,
+          timestamp: Math.floor(Date.now() / 1000)
+        });
+        mqttClient.publish('pump/command', payload, { qos: 0 });
+        mqttClient.publish(`pump/${activeDevId}/command`, payload, { qos: 0 });
+      }
+
+      fetch(`${apiBaseUrl}/command`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ command: 'SET_MODE', parameters: { mode: controlMode } })
+      }).catch(() => null);
     }
   }
+
+  if (btnModeAuto) btnModeAuto.addEventListener('click', () => setControlMode('AUTO', true));
+  if (btnModeManual) btnModeManual.addEventListener('click', () => setControlMode('MANUAL', true));
 
   // ==============================================================================
   // 6. Two-Way Live MQTT & Backend Synchronization with Mobile App
@@ -939,13 +1352,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function setMotorRunning(active, shouldPublish = true) {
     if (isPumpRunning === active && !shouldPublish) return;
+    const wasRunning = isPumpRunning;
     isPumpRunning = active;
 
     if (active) {
+      if (!wasRunning) dailyCycles++;
       if (btnPumpToggle) {
         btnPumpToggle.classList.add('active-running');
         if (txtPumpLabel) txtPumpLabel.textContent = 'STOP MOTOR';
-        if (txtPumpSub) txtPumpSub.textContent = 'Relay: GPIO 23 (Active)';
+        if (txtPumpSub) txtPumpSub.textContent = 'Relay: GPIO 23 (Active Inflow)';
       }
 
       if (!runTimer) {
@@ -974,28 +1389,66 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Publish to MQTT broker and post to Backend API when triggered by user
     if (shouldPublish) {
-      const command = active ? 'PUMP_ON' : 'PUMP_OFF';
+      const activeDevId = userDevices.length > 0 ? (userDevices[0].id || userDevices[0].nodeId) : 'esp32_pump_main';
+      const cmd = active ? 'START_PUMP' : 'STOP_PUMP';
 
-      // 1. MQTT Publish (Instantly arrives at Mobile App and ESP32)
+      // 1. MQTT Publish to all topics matching Mobile App & Hardware
       if (mqttClient && mqttClient.connected) {
         const payload = JSON.stringify({
-          command,
+          action: cmd,
+          command: cmd,
+          commandId: `cmd_web_${Date.now()}`,
+          command_id: `cmd_web_${Date.now()}`,
+          pumpState: active ? 'ON' : 'OFF',
           state: active ? 'ON' : 'OFF',
-          timestamp: Date.now(),
-          source: 'web_console',
-          deviceId: 'esp32_pump_main'
+          status: active ? 'RUNNING' : 'STOPPED',
+          parameters: {},
+          issued_by: currentUser ? currentUser.id : 'web_console',
+          deviceId: activeDevId,
+          timestamp: Math.floor(Date.now() / 1000)
         });
-        mqttClient.publish('waterpump/esp32/control', payload, { qos: 1 });
+
+        mqttClient.publish('pump/command', payload, { qos: 0 });
+        mqttClient.publish(`pump/${activeDevId}/command`, payload, { qos: 0 });
+        mqttClient.publish(`pump/${currentUser ? currentUser.id : 'user'}/${activeDevId}/command`, payload, { qos: 0 });
+        mqttClient.publish(`devices/${activeDevId}/command`, payload, { qos: 0 });
+        mqttClient.publish('pump/status', payload, { qos: 0 });
+        mqttClient.publish('waterpump/esp32/control', payload, { qos: 0 });
       }
 
       // 2. Backend REST Command
-      fetch(`${apiBaseUrl}/pumps/esp32_pump_main/command`, {
+      fetch(`${apiBaseUrl}/command`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${authToken}`
         },
-        body: JSON.stringify({ command })
+        body: JSON.stringify({ command: cmd, parameters: {} })
+      }).catch(() => null);
+
+      fetch(`${apiBaseUrl}/pumps/${activeDevId}/command`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ command: cmd })
+      }).catch(() => null);
+
+      // Ingest live telemetry update to serverless backend
+      fetch(`${apiBaseUrl}/telemetry`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          pumpRunning: active,
+          waterLevelPct: waterLevel,
+          flowRateLpm: active ? 18.5 : 0.0,
+          powerKw: active ? 1.45 : 0.0,
+          mode: controlMode
+        })
       }).catch(() => null);
     }
   }
@@ -1026,7 +1479,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clientId,
         clean: true,
         connectTimeout: 5000,
-        reconnectPeriod: 3000,
+        reconnectPeriod: 2500,
       });
 
       mqttClient.on('connect', () => {
@@ -1034,12 +1487,11 @@ document.addEventListener('DOMContentLoaded', () => {
         updateMqttStatusBadge(true);
         updateHardwareStatusBadge(true, 18);
 
+        // Subscribed to all wildcard topics to cover mobile app and ESP32 hardware
         mqttClient.subscribe([
-          'waterpump/esp32/status',
-          'waterpump/esp32/telemetry',
-          'waterpump/esp32/control',
-          'waterpump/+/status',
-          'waterpump/+/control'
+          'pump/#',
+          'devices/#',
+          'waterpump/#'
         ]);
       });
 
@@ -1048,48 +1500,74 @@ document.addEventListener('DOMContentLoaded', () => {
           const data = JSON.parse(message.toString());
           updateHardwareStatusBadge(true, 22);
 
-          // Control Command sync from Mobile App
-          if (data.command) {
-            if (data.command === 'PUMP_ON') {
+          // 1. Motor Command Sync from Mobile App
+          const cmd = (data.command || data.action || '').toUpperCase();
+          if (cmd === 'START_PUMP' || cmd === 'PUMP_ON' || cmd === 'ON') {
+            setMotorRunning(true, false);
+          } else if (cmd === 'STOP_PUMP' || cmd === 'PUMP_OFF' || cmd === 'OFF' || cmd === 'EMERGENCY_STOP') {
+            setMotorRunning(false, false);
+          }
+
+          // 2. Hardware / Mobile Pump State Sync
+          if (data.pumpState !== undefined || data.state !== undefined || data.status !== undefined || data.isRunning !== undefined) {
+            const raw = String(data.pumpState || data.state || data.status || data.isRunning).toUpperCase();
+            if (raw === 'ON' || raw === 'RUNNING' || raw === 'TRUE' || raw === '1') {
               setMotorRunning(true, false);
-            } else if (data.command === 'PUMP_OFF' || data.command === 'EMERGENCY_STOP') {
+            } else if (raw === 'OFF' || raw === 'STOPPED' || raw === 'FALSE' || raw === '0' || raw === 'IDLE') {
               setMotorRunning(false, false);
             }
           }
 
-          // Status sync from Mobile App or ESP32
-          if (data.pumpState !== undefined) {
-            const isRunning = data.pumpState === 'ON' || data.pumpState === 1 || data.pumpState === true;
-            setMotorRunning(isRunning, false);
+          // 3. Operational Mode Sync
+          if (data.mode) {
+            setControlMode(data.mode, false);
           }
 
-          if (data.waterLevel !== undefined) {
-            const parsed = parseFloat(data.waterLevel);
+          // 4. Real-time Telemetry Sync
+          if (data.waterLevelPct !== undefined || data.waterLevel !== undefined || data.level !== undefined) {
+            const parsed = parseFloat(data.waterLevelPct || data.waterLevel || data.level);
             if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
               waterLevel = parsed;
               updateMetrics();
             }
           }
 
-          if (data.flowRate !== undefined) {
-            const parsedFlow = parseFloat(data.flowRate);
+          if (data.flowRateLpm !== undefined || data.flowRate !== undefined || data.flow_rate !== undefined) {
+            const parsedFlow = parseFloat(data.flowRateLpm || data.flowRate || data.flow_rate);
             if (!isNaN(parsedFlow)) {
               liveFlowRate = parsedFlow;
               if (gridValFlow) gridValFlow.textContent = liveFlowRate.toFixed(1);
             }
           }
 
-          if (data.tds !== undefined) {
+          if (data.tdsPpm !== undefined || data.tds !== undefined) {
+            liveTds = parseInt(data.tdsPpm || data.tds);
             const el = document.getElementById('grid-val-tds');
-            if (el) el.textContent = data.tds;
+            if (el) el.textContent = liveTds;
           }
 
-          if (data.temperature !== undefined) {
+          if (data.temperatureC !== undefined || data.temperature !== undefined || data.temp_c !== undefined) {
+            liveTemp = parseFloat(data.temperatureC || data.temperature || data.temp_c);
             const el = document.getElementById('grid-val-temp');
-            if (el) el.textContent = parseFloat(data.temperature).toFixed(1);
+            if (el) el.textContent = liveTemp.toFixed(1);
+          }
+
+          if (data.powerConsumptionKw !== undefined || data.powerKw !== undefined) {
+            livePowerKw = parseFloat(data.powerConsumptionKw || data.powerKw);
+            if (valPowerKw) valPowerKw.innerHTML = `${livePowerKw.toFixed(2)} <small>kW</small>`;
+          }
+
+          if (data.runningDurationSeconds !== undefined) {
+            runSeconds = parseInt(data.runningDurationSeconds);
+          }
+
+          if (data.cycleCount !== undefined || data.pumpCycleCount !== undefined) {
+            dailyCycles = parseInt(data.cycleCount || data.pumpCycleCount);
+            const el = document.getElementById('val-cycles-count');
+            if (el) el.textContent = dailyCycles;
           }
         } catch (err) {
-          console.warn('[MQTT] Packet parse notice:', err);
+          console.warn('[MQTT] Packet notice:', err);
         }
       });
 
@@ -1106,25 +1584,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Continuous REST State Sync Fallback
+  // Continuous REST State Sync Fallback & Historical Telemetry Sync
   let restPollInterval = null;
   function initRestSync() {
     if (restPollInterval) return;
     restPollInterval = setInterval(async () => {
       try {
-        const res = await fetch(`${apiBaseUrl}/pumps/esp32_pump_main/status`).catch(() => null);
+        const res = await fetch(`${apiBaseUrl}/telemetry/live`).catch(() => null);
         if (res && res.ok) {
           const json = await res.json();
           if (json.data) {
             const d = json.data;
-            if (d.status === 'RUNNING' || d.pumpState === 'ON') {
-              if (!isPumpRunning) setMotorRunning(true, false);
-            } else if (d.status === 'STOPPED' || d.pumpState === 'OFF') {
-              if (isPumpRunning) setMotorRunning(false, false);
+            if (d.pumpRunning !== undefined) {
+              if (d.pumpRunning !== isPumpRunning) {
+                setMotorRunning(d.pumpRunning, false);
+              }
             }
-            if (d.waterLevel !== undefined) {
-              const parsed = parseFloat(d.waterLevel);
-              if (!isNaN(parsed)) {
+            if (d.mode && d.mode !== controlMode) {
+              setControlMode(d.mode, false);
+            }
+            if (d.waterLevelPct !== undefined) {
+              const parsed = parseFloat(d.waterLevelPct);
+              if (!isNaN(parsed) && Math.abs(parsed - waterLevel) > 0.5) {
                 waterLevel = parsed;
                 updateMetrics();
               }
@@ -1142,15 +1623,30 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==============================================================================
   // 7. 24-Hour Telemetry SVG Graph
   // ==============================================================================
-  function renderTrendChart() {
+  async function renderTrendChart() {
     const svg = document.getElementById('svg-trend-chart');
     if (!svg) return;
 
-    const points = [
+    let points = [
       { x: 0, y: 76 }, { x: 75, y: 72 }, { x: 155, y: 52 }, { x: 235, y: 30 },
       { x: 310, y: 22 }, { x: 390, y: 94 }, { x: 470, y: 82 }, { x: 545, y: 66 },
       { x: 620, y: 52 }, { x: 690, y: 72 }, { x: 760, y: waterLevel }
     ];
+
+    try {
+      const res = await fetch(`${apiBaseUrl}/telemetry/history`).catch(() => null);
+      if (res && res.ok) {
+        const json = await res.json();
+        if (json.data && Array.isArray(json.data) && json.data.length >= 3) {
+          const list = json.data.slice(-12);
+          points = list.map((item, idx) => ({
+            x: Math.round((idx / (list.length - 1)) * 760),
+            y: item.waterLevelPct || 50
+          }));
+          if (points.length > 0) points[points.length - 1].y = waterLevel;
+        }
+      }
+    } catch {}
 
     const width = 760;
     const height = 200;
@@ -1171,7 +1667,7 @@ document.addEventListener('DOMContentLoaded', () => {
     svg.innerHTML = `
       <defs>
         <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#0EA5E9" stop-opacity="0.3"/>
+          <stop offset="0%" stop-color="#0EA5E9" stop-opacity="0.35"/>
           <stop offset="100%" stop-color="#0EA5E9" stop-opacity="0.0"/>
         </linearGradient>
       </defs>

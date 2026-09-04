@@ -1,5 +1,22 @@
 {
+  "name": "water-pump-controller",
+  "version": "1.0.0",
+  "description": "Smart IoT Water Pump Controller - Web App, Mobile App & Backend Platform",
+  "main": "api/server.js",
+  "scripts": {
+    "start": "pm2 start ecosystem.config.js",
+    "stop": "pm2 stop ecosystem.config.js",
+    "restart": "pm2 restart ecosystem.config.js",
+    "status": "pm2 status",
+    "logs": "pm2 logs",
+    "serve": "node api/server.js",
+    "dev:backend": "npm --prefix backend run dev",
+    "build:backend": "npm --prefix backend run build",
+    "start:backend": "npm --prefix backend run start",
+    "test:backend": "npm --prefix backend test"
+  },
   "dependencies": {
-    "@dietrichgebert/ponytail": "^4.9.0"
+    "@dietrichgebert/ponytail": "^4.9.0",
+    "pm2": "^5.4.2"
   }
 }

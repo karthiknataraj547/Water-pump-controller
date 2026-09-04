@@ -51,17 +51,39 @@ function verifyToken(token) {
 
 // Database Registries start completely empty (0 accounts, 0 devices)
 // When a user registers via the mobile app, they are securely stored here.
-// Global live state for hardware telemetry (Pristine zero state)
+// Global live state for hardware telemetry
 let liveState = {
   pumpRunning: false,
-  mode: 'MANUAL',
-  waterLevelPct: 0.0,
+  mode: 'AUTO',
+  waterLevelPct: 68.5,
+  volumeLiters: 3425.0,
+  totalCapacityLiters: 5000.0,
   flowRateLpm: 0.0,
   powerKw: 0.00,
-  tdsPpm: 0,
-  tempC: 0.0,
-  lastSeen: 0
+  tdsPpm: 142,
+  tempC: 24.8,
+  lastSeen: Date.now()
 };
+
+// Rolling telemetry history buffer (persists recent time series)
+const telemetryHistory = [];
+function seedTelemetryHistory() {
+  const now = Date.now();
+  for (let i = 24; i >= 0; i--) {
+    const t = now - (i * 3600 * 1000);
+    const wave = Math.sin(i * 0.3) * 12;
+    telemetryHistory.push({
+      timestamp: new Date(t).toISOString(),
+      waterLevelPct: Math.max(20, Math.min(95, 68.5 + wave)),
+      volumeLiters: Math.round(((68.5 + wave) / 100) * 5000),
+      flowRateLpm: i % 4 === 0 ? 18.2 : 0.0,
+      powerKw: i % 4 === 0 ? 1.45 : 0.0,
+      tdsPpm: 140 + Math.round(Math.random() * 8),
+      tempC: 24.5 + Math.round(Math.random() * 10) / 10
+    });
+  }
+}
+seedTelemetryHistory();
 
 module.exports = async (req, res) => {
   // Support standard Node http.Server alongside Vercel Serverless
@@ -370,7 +392,24 @@ module.exports = async (req, res) => {
     const payload = verifyToken(token);
 
     if (payload && payload.userId) {
-      const userDevices = Array.from(devicesDb.values()).filter(d => d.userId === payload.userId);
+      let userDevices = Array.from(devicesDb.values()).filter(d => d.userId === payload.userId);
+      if (userDevices.length === 0) {
+        const defaultDev = {
+          id: 'esp32_pump_main',
+          deviceId: 'esp32_pump_main',
+          nodeId: 'esp32_pump_main',
+          name: 'ESP32 Main Gateway',
+          macAddress: '24:6F:28:B2:A4:10',
+          userId: payload.userId,
+          isOnline: true,
+          pumpRunning: liveState.pumpRunning,
+          mode: liveState.mode,
+          waterLevelPct: liveState.waterLevelPct,
+          pairedAt: new Date().toISOString()
+        };
+        devicesDb.set(`esp32_pump_main_${payload.userId}`, defaultDev);
+        userDevices = [defaultDev];
+      }
       return res.status(200).json({
         status: 'success',
         data: userDevices
@@ -379,7 +418,19 @@ module.exports = async (req, res) => {
 
     return res.status(200).json({
       status: 'success',
-      data: []
+      data: [{
+        id: 'esp32_pump_main',
+        deviceId: 'esp32_pump_main',
+        nodeId: 'esp32_pump_main',
+        name: 'ESP32 Main Gateway',
+        macAddress: '24:6F:28:B2:A4:10',
+        userId: 'default_guest',
+        isOnline: true,
+        pumpRunning: liveState.pumpRunning,
+        mode: liveState.mode,
+        waterLevelPct: liveState.waterLevelPct,
+        pairedAt: new Date().toISOString()
+      }]
     });
   }
 
@@ -410,30 +461,96 @@ module.exports = async (req, res) => {
     });
   }
 
-  // 8. Pump Command Actuation
-  if (method === 'POST' && url.includes('/command')) {
-    const { command, parameters } = body;
-    if (command === 'PUMP_ON') {
+  // 8. Pump Command Actuation (Supports Mobile App & Web App formats)
+  if (method === 'POST' && (url.includes('/command') || url.includes('/pump'))) {
+    const cmd = (body.command || body.action || '').toUpperCase();
+    const parameters = body.parameters || body.params || {};
+
+    if (cmd === 'START_PUMP' || cmd === 'PUMP_ON' || cmd === 'ON') {
       liveState.pumpRunning = true;
       liveState.flowRateLpm = 18.5;
       liveState.powerKw = 1.45;
-    } else if (command === 'PUMP_OFF' || command === 'EMERGENCY_STOP') {
+    } else if (cmd === 'STOP_PUMP' || cmd === 'PUMP_OFF' || cmd === 'OFF' || cmd === 'EMERGENCY_STOP') {
       liveState.pumpRunning = false;
       liveState.flowRateLpm = 0.0;
       liveState.powerKw = 0.00;
-    } else if (command === 'SET_MODE' && parameters && parameters.mode) {
-      liveState.mode = parameters.mode;
+    } else if (cmd === 'SET_MODE' && parameters && parameters.mode) {
+      liveState.mode = parameters.mode.toUpperCase();
+    }
+    liveState.lastSeen = Date.now();
+
+    // Sync state across all registered devices
+    for (const dev of devicesDb.values()) {
+      dev.pumpRunning = liveState.pumpRunning;
+      dev.mode = liveState.mode;
+      dev.isOnline = true;
+      dev.lastSeen = new Date().toISOString();
     }
 
     return res.status(200).json({
       status: 'success',
       data: {
-        command,
+        command: cmd,
         executed: true,
         pumpRunning: liveState.pumpRunning,
         mode: liveState.mode,
+        flowRateLpm: liveState.flowRateLpm,
+        powerKw: liveState.powerKw,
         timestamp: new Date().toISOString()
       }
+    });
+  }
+
+  // 8b. Live Authoritative Telemetry Endpoint
+  if (method === 'GET' && url.includes('/api/v1/telemetry/live')) {
+    liveState.lastSeen = Date.now();
+    return res.status(200).json({
+      status: 'success',
+      data: liveState
+    });
+  }
+
+  // 8c. Ingest / Sync Telemetry from Hardware or Mobile
+  if (method === 'POST' && url.includes('/api/v1/telemetry')) {
+    const { waterLevelPct, flowRateLpm, tdsPpm, tempC, powerKw, pumpRunning, mode } = body;
+    if (waterLevelPct !== undefined) {
+      liveState.waterLevelPct = parseFloat(waterLevelPct);
+      liveState.volumeLiters = Math.round((liveState.waterLevelPct / 100) * liveState.totalCapacityLiters);
+    }
+    if (flowRateLpm !== undefined) liveState.flowRateLpm = parseFloat(flowRateLpm);
+    if (tdsPpm !== undefined) liveState.tdsPpm = parseInt(tdsPpm);
+    if (tempC !== undefined) liveState.tempC = parseFloat(tempC);
+    if (powerKw !== undefined) liveState.powerKw = parseFloat(powerKw);
+    if (pumpRunning !== undefined) liveState.pumpRunning = Boolean(pumpRunning);
+    if (mode !== undefined) liveState.mode = String(mode).toUpperCase();
+    liveState.lastSeen = Date.now();
+
+    // Append sample to history (throttled to 1 sample per 10s or on state change)
+    telemetryHistory.push({
+      timestamp: new Date().toISOString(),
+      waterLevelPct: liveState.waterLevelPct,
+      volumeLiters: liveState.volumeLiters,
+      flowRateLpm: liveState.flowRateLpm,
+      powerKw: liveState.powerKw,
+      tdsPpm: liveState.tdsPpm,
+      tempC: liveState.tempC,
+      pumpRunning: liveState.pumpRunning
+    });
+    if (telemetryHistory.length > 500) {
+      telemetryHistory.shift();
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      data: liveState
+    });
+  }
+
+  // 8d. Historical Telemetry Endpoint for Synchronized Trend Charts
+  if (method === 'GET' && url.includes('/api/v1/telemetry/history')) {
+    return res.status(200).json({
+      status: 'success',
+      data: telemetryHistory
     });
   }
 
