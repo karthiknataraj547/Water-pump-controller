@@ -34,10 +34,10 @@ class AppVersionInfo {
 
   factory AppVersionInfo.fromJson(Map<String, dynamic> json) {
     return AppVersionInfo(
-      version: json['version']?.toString() ?? '2.0.7',
+      version: json['version']?.toString() ?? '2.0.8',
       buildNumber: json['build_number'] is int
           ? json['build_number']
-          : int.tryParse(json['build_number']?.toString() ?? '10') ?? 10,
+          : int.tryParse(json['build_number']?.toString() ?? '11') ?? 11,
       releaseDate: json['release_date']?.toString() ?? '',
       downloadUrl: json['download_url']?.toString() ??
           'https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk',

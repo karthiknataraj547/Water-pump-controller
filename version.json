@@ -1,17 +1,17 @@
 {
-  "version": "2.0.7",
-  "build_number": 10,
+  "version": "2.0.8",
+  "build_number": 11,
   "release_date": "2026-09-04",
   "min_supported_version": "1.0.0",
   "download_url": "https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk",
   "website_url": "https://water-pump-controller.vercel.app",
-  "title": "HydroPulse v2.0.7 - MQTT Synchronization, Hardware Auto-Adoption & Live Telemetry",
+  "title": "HydroPulse v2.0.8 - Zero-Mock Clean DB, Accurate Dual-Node MQTT Heartbeat & API Rate Limiting",
   "changelog": [
-    "Nodes Tab: 'Factory Reset' renamed to 'Remove Hardware' with instant node unbinding and clean state reset",
-    "Strict Online/Offline Detection: 6-second heartbeat watchdog immediately marks hardware offline when disconnected",
-    "Mode Memory: preserves and restores prior operational mode (Auto/Manual) when clearing emergency stop",
-    "Emergency Stop State: pulsating active alert banner, motor start lockout, and tap-to-reset toggle across mobile app and web console",
-    "MQTT Synchronization: Unified primary broker to broker.emqx.io, added automatic hardware auto-adoption, local device persistence, and continuous live sensor telemetry streaming"
+    "Database Reset: Completely flushed all pre-existing database records, mock users, and hardware devices. All accounts start with zero hardware.",
+    "Zero-Mock Policy: Completely removed default dummy hardware creation and arbitrary MQTT auto-adoption across the mobile app.",
+    "Accurate Dual-Node Monitoring: Independent real-time tracking for Main Gateway (ESP32) and Sub Node (ESP8266 Tank Level Sensor) with live status badges.",
+    "Hardware Heartbeat Watchdog: Sub-second ping probes with 6-second true offline detection and gateway RF link status reporting.",
+    "API Security & Rate Limiting: Sliding-window rate limiters across auth, command, and general endpoints with security response headers."
   ],
   "is_critical": false
 }

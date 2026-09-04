@@ -274,28 +274,31 @@ class HardwareStateService extends ChangeNotifier {
         final rawList = res.data['data'];
         if (rawList is List) {
           if (rawList.isEmpty) {
-            debugPrint('[HardwareStateService] User $cleanEmail has 0 cloud-registered devices yet.');
-            if (_activeDevice != null && _activeDevice!.id != 'esp32_pump_main') {
-              syncDeviceToBackend(_activeDevice!);
-            }
+            debugPrint('[HardwareStateService] User $cleanEmail has 0 cloud-registered devices.');
+            _activeDevice = null;
+            _sensorData = null;
+            _pumpStatus = null;
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('saved_paired_device');
+            notifyListeners();
             return;
           }
 
           // Filter for devices explicitly owned by this user
-          final isKarthik = cleanEmail == 'karthiknataraj547@gmail.com' || cleanEmail == 'karthiknataraj547@gamil.com' || cleanEmail.contains('karthiknataraj547');
           final userOwned = rawList.where((d) {
             if (d is! Map) return false;
             final dEmail = (d['userEmail'] ?? d['userId'] ?? '').toString().toLowerCase();
-            if (dEmail == cleanEmail) return true;
-            if (isKarthik && dEmail.contains('karthiknataraj547')) return true;
-            return false;
+            return dEmail == cleanEmail;
           }).toList();
 
           if (userOwned.isEmpty) {
             debugPrint('[HardwareStateService] No matching cloud devices found for $cleanEmail.');
-            if (_activeDevice != null && _activeDevice!.id != 'esp32_pump_main') {
-              syncDeviceToBackend(_activeDevice!);
-            }
+            _activeDevice = null;
+            _sensorData = null;
+            _pumpStatus = null;
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('saved_paired_device');
+            notifyListeners();
             return;
           }
 
@@ -503,8 +506,8 @@ class HardwareStateService extends ChangeNotifier {
     if (mainNodeStatus == NodeStatus.offline) return NodeStatus.offline;
     if (_lastSubNodePacket == null) return NodeStatus.offline;
     final diffMs = DateTime.now().difference(_lastSubNodePacket!).inMilliseconds;
-    if (diffMs <= 15000) return NodeStatus.online;
-    if (diffMs <= 22000) return NodeStatus.stale;
+    if (diffMs <= 10000) return NodeStatus.online;
+    if (diffMs <= 16000) return NodeStatus.stale;
     return NodeStatus.offline;
   }
 
@@ -534,20 +537,6 @@ class HardwareStateService extends ChangeNotifier {
       wifiRssi: _activeDevice?.wifiRssi ?? -65,
       brokerHost: _brokerHost,
       isMqttConnected: _isMqttConnected,
-    );
-  }
-
-  DeviceModel _createDefaultDevice() {
-    return DeviceModel(
-      id: 'esp32_pump_main',
-      name: 'ESP32 Main Gateway',
-      macAddress: '24:6F:28:B2:A4:10',
-      status: 'ONLINE',
-      pumpState: 'STOPPED',
-      mode: 'AUTO',
-      wifiRssi: -58,
-      firmwareVersion: 'v2.0.7',
-      lastSeen: DateTime.now(),
     );
   }
 
@@ -584,10 +573,11 @@ class HardwareStateService extends ChangeNotifier {
       } catch (e) {
         debugPrint('[HardwareStateService] Restoring saved device notice: $e');
       }
+    } else {
+      _activeDevice = null;
     }
 
     if (!_isExplicitlyRemoved) {
-      _activeDevice ??= _createDefaultDevice();
       // Fetch latest hardware synchronized in cloud backend database for this account
       await fetchUserDevicesFromBackend();
     } else {
@@ -683,10 +673,7 @@ class HardwareStateService extends ChangeNotifier {
       if (_isExplicitlyRemoved) return;
 
       final msgEmail = (data['userEmail'] ?? data['userId'] ?? '').toString().toLowerCase();
-      final isKarthik = cleanEmail == 'karthiknataraj547@gmail.com' || cleanEmail == 'karthiknataraj547@gamil.com' || cleanEmail.contains('karthiknataraj547');
-
-      final isMatch = (msgEmail == cleanEmail) ||
-          (isKarthik && (msgEmail == 'karthiknataraj547@gmail.com' || msgEmail == 'karthiknataraj547@gamil.com' || msgEmail.contains('karthiknataraj547')));
+      final isMatch = (msgEmail == cleanEmail);
 
       if (!isMatch) return;
 
@@ -758,38 +745,7 @@ class HardwareStateService extends ChangeNotifier {
     final incomingDevId = (data['deviceId'] ?? data['device_id'] ?? '').toString().trim();
 
     if (_activeDevice == null) {
-      if (_isExplicitlyRemoved) return;
-      if (incomingDevId.isNotEmpty) {
-        _activeDevice = DeviceModel(
-          id: incomingDevId,
-          name: 'HydroPulse Gateway ($incomingDevId)',
-          macAddress: '24:6F:28:94:B9:7E',
-          status: 'ONLINE',
-          pumpState: 'OFF',
-          mode: (data['mode'] ?? 'AUTO').toString().toUpperCase(),
-          wifiRssi: -65,
-          firmwareVersion: '2.0.7',
-          lastSeen: DateTime.now(),
-        );
-        _persistActiveDevice();
-        notifyListeners();
-      } else {
-        _activeDevice = _createDefaultDevice();
-      }
-    } else if (incomingDevId.isNotEmpty && (_activeDevice!.id == 'esp32_pump_main' || _activeDevice!.id.startsWith('esp32_pump_000'))) {
-      _activeDevice = DeviceModel(
-        id: incomingDevId,
-        name: _activeDevice!.name == 'ESP32 Main Gateway' ? 'HydroPulse Gateway ($incomingDevId)' : _activeDevice!.name,
-        macAddress: _activeDevice!.macAddress,
-        status: 'ONLINE',
-        pumpState: _activeDevice!.pumpState,
-        mode: _activeDevice!.mode,
-        wifiRssi: _activeDevice!.wifiRssi,
-        firmwareVersion: _activeDevice!.firmwareVersion,
-        lastSeen: DateTime.now(),
-      );
-      _persistActiveDevice();
-      notifyListeners();
+      return; // Zero auto-adoption
     } else if (incomingDevId.isNotEmpty && incomingDevId != _activeDevice!.id) {
       return;
     }
@@ -797,6 +753,15 @@ class HardwareStateService extends ChangeNotifier {
     final now = DateTime.now();
     _lastMainNodeHeartbeat = now;
     _totalPacketsReceived++;
+
+    if (data.containsKey('subNodeOnline')) {
+      final bool isSubAlive = data['subNodeOnline'] == true;
+      if (isSubAlive) {
+        _lastSubNodePacket = now;
+      } else {
+        _lastSubNodePacket = null;
+      }
+    }
 
     final clientTs = (data['client_timestamp_ms'] ?? data['timestamp_ms'] ?? 0) as num;
     if (clientTs > 0) {
@@ -899,40 +864,7 @@ class HardwareStateService extends ChangeNotifier {
     final devId = (data['deviceId'] ?? data['device_id'] ?? '').toString().trim();
 
     if (_activeDevice == null) {
-      if (_isExplicitlyRemoved) return;
-      if (devId.isNotEmpty) {
-        _activeDevice = DeviceModel(
-          id: devId,
-          name: 'HydroPulse Gateway ($devId)',
-          macAddress: (data['macAddress'] ?? data['mac'] ?? '24:6F:28:94:B9:7E').toString(),
-          status: 'ONLINE',
-          pumpState: 'OFF',
-          mode: (data['mode'] ?? 'AUTO').toString().toUpperCase(),
-          wifiRssi: data['rssi'] ?? data['wifiRssi'] ?? -65,
-          firmwareVersion: (data['fw_version'] ?? data['firmware_version'] ?? '2.0.7').toString(),
-          lastSeen: now,
-        );
-        _persistActiveDevice();
-        notifyListeners();
-        debugPrint('[HardwareStateService] Auto-adopted active hardware: $devId');
-      } else {
-        _activeDevice = _createDefaultDevice();
-      }
-    } else if (devId.isNotEmpty && (_activeDevice!.id == 'esp32_pump_main' || _activeDevice!.id.startsWith('esp32_pump_000'))) {
-      _activeDevice = DeviceModel(
-        id: devId,
-        name: _activeDevice!.name == 'ESP32 Main Gateway' ? 'HydroPulse Gateway ($devId)' : _activeDevice!.name,
-        macAddress: _activeDevice!.macAddress,
-        status: 'ONLINE',
-        pumpState: _activeDevice!.pumpState,
-        mode: _activeDevice!.mode,
-        wifiRssi: _activeDevice!.wifiRssi,
-        firmwareVersion: _activeDevice!.firmwareVersion,
-        lastSeen: now,
-      );
-      _persistActiveDevice();
-      notifyListeners();
-      debugPrint('[HardwareStateService] Upgraded active device ID to: $devId');
+      return; // Zero auto-adoption
     } else if (devId.isNotEmpty && devId != _activeDevice!.id) {
       return;
     }
@@ -947,6 +879,16 @@ class HardwareStateService extends ChangeNotifier {
 
     if (data.containsKey('emergencyStopped')) {
       _isEmergencyStopActive = data['emergencyStopped'] == true;
+    }
+
+    // Sub-Node status handling
+    if (data.containsKey('subNodeOnline')) {
+      final bool isSubAlive = data['subNodeOnline'] == true;
+      if (isSubAlive) {
+        _lastSubNodePacket = now;
+      } else {
+        _lastSubNodePacket = null;
+      }
     }
 
     // Explicit LWT Offline
@@ -1051,38 +993,7 @@ class HardwareStateService extends ChangeNotifier {
     final incomingDevId = (data['deviceId'] ?? data['device_id'] ?? '').toString().trim();
 
     if (_activeDevice == null) {
-      if (_isExplicitlyRemoved) return;
-      if (incomingDevId.isNotEmpty) {
-        _activeDevice = DeviceModel(
-          id: incomingDevId,
-          name: 'HydroPulse Gateway ($incomingDevId)',
-          macAddress: '24:6F:28:94:B9:7E',
-          status: 'ONLINE',
-          pumpState: 'OFF',
-          mode: (data['mode'] ?? 'AUTO').toString().toUpperCase(),
-          wifiRssi: -65,
-          firmwareVersion: '2.0.7',
-          lastSeen: now,
-        );
-        _persistActiveDevice();
-        notifyListeners();
-      } else {
-        _activeDevice = _createDefaultDevice();
-      }
-    } else if (incomingDevId.isNotEmpty && (_activeDevice!.id == 'esp32_pump_main' || _activeDevice!.id.startsWith('esp32_pump_000'))) {
-      _activeDevice = DeviceModel(
-        id: incomingDevId,
-        name: _activeDevice!.name == 'ESP32 Main Gateway' ? 'HydroPulse Gateway ($incomingDevId)' : _activeDevice!.name,
-        macAddress: _activeDevice!.macAddress,
-        status: 'ONLINE',
-        pumpState: _activeDevice!.pumpState,
-        mode: _activeDevice!.mode,
-        wifiRssi: _activeDevice!.wifiRssi,
-        firmwareVersion: _activeDevice!.firmwareVersion,
-        lastSeen: now,
-      );
-      _persistActiveDevice();
-      notifyListeners();
+      return;
     } else if (incomingDevId.isNotEmpty && incomingDevId != _activeDevice!.id) {
       return;
     }
@@ -1375,7 +1286,7 @@ class HardwareStateService extends ChangeNotifier {
   }
 
   void sendPumpCommand(String command, {Map<String, dynamic>? params}) {
-    _activeDevice ??= _createDefaultDevice();
+    if (_activeDevice == null) return;
 
     final normCmd = command.toUpperCase();
     final isTurningOn = (normCmd == 'START_PUMP' || normCmd == 'PUMP_ON' || normCmd == 'ON');
@@ -1524,7 +1435,7 @@ class HardwareStateService extends ChangeNotifier {
   }
 
   void clearEmergencyStop() {
-    _activeDevice ??= _createDefaultDevice();
+    if (_activeDevice == null) return;
     _isEmergencyStopActive = false;
     _pumpCommandLockUntil = null;
     _expectedPumpState = null;
@@ -1560,7 +1471,7 @@ class HardwareStateService extends ChangeNotifier {
   }
 
   void setMode(String mode) {
-    _activeDevice ??= _createDefaultDevice();
+    if (_activeDevice == null) return;
     final normalizedMode = mode.toUpperCase();
     _previousMode = _activeDevice!.mode;
 
@@ -1607,7 +1518,7 @@ class HardwareStateService extends ChangeNotifier {
     required bool dryRunProtection,
     int maxRuntimeMins = 30,
   }) {
-    _activeDevice ??= _createDefaultDevice();
+    if (_activeDevice == null) return;
     mqttService.publishCommand(
       'user_app',
       _activeDevice!.id,

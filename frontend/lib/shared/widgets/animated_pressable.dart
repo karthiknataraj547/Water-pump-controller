@@ -29,7 +29,6 @@ class _AnimatedPressableState extends State<AnimatedPressable>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
-  bool _isPressed = false;
 
   @override
   void initState() {
@@ -55,7 +54,6 @@ class _AnimatedPressableState extends State<AnimatedPressable>
 
   void _handleTapDown(TapDownDetails details) {
     if (widget.onTap == null) return;
-    setState(() => _isPressed = true);
     _controller.forward();
     if (widget.enableHaptic) {
       HapticFeedback.selectionClick();
@@ -64,13 +62,11 @@ class _AnimatedPressableState extends State<AnimatedPressable>
 
   void _handleTapUp(TapUpDetails details) {
     if (widget.onTap == null) return;
-    setState(() => _isPressed = false);
     _controller.reverse();
   }
 
   void _handleTapCancel() {
     if (widget.onTap == null) return;
-    setState(() => _isPressed = false);
     _controller.reverse();
   }
 

@@ -201,6 +201,91 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
                   ),
                 ],
               ),
+              Row(
+                children: [
+                  // Main Gateway Node Status Pill
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: (isOnline ? AppTheme.accent : AppTheme.danger).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: (isOnline ? AppTheme.accent : AppTheme.danger).withOpacity(0.35),
+                        width: 0.5,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isOnline ? AppTheme.accent : AppTheme.danger,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          isOnline ? 'Main: Online' : 'Main: Offline',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: isOnline ? AppTheme.accent : AppTheme.danger,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  // Sub Node (Tank Level Sensor) Status Pill
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: (widget.subNodeStatus == NodeStatus.online
+                              ? AppTheme.accent
+                              : (isOnline ? AppTheme.warning : AppTheme.danger))
+                          .withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: (widget.subNodeStatus == NodeStatus.online
+                                ? AppTheme.accent
+                                : (isOnline ? AppTheme.warning : AppTheme.danger))
+                            .withOpacity(0.35),
+                        width: 0.5,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: widget.subNodeStatus == NodeStatus.online
+                                ? AppTheme.accent
+                                : (isOnline ? AppTheme.warning : AppTheme.danger),
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          widget.subNodeStatus == NodeStatus.online
+                              ? 'Sub: Online'
+                              : 'Sub: Offline',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: widget.subNodeStatus == NodeStatus.online
+                                ? AppTheme.accent
+                                : (isOnline ? AppTheme.warning : AppTheme.danger),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
 

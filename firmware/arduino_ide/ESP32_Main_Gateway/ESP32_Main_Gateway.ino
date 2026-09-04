@@ -514,6 +514,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       pongDoc["state"] = "ONLINE";
       pongDoc["pumpState"] = pumpRunning ? "RUNNING" : "STOPPED";
       pongDoc["mode"] = systemMode;
+      pongDoc["subNodeOnline"] = (lastSensorPacketTime > 0 && (millis() - lastSensorPacketTime) < SUB_NODE_TIMEOUT_MS);
       pongDoc["uptime_ms"] = millis();
       pongDoc["client_timestamp_ms"] = doc["timestamp_ms"] | doc["timestamp"] | 0;
       pongDoc["free_heap"] = ESP.getFreeHeap();

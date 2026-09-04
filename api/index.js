@@ -70,6 +70,69 @@ let liveState = {
 // Rolling telemetry history buffer (real data)
 const telemetryHistory = [];
 
+// Rate Limiter: In-memory sliding window keyed by client IP
+const rateLimitMap = new Map();
+
+function getClientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) return forwarded.split(',')[0].trim();
+  const realIp = req.headers['x-real-ip'];
+  if (realIp) return realIp.trim();
+  return req.socket?.remoteAddress || req.connection?.remoteAddress || '127.0.0.1';
+}
+
+function checkRateLimit(ip, endpointType) {
+  const now = Date.now();
+  const windowMs = 60 * 1000; // 1 minute window
+  let limit = 150; // default general API limit
+  if (endpointType === 'auth') limit = 15; // 15 auth attempts / min
+  else if (endpointType === 'command') limit = 45; // 45 command actions / min
+
+  const key = `${ip}_${endpointType}`;
+  let record = rateLimitMap.get(key);
+  if (!record || now > record.resetTime) {
+    record = { count: 1, resetTime: now + windowMs };
+    rateLimitMap.set(key, record);
+    return { allowed: true, limit, remaining: limit - 1, reset: Math.ceil(record.resetTime / 1000) };
+  }
+
+  record.count++;
+  const remaining = Math.max(0, limit - record.count);
+  const reset = Math.ceil(record.resetTime / 1000);
+  const allowed = record.count <= limit;
+  const retryAfter = Math.max(1, Math.ceil((record.resetTime - now) / 1000));
+  return { allowed, limit, remaining, reset, retryAfter };
+}
+
+// Periodic cleanup of rate limit map every 5 minutes
+const cleanupInterval = setInterval(() => {
+  const now = Date.now();
+  for (const [key, record] of rateLimitMap.entries()) {
+    if (now > record.resetTime) rateLimitMap.delete(key);
+  }
+}, 5 * 60 * 1000);
+if (cleanupInterval.unref) cleanupInterval.unref();
+
+function flushDatabaseState() {
+  usersDb.clear();
+  devicesDb.clear();
+  telemetryHistory.length = 0;
+  liveState = {
+    pumpRunning: false,
+    mode: 'AUTO',
+    waterLevelPct: 0.0,
+    volumeLiters: 0.0,
+    totalCapacityLiters: 5000.0,
+    flowRateLpm: 0.0,
+    powerKw: 0.00,
+    tdsPpm: 0,
+    tempC: 0.0,
+    lastSeen: 0
+  };
+  saveState();
+  console.log('[Store] Full database flush complete. All user accounts and devices cleared.');
+}
+
 function loadState() {
   try {
     if (fs.existsSync(STORE_PATH)) {
@@ -95,70 +158,7 @@ function loadState() {
     console.warn('[Store] Notice loading state:', err.message);
   }
 
-  // Ensure standard demo account is always available for instant multi-device sign-in
-  const demoEmail = 'demo@hydropulse.io';
-  if (!usersDb.has(demoEmail)) {
-    const demoSalt = '7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c';
-    const demoHash = hashPassword('HydroPulse2025!#', demoSalt).hash;
-    usersDb.set(demoEmail, {
-      id: 'usr_demo_001',
-      email: demoEmail,
-      passwordHash: demoHash,
-      salt: demoSalt,
-      firstName: 'Demo',
-      lastName: 'Demo',
-      role: 'ADMIN',
-      createdAt: new Date().toISOString()
-    });
-  }
-
-  // Ensure primary developer/owner account (Karthik Nataraj) is always present & persistent
-  const karthikSalt = '3b8a1c9e4f2d7a5b6c8e0f1a2b3c4d5e';
-  const karthikHash = hashPassword('HydroPulse2025!#', karthikSalt).hash;
-  const karthikAliases = ['karthiknataraj547@gmail.com', 'karthiknataraj547@gamil.com'];
-  for (const kEmail of karthikAliases) {
-    if (!usersDb.has(kEmail)) {
-      usersDb.set(kEmail, {
-        id: 'usr_karthik_547',
-        email: kEmail,
-        passwordHash: karthikHash,
-        salt: karthikSalt,
-        firstName: 'Karthik',
-        lastName: 'Nataraj',
-        role: 'ADMIN',
-        createdAt: '2026-09-01T00:00:00.000Z'
-      });
-    }
-  }
-
-  // Remove any legacy leaked devices with userId === 'all'
-  for (const [key, dev] of devicesDb.entries()) {
-    if (dev.userId === 'all' || dev.id === 'esp32_pump_main') {
-      devicesDb.delete(key);
-    }
-  }
-
-  // Pre-seed paired agricultural hardware for karthiknataraj547 ONLY
-  const karthikEmail = 'karthiknataraj547@gmail.com';
-  if (!devicesDb.has('esp32_pump_94B97E')) {
-    devicesDb.set('esp32_pump_94B97E', {
-      id: 'esp32_pump_94B97E',
-      deviceId: 'esp32_pump_94B97E',
-      nodeId: 'esp32_pump_94B97E',
-      name: 'Agricultural Borewell Pump',
-      macAddress: '24:6F:28:94:B9:7E',
-      userId: karthikEmail,
-      userEmail: karthikEmail,
-      isOnline: true,
-      pumpRunning: liveState.pumpRunning,
-      mode: liveState.mode,
-      waterLevelPct: liveState.waterLevelPct,
-      pairedAt: '2026-09-04T01:59:17.936Z',
-      lastSeen: new Date().toISOString()
-    });
-  }
-
-  // Guarantee loaded state is synchronized to disk storage
+  // Strictly ZERO default or pre-seeded accounts or devices!
   saveState();
 }
 
@@ -194,17 +194,46 @@ module.exports = async (req, res) => {
     };
   }
 
+  // Security Headers
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-User-Email');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
+  const clientIp = getClientIp(req);
   const url = req.url || '';
   const method = req.method;
+
+  // Rate Limiting Check
+  let endpointType = 'general';
+  if (url.includes('/auth/')) endpointType = 'auth';
+  else if (url.includes('/command') || url.includes('/pump')) endpointType = 'command';
+
+  const rateCheck = checkRateLimit(clientIp, endpointType);
+  res.setHeader('X-RateLimit-Limit', rateCheck.limit);
+  res.setHeader('X-RateLimit-Remaining', rateCheck.remaining);
+  res.setHeader('X-RateLimit-Reset', rateCheck.reset);
+
+  if (!rateCheck.allowed) {
+    res.setHeader('Retry-After', rateCheck.retryAfter);
+    return res.status(429).json({
+      status: 'error',
+      code: 'RATE_LIMIT_EXCEEDED',
+      message: `Too many requests. Rate limit of ${rateCheck.limit} req/min exceeded. Please retry after ${rateCheck.retryAfter}s.`,
+      retryAfterSeconds: rateCheck.retryAfter
+    });
+  }
+
   const parsedUrl = new URL(url, 'http://localhost');
   const query = req.query || Object.fromEntries(parsedUrl.searchParams.entries());
 
@@ -228,7 +257,17 @@ module.exports = async (req, res) => {
     return res.status(200).json({
       status: 'healthy',
       timestamp: new Date().toISOString(),
-      registeredUsers: usersDb.size
+      registeredUsers: usersDb.size,
+      registeredDevices: devicesDb.size
+    });
+  }
+
+  // 1b. Admin Complete Database Flush
+  if (method === 'POST' && (url.includes('/api/v1/admin/flush-database') || url.includes('/admin/flush-database'))) {
+    flushDatabaseState();
+    return res.status(200).json({
+      status: 'success',
+      message: 'Complete database flush successful. All accounts, hardware devices, and telemetry have been erased.'
     });
   }
 
@@ -319,49 +358,7 @@ module.exports = async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'Password must be at least 6 characters long.' });
     }
 
-    const isKarthik = (cleanEmail === 'karthiknataraj547@gmail.com' || cleanEmail === 'karthiknataraj547@gamil.com');
-
-    if (usersDb.has(cleanEmail) || (isKarthik && (usersDb.has('karthiknataraj547@gmail.com') || usersDb.has('karthiknataraj547@gamil.com')))) {
-      if (isKarthik) {
-        // Seamlessly update credentials for Karthik so he is never blocked
-        const salt = crypto.randomBytes(16).toString('hex');
-        const hash = hashPassword(password, salt).hash;
-        const userObj = {
-          id: 'usr_karthik_547',
-          email: cleanEmail,
-          passwordHash: hash,
-          salt,
-          firstName: cleanFirstName || 'Karthik',
-          lastName: cleanLastName || 'Nataraj',
-          role: 'ADMIN',
-          createdAt: new Date().toISOString()
-        };
-        usersDb.set('karthiknataraj547@gmail.com', userObj);
-        usersDb.set('karthiknataraj547@gamil.com', userObj);
-        saveState();
-
-        const token = generateToken(userObj.id, userObj.email);
-        const refreshToken = generateToken(userObj.id, userObj.email);
-
-        return res.status(200).json({
-          status: 'success',
-          message: 'Account updated successfully.',
-          data: {
-            user: {
-              id: userObj.id,
-              email: userObj.email,
-              firstName: userObj.firstName,
-              lastName: userObj.lastName,
-              role: userObj.role,
-              createdAt: userObj.createdAt
-            },
-            tokens: {
-              accessToken: token,
-              refreshToken
-            }
-          }
-        });
-      }
+    if (usersDb.has(cleanEmail)) {
       return res.status(400).json({ status: 'error', message: 'An account with this email address already exists.' });
     }
 
@@ -379,9 +376,6 @@ module.exports = async (req, res) => {
     };
 
     usersDb.set(cleanEmail, newUser);
-    if (cleanEmail.endsWith('@gamil.com')) {
-      usersDb.set(cleanEmail.replace('@gamil.com', '@gmail.com'), newUser);
-    }
     saveState();
 
     const token = generateToken(newUser.id, newUser.email);
@@ -467,62 +461,15 @@ module.exports = async (req, res) => {
     }
 
     const cleanEmail = email.trim().toLowerCase();
-    let user = usersDb.get(cleanEmail);
-
-    // Support alias lookup for typo domain (gamil.com <-> gmail.com)
-    if (!user) {
-      if (cleanEmail.endsWith('@gamil.com')) {
-        user = usersDb.get(cleanEmail.replace('@gamil.com', '@gmail.com'));
-      } else if (cleanEmail.endsWith('@gmail.com')) {
-        user = usersDb.get(cleanEmail.replace('@gmail.com', '@gamil.com'));
-      }
-    }
-
-    const isKarthik = (cleanEmail === 'karthiknataraj547@gmail.com' || cleanEmail === 'karthiknataraj547@gamil.com' || (user && user.id === 'usr_karthik_547'));
-
-    // If Karthik account is accessed and somehow missing from in-memory map, auto-provision immediately
-    if (!user && isKarthik) {
-      const salt = crypto.randomBytes(16).toString('hex');
-      const hash = hashPassword(password, salt).hash;
-      user = {
-        id: 'usr_karthik_547',
-        email: cleanEmail,
-        passwordHash: hash,
-        salt,
-        firstName: 'Karthik',
-        lastName: 'Nataraj',
-        role: 'ADMIN',
-        createdAt: '2026-09-01T00:00:00.000Z'
-      };
-      usersDb.set('karthiknataraj547@gmail.com', user);
-      usersDb.set('karthiknataraj547@gamil.com', user);
-      saveState();
-    }
+    const user = usersDb.get(cleanEmail);
 
     if (!user) {
       return res.status(401).json({ status: 'error', message: 'Account not found. Please create an account via the registration page first.' });
     }
 
-    // Verify password, with automatic credential sync for developer owner account
     const isValid = verifyPassword(password, user.passwordHash, user.salt);
     if (!isValid) {
-      if (isKarthik && password && password.length >= 4) {
-        // Automatically sync and update Karthik's password so he is never locked out
-        const newSalt = crypto.randomBytes(16).toString('hex');
-        const newHash = hashPassword(password, newSalt).hash;
-        user.passwordHash = newHash;
-        user.salt = newSalt;
-        for (const kEmail of ['karthiknataraj547@gmail.com', 'karthiknataraj547@gamil.com']) {
-          const u = usersDb.get(kEmail);
-          if (u) {
-            u.passwordHash = newHash;
-            u.salt = newSalt;
-          }
-        }
-        saveState();
-      } else {
-        return res.status(401).json({ status: 'error', message: 'Invalid email address or password.' });
-      }
+      return res.status(401).json({ status: 'error', message: 'Invalid email address or password.' });
     }
 
     const token = generateToken(user.id, user.email);
@@ -639,8 +586,6 @@ module.exports = async (req, res) => {
       });
     }
 
-    const isKarthikAccount = (targetEmail === 'karthiknataraj547@gmail.com' || targetEmail === 'karthiknataraj547@gamil.com' || targetEmail.includes('karthiknataraj547'));
-
     const userDevices = Array.from(devicesDb.values()).filter(d => {
       const dEmail = (d.userEmail || '').trim().toLowerCase();
       const dUser = (d.userId || '').trim();
@@ -648,7 +593,6 @@ module.exports = async (req, res) => {
       // Check explicit match on userEmail
       if (targetEmail && dEmail) {
         if (dEmail === targetEmail) return true;
-        if (isKarthikAccount && dEmail.includes('karthiknataraj547')) return true;
       }
 
       // Check explicit match on userId
