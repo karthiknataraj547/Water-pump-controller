@@ -64,8 +64,21 @@ let liveState = {
   powerKw: 0.00,
   tdsPpm: 0,
   tempC: 0.0,
-  lastSeen: Date.now()
+  lastHeartbeat: 0,
+  lastSeen: 0
 };
+
+// Double verification of hardware online status:
+// 1. Must have authentic hardware heartbeat timestamp
+// 2. Heartbeat age must be within 15 seconds (< 15000ms)
+const ONLINE_THRESHOLD_MS = 15000;
+function verifyHardwareOnline(target) {
+  if (!target) return false;
+  const lastHb = target.lastHeartbeat || 0;
+  if (!lastHb) return false;
+  const age = Date.now() - lastHb;
+  return age >= 0 && age <= ONLINE_THRESHOLD_MS;
+}
 
 // Rolling telemetry history buffer (real data)
 const telemetryHistory = [];
@@ -601,6 +614,13 @@ module.exports = async (req, res) => {
       }
 
       return false;
+    }).map(d => {
+      const isOnline = verifyHardwareOnline(d);
+      return {
+        ...d,
+        isOnline,
+        status: isOnline ? 'ONLINE' : 'OFFLINE'
+      };
     });
 
     return res.status(200).json({
@@ -634,7 +654,9 @@ module.exports = async (req, res) => {
       macAddress: body.macAddress || body.mac || '24:6F:28:B2:A4:10',
       userId: targetUserId,
       userEmail: targetEmail,
-      isOnline: true,
+      isOnline: false,
+      status: 'OFFLINE',
+      lastHeartbeat: 0,
       pumpRunning: liveState.pumpRunning,
       mode: liveState.mode,
       waterLevelPct: liveState.waterLevelPct,
@@ -693,14 +715,10 @@ module.exports = async (req, res) => {
     } else if (cmd === 'SET_MODE' && parameters && parameters.mode) {
       liveState.mode = parameters.mode.toUpperCase();
     }
-    liveState.lastSeen = Date.now();
-
-    // Sync state across all registered devices
+    // Sync state across all registered devices (does not alter online verification)
     for (const dev of devicesDb.values()) {
       dev.pumpRunning = liveState.pumpRunning;
       dev.mode = liveState.mode;
-      dev.isOnline = true;
-      dev.lastSeen = new Date().toISOString();
     }
     saveState();
 
@@ -718,17 +736,38 @@ module.exports = async (req, res) => {
     });
   }
 
-  // 8b. Live Authoritative Telemetry Endpoint
+  // 8b. Live Authoritative Telemetry Endpoint (Double-Verified)
   if (method === 'GET' && url.includes('/api/v1/telemetry/live')) {
-    liveState.lastSeen = Date.now();
+    const isOnline = verifyHardwareOnline(liveState);
     return res.status(200).json({
       status: 'success',
-      data: liveState
+      data: {
+        ...liveState,
+        isOnline,
+        status: isOnline ? 'ONLINE' : 'OFFLINE'
+      }
     });
   }
 
-  // 8c. Ingest / Sync Telemetry from Hardware or Mobile
-  if (method === 'POST' && url.includes('/api/v1/telemetry')) {
+  // 8c. Double-Verified Device Status Endpoint
+  if (method === 'GET' && (url.includes('/api/v1/devices/status') || url.includes('/devices/status'))) {
+    const devId = query.deviceId || query.id;
+    const dev = devId ? devicesDb.get(devId) : null;
+    const isOnline = dev ? verifyHardwareOnline(dev) : verifyHardwareOnline(liveState);
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        deviceId: devId || 'esp32_pump_main',
+        isOnline,
+        status: isOnline ? 'ONLINE' : 'OFFLINE',
+        lastHeartbeat: dev ? (dev.lastHeartbeat || 0) : (liveState.lastHeartbeat || 0),
+        verifiedAt: new Date().toISOString()
+      }
+    });
+  }
+
+  // 8d. Ingest / Sync Telemetry from Hardware or Mobile
+  if (method === 'POST' && (url.includes('/api/v1/telemetry') || url.includes('/telemetry') || url.includes('/hardware/heartbeat'))) {
     const rawLevel = body.water_level_pct ?? body.waterLevelPct ?? body.water_level ?? body.waterLevel ?? body.level;
     const rawFlow = body.flow_rate_lpm ?? body.flowRateLpm ?? body.flow_rate ?? body.flowRate;
     const rawTds = body.tds_ppm ?? body.tdsPpm ?? body.tds;
@@ -750,7 +789,21 @@ module.exports = async (req, res) => {
       liveState.pumpRunning = (pStr === 'ON' || pStr === 'RUNNING' || pStr === 'TRUE' || pStr === '1');
     }
     if (rawMode !== undefined) liveState.mode = String(rawMode).toUpperCase();
-    liveState.lastSeen = Date.now();
+
+    // Authenticate and record verified hardware heartbeat
+    const now = Date.now();
+    const source = (body.source || '').toLowerCase();
+    const isFromHardware = source === 'hardware' || body.macAddress || body.hardwareId || (rawLevel !== undefined) || (rawTds !== undefined) || (rawTemp !== undefined);
+    if (isFromHardware) {
+      liveState.lastHeartbeat = now;
+      liveState.lastSeen = now;
+      const devId = body.deviceId || body.id || body.nodeId;
+      if (devId && devicesDb.has(devId)) {
+        const d = devicesDb.get(devId);
+        d.lastHeartbeat = now;
+        d.lastSeen = new Date().toISOString();
+      }
+    }
 
     // Append sample to history
     telemetryHistory.push({

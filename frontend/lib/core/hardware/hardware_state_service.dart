@@ -313,11 +313,14 @@ class HardwareStateService extends ChangeNotifier {
             final fwVer = (target['firmwareVersion'] ?? target['firmware_version'] ?? 'v2.0.2').toString();
             final rssi = target['wifiRssi'] ?? target['wifi_rssi'] ?? -65;
 
+            final targetStatus = (target['status'] ?? (target['isOnline'] == true ? 'ONLINE' : 'OFFLINE')).toString().toUpperCase();
+            final isVerifiedOnline = targetStatus == 'ONLINE';
+
             _activeDevice = DeviceModel(
               id: devId,
               name: devName,
               macAddress: devMac,
-              status: 'ONLINE',
+              status: isVerifiedOnline ? 'ONLINE' : 'OFFLINE',
               pumpState: pumpNorm,
               mode: devMode,
               wifiRssi: rssi is int ? rssi : -65,
@@ -325,9 +328,14 @@ class HardwareStateService extends ChangeNotifier {
               lastSeen: DateTime.now(),
             );
 
+            if (!isVerifiedOnline) {
+              _lastMainNodeHeartbeat = null;
+              _lastSubNodePacket = null;
+            }
+
             await storage.write(key: AppConstants.keySelectedDeviceId, value: devId);
             notifyListeners();
-            debugPrint('[HardwareStateService] Activated cloud device $devId ($devName) for $cleanEmail');
+            debugPrint('[HardwareStateService] Loaded cloud device $devId ($devName) with verified status: ${isVerifiedOnline ? 'ONLINE' : 'OFFLINE'}');
           }
         }
       }
@@ -568,8 +576,21 @@ class HardwareStateService extends ChangeNotifier {
     if (!_isExplicitlyRemoved && savedDevStr != null && savedDevStr.isNotEmpty) {
       try {
         final map = jsonDecode(savedDevStr) as Map<String, dynamic>;
-        _activeDevice = DeviceModel.fromJson(map);
-        debugPrint('[HardwareStateService] Restored paired hardware: ${_activeDevice!.id}');
+        final restored = DeviceModel.fromJson(map);
+        _activeDevice = DeviceModel(
+          id: restored.id,
+          name: restored.name,
+          macAddress: restored.macAddress,
+          status: 'OFFLINE',
+          pumpState: restored.pumpState,
+          mode: restored.mode,
+          wifiRssi: restored.wifiRssi,
+          firmwareVersion: restored.firmwareVersion,
+          lastSeen: restored.lastSeen,
+        );
+        _lastMainNodeHeartbeat = null;
+        _lastSubNodePacket = null;
+        debugPrint('[HardwareStateService] Restored paired hardware: ${_activeDevice!.id} (initial state: OFFLINE)');
       } catch (e) {
         debugPrint('[HardwareStateService] Restoring saved device notice: $e');
       }
@@ -685,17 +706,24 @@ class HardwareStateService extends ChangeNotifier {
       final fwVer = (data['firmwareVersion'] ?? data['firmware_version'] ?? 'v2.0.2').toString();
       final rssi = data['wifiRssi'] ?? data['wifi_rssi'] ?? -65;
 
+      final syncStatus = (data['status'] ?? (data['isOnline'] == true ? 'ONLINE' : 'OFFLINE')).toString().toUpperCase();
+      final isVerified = syncStatus == 'ONLINE';
+
       _activeDevice = DeviceModel(
         id: devId,
         name: devName,
         macAddress: devMac,
-        status: 'ONLINE',
+        status: isVerified ? 'ONLINE' : 'OFFLINE',
         pumpState: pumpNorm,
         mode: devMode,
         wifiRssi: rssi is int ? rssi : -65,
         firmwareVersion: fwVer,
         lastSeen: DateTime.now(),
       );
+
+      if (!isVerified) {
+        _lastMainNodeHeartbeat = null;
+      }
 
       await storage.write(key: AppConstants.keySelectedDeviceId, value: devId);
       notifyListeners();
@@ -744,10 +772,8 @@ class HardwareStateService extends ChangeNotifier {
   void _handlePongMessage(Map<String, dynamic> data) {
     final incomingDevId = (data['deviceId'] ?? data['device_id'] ?? '').toString().trim();
 
-    if (_activeDevice == null) {
-      return; // Zero auto-adoption
-    } else if (incomingDevId.isNotEmpty && incomingDevId != _activeDevice!.id) {
-      return;
+    if (_activeDevice == null || incomingDevId.isEmpty || incomingDevId != _activeDevice!.id) {
+      return; // Strict match
     }
 
     final now = DateTime.now();
@@ -863,10 +889,8 @@ class HardwareStateService extends ChangeNotifier {
     final now = DateTime.now();
     final devId = (data['deviceId'] ?? data['device_id'] ?? '').toString().trim();
 
-    if (_activeDevice == null) {
-      return; // Zero auto-adoption
-    } else if (devId.isNotEmpty && devId != _activeDevice!.id) {
-      return;
+    if (_activeDevice == null || devId.isEmpty || devId != _activeDevice!.id) {
+      return; // Strict match
     }
 
     // Automatically parse embedded sensor readings if present in status/heartbeat
@@ -992,9 +1016,7 @@ class HardwareStateService extends ChangeNotifier {
     final now = DateTime.now();
     final incomingDevId = (data['deviceId'] ?? data['device_id'] ?? '').toString().trim();
 
-    if (_activeDevice == null) {
-      return;
-    } else if (incomingDevId.isNotEmpty && incomingDevId != _activeDevice!.id) {
+    if (_activeDevice == null || incomingDevId.isEmpty || incomingDevId != _activeDevice!.id) {
       return;
     }
 

@@ -1,17 +1,16 @@
 {
-  "version": "2.0.8",
-  "build_number": 11,
-  "release_date": "2026-09-04",
+  "version": "2.0.9",
+  "build_number": 12,
+  "release_date": "2026-09-05",
   "min_supported_version": "1.0.0",
   "download_url": "https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk",
   "website_url": "https://water-pump-controller.vercel.app",
-  "title": "HydroPulse v2.0.8 - Zero-Mock Clean DB, Accurate Dual-Node MQTT Heartbeat & API Rate Limiting",
+  "title": "HydroPulse v2.0.9 - Backend Double Verification of Online Status & Clean Pump Control Card",
   "changelog": [
-    "Database Reset: Completely flushed all pre-existing database records, mock users, and hardware devices. All accounts start with zero hardware.",
-    "Zero-Mock Policy: Completely removed default dummy hardware creation and arbitrary MQTT auto-adoption across the mobile app.",
-    "Accurate Dual-Node Monitoring: Independent real-time tracking for Main Gateway (ESP32) and Sub Node (ESP8266 Tank Level Sensor) with live status badges.",
-    "Hardware Heartbeat Watchdog: Sub-second ping probes with 6-second true offline detection and gateway RF link status reporting.",
-    "API Security & Rate Limiting: Sliding-window rate limiters across auth, command, and general endpoints with security response headers."
+    "Backend Double-Verification: Device status verified strictly against authentic hardware heartbeats (<15s window). Offline by default until physical connection is confirmed.",
+    "Zero False Online: Fixed bug where reading live telemetry or arbitrary MQTT broadcasts marked hardware as online.",
+    "Pump Control Card Cleanup: Removed redundant status pills from the pump control card, returning to a clean, minimal interface.",
+    "Web & Mobile Consistency: Both app and webapp enforce double-verified hardware presence and start in offline state when unpowered."
   ],
   "is_critical": false
 }

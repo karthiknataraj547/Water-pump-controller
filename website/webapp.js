@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
       nodeId: devId,
       name: devName,
       macAddress: devMac,
-      isOnline: device.isOnline !== undefined ? device.isOnline : true,
+      isOnline: device.isOnline !== undefined ? Boolean(device.isOnline) : false,
       pumpState: devState,
       pumpRunning: devState === 'ON',
       mode: devMode,
@@ -329,10 +329,11 @@ document.addEventListener('DOMContentLoaded', () => {
           macAddress: '24:6F:28:94:B9:7E',
           userEmail: (currentUser?.email || 'karthiknataraj547@gmail.com').toLowerCase(),
           userId: (currentUser?.email || 'karthiknataraj547@gmail.com').toLowerCase(),
-          isOnline: true,
+          isOnline: false,
+          status: 'OFFLINE',
           pumpState: 'OFF',
           mode: 'AUTO',
-          firmwareVersion: 'v2.0.7',
+          firmwareVersion: 'v2.0.8',
           wifiRssi: -65
         };
         applyActiveDevice(borewellDev);
@@ -372,10 +373,11 @@ document.addEventListener('DOMContentLoaded', () => {
           macAddress: mac.trim(),
           userEmail: (currentUser?.email || 'karthiknataraj547@gmail.com').toLowerCase(),
           userId: (currentUser?.email || 'karthiknataraj547@gmail.com').toLowerCase(),
-          isOnline: true,
+          isOnline: false,
+          status: 'OFFLINE',
           pumpState: 'OFF',
           mode: 'AUTO',
-          firmwareVersion: 'v2.0.7',
+          firmwareVersion: 'v2.0.8',
           wifiRssi: -65
         };
         applyActiveDevice(customDev);
@@ -1737,10 +1739,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mqttClient.publish(`pump/${activeDevId}/command`, payload, { qos: 1 });
         mqttClient.publish(`pump/${currentUser ? currentUser.id : 'user'}/${activeDevId}/command`, payload, { qos: 1 });
         mqttClient.publish(`devices/${activeDevId}/command`, payload, { qos: 1 });
-        mqttClient.publish('pump/status', payload, { qos: 1 });
-        mqttClient.publish(`pump/${activeDevId}/status`, payload, { qos: 1 });
         mqttClient.publish('waterpump/esp32/control', payload, { qos: 1 });
-        mqttClient.publish('waterpump/esp32/status', payload, { qos: 1 });
       }
 
       // 2. Backend REST Command
@@ -1841,8 +1840,8 @@ document.addEventListener('DOMContentLoaded', () => {
             : null;
 
           const incomingDevId = data.deviceId || data.nodeId || data.id;
-          if (activeDevId && incomingDevId && incomingDevId !== activeDevId && incomingDevId !== 'esp32_pump_main') {
-            return; // Ignore packets from other user hardware
+          if (!activeDevId || !incomingDevId || incomingDevId !== activeDevId) {
+            return; // Strict match: ignore packets without device ID or from other devices
           }
 
           // Strict Offline Detection via LWT or status payload
@@ -1851,10 +1850,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
           }
 
-          if (activeDevId) {
-            lastHardwareHeartbeat = Date.now();
-            updateHardwareStatusBadge(true, 22);
-          }
+          lastHardwareHeartbeat = Date.now();
+          updateHardwareStatusBadge(true, 22);
 
           // Sync Emergency Stop State from hardware/mobile
           if (data.emergencyStopped !== undefined) {
@@ -2056,7 +2053,8 @@ document.addEventListener('DOMContentLoaded', () => {
               liveFlowRate = parseFloat(d.flowRateLpm || d.flow_rate_lpm);
               if (gridValFlow) gridValFlow.textContent = liveFlowRate.toFixed(1);
             }
-            updateHardwareStatusBadge(true, 24);
+            const isOnline = Boolean(d.isOnline);
+            updateHardwareStatusBadge(isOnline, isOnline ? 24 : 0);
           }
         }
       } catch {}
