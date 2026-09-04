@@ -1,0 +1,5 @@
+-xc++
+-std=gnu++17
+-DESP32
+-DARDUINO=10805
+-w
