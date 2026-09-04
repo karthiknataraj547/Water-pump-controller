@@ -18,27 +18,29 @@ class MqttService {
   final _ackController = StreamController<Map<String, dynamic>>.broadcast();
   final _alertController = StreamController<Map<String, dynamic>>.broadcast();
   final _pongController = StreamController<Map<String, dynamic>>.broadcast();
+  final _deviceController = StreamController<Map<String, dynamic>>.broadcast();
 
   Stream<Map<String, dynamic>> get statusStream => _statusController.stream;
   Stream<Map<String, dynamic>> get sensorStream => _sensorController.stream;
   Stream<Map<String, dynamic>> get ackStream => _ackController.stream;
   Stream<Map<String, dynamic>> get alertStream => _alertController.stream;
   Stream<Map<String, dynamic>> get pongStream => _pongController.stream;
+  Stream<Map<String, dynamic>> get deviceStream => _deviceController.stream;
 
-  // Cloud Broker candidate targets (Prioritizing Mosquitto MQTT broker for low-latency IoT communication)
+  // Cloud Broker candidate targets (Prioritizing EMQX Cloud MQTT broker for synchronized IoT communication)
   static const List<Map<String, dynamic>> brokerTargets = [
     {
-      'server': 'test.mosquitto.org',
-      'host': 'test.mosquitto.org',
-      'label': 'Mosquitto Public TCP (Port 1883)',
+      'server': 'broker.emqx.io',
+      'host': 'broker.emqx.io',
+      'label': 'EMQX Cloud TCP (Port 1883)',
       'port': 1883,
       'isTls': false,
       'useWebSocket': false,
     },
     {
-      'server': 'broker.emqx.io',
-      'host': 'broker.emqx.io',
-      'label': 'EMQX Cloud TCP (Port 1883)',
+      'server': 'test.mosquitto.org',
+      'host': 'test.mosquitto.org',
+      'label': 'Mosquitto Public TCP (Port 1883)',
       'port': 1883,
       'isTls': false,
       'useWebSocket': false,
@@ -214,11 +216,12 @@ class MqttService {
   void _subscribeToAllHardwareTopics() {
     if (_client == null || !isConnected) return;
 
-    // Single wildcard covers all device topics — QoS 0 for fastest delivery
+    // Subscriptions covering device synchronization, pump commands, telemetry, and alerts
     _client!.subscribe('pump/#', MqttQos.atMostOnce);
-    _client!.subscribe('devices/#', MqttQos.atMostOnce);
+    _client!.subscribe('devices/#', MqttQos.atLeastOnce);
+    _client!.subscribe('hydropulse/#', MqttQos.atLeastOnce);
     _client!.subscribe('waterpump/#', MqttQos.atMostOnce);
-    debugPrint('[MQTT] Subscribed to pump/#, devices/#, and waterpump/# (QoS 0).');
+    debugPrint('[MQTT] Subscribed to pump/#, devices/#, hydropulse/#, and waterpump/#.');
   }
 
   void subscribeToDevice(String userId, String deviceId) {
@@ -226,6 +229,18 @@ class MqttService {
 
     final topicPrefix = 'pump/$userId/$deviceId';
     _client!.subscribe('$topicPrefix/#', MqttQos.atMostOnce);
+    _client!.subscribe('devices/sync/$deviceId', MqttQos.atLeastOnce);
+  }
+
+  void publishRetained(String topic, String payload) {
+    if (_client == null || !isConnected) {
+      debugPrint('[MQTT] Cannot publish retained message: MQTT Client disconnected.');
+      return;
+    }
+    final builder = MqttClientPayloadBuilder();
+    builder.addString(payload);
+    _client!.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!, retain: true);
+    debugPrint('[MQTT TX Retained] Published to $topic (retain: true)');
   }
 
   void publishCommand(String userId, String deviceId, String command, Map<String, dynamic> params) {
@@ -293,6 +308,15 @@ class MqttService {
           final topic = msg.topic;
           final isRetained = recMess.header?.retain ?? false;
           data['_isRetained'] = isRetained;
+          data['_topic'] = topic;
+
+          // Check for device synchronization across devices (Retained & live device payloads)
+          if (topic.startsWith('devices/sync') ||
+              topic.startsWith('hydropulse/devices') ||
+              data.containsKey('macAddress') ||
+              (data.containsKey('deviceId') && (data.containsKey('name') || data.containsKey('userEmail')))) {
+            _deviceController.add(data);
+          }
 
           if (topic.endsWith('/pong') || topic == 'pump/pong' || topic.endsWith('/ping/pong')) {
             _pongController.add(data);

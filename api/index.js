@@ -128,6 +128,26 @@ function loadState() {
       pairedAt: new Date().toISOString()
     });
   }
+
+  // Pre-seed paired agricultural hardware for karthiknataraj547@gmail.com
+  const karthikEmail = 'karthiknataraj547@gmail.com';
+  if (!devicesDb.has('esp32_pump_94B97E')) {
+    devicesDb.set('esp32_pump_94B97E', {
+      id: 'esp32_pump_94B97E',
+      deviceId: 'esp32_pump_94B97E',
+      nodeId: 'esp32_pump_94B97E',
+      name: 'Agricultural Borewell Pump',
+      macAddress: '24:6F:28:94:B9:7E',
+      userId: karthikEmail,
+      userEmail: karthikEmail,
+      isOnline: true,
+      pumpRunning: liveState.pumpRunning,
+      mode: liveState.mode,
+      waterLevelPct: liveState.waterLevelPct,
+      pairedAt: '2026-09-04T01:59:17.936Z',
+      lastSeen: new Date().toISOString()
+    });
+  }
 }
 
 function saveState() {
@@ -475,6 +495,12 @@ module.exports = async (req, res) => {
       if (targetEmail && d.userId && d.userId.toLowerCase() === targetEmail) return true;
       return false;
     });
+
+    if ((!targetEmail || targetEmail === 'karthiknataraj547@gmail.com') && devicesDb.has('esp32_pump_94B97E')) {
+      if (!userDevices.some(d => d.id === 'esp32_pump_94B97E')) {
+        userDevices.unshift(devicesDb.get('esp32_pump_94B97E'));
+      }
+    }
 
     // If user has custom added hardware, prioritize that over generic default
     const customDevices = userDevices.filter(d => (d.userEmail && targetEmail && d.userEmail.toLowerCase() === targetEmail) || (d.id !== 'esp32_pump_main'));

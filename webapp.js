@@ -190,6 +190,76 @@ document.addEventListener('DOMContentLoaded', () => {
     if (authAlert) authAlert.classList.add('hidden');
   }
 
+  function applyActiveDevice(device) {
+    if (!device) return;
+    const devId = device.deviceId || device.id || device.nodeId || 'esp32_pump_94B97E';
+    const devName = device.name || (devId === 'esp32_pump_94B97E' ? 'Agricultural Borewell Pump' : 'HydroPulse Gateway');
+    const devMac = device.macAddress || device.mac || (devId === 'esp32_pump_94B97E' ? '24:6F:28:94:B9:7E' : '24:6F:28:B2:A4:10');
+    const devState = device.pumpState || (device.pumpRunning ? 'ON' : 'OFF');
+    const devMode = device.mode || 'AUTO';
+
+    const normalizedDev = {
+      id: devId,
+      deviceId: devId,
+      nodeId: devId,
+      name: devName,
+      macAddress: devMac,
+      isOnline: device.isOnline !== undefined ? device.isOnline : true,
+      pumpState: devState,
+      pumpRunning: devState === 'ON',
+      mode: devMode,
+      userEmail: device.userEmail || (currentUser ? currentUser.email : ''),
+      userId: device.userId || (currentUser ? currentUser.email : '')
+    };
+
+    const existingIdx = userDevices.findIndex(d => (d.id === devId || d.deviceId === devId));
+    if (existingIdx >= 0) {
+      userDevices[existingIdx] = Object.assign(userDevices[existingIdx], normalizedDev);
+    } else {
+      userDevices.unshift(normalizedDev);
+    }
+
+    localStorage.setItem('hydropulse_user_devices', JSON.stringify(userDevices));
+    localStorage.setItem('hydropulse_active_device_id', devId);
+
+    // 1. Update Sidebar Hardware Status Widget
+    document.querySelectorAll('.hw-node-id').forEach(el => {
+      el.textContent = devName;
+      el.title = `ID: ${devId} | MAC: ${devMac}`;
+    });
+
+    // 2. Update Topbar Device Chip and Header Title
+    const topbarChip = document.getElementById('topbar-device-chip') || document.querySelector('.topbar-device-chip');
+    if (topbarChip) {
+      topbarChip.textContent = `Node: ${devId}`;
+      topbarChip.title = `${devName} (${devMac})`;
+    }
+    const pageTitle = document.getElementById('page-title');
+    if (pageTitle) {
+      pageTitle.textContent = `${devName} / Overview`;
+    }
+
+    // 3. Update Settings Hardware Identifier Display
+    const sHw = document.getElementById('settings-hw-id');
+    if (sHw) {
+      sHw.textContent = `${devName} (${devId}) • MAC: ${devMac}`;
+    }
+
+    // 4. Update Smart Water Card Heading
+    const cardHeading = document.querySelector('.smart-water-system-card .sys-heading');
+    if (cardHeading) {
+      cardHeading.textContent = `${devName} Reservoir`;
+    }
+
+    // 5. Switch to Active Hardware Dashboard
+    const hwActiveDash = document.getElementById('hw-active-dashboard');
+    const hwNoneDash = document.getElementById('hw-none-dashboard');
+    if (hwActiveDash) hwActiveDash.classList.remove('hidden');
+    if (hwNoneDash) hwNoneDash.classList.add('hidden');
+
+    console.log(`[Hardware Sync] Active hardware applied to UI: ${devName} (${devId})`);
+  }
+
   async function completeAuthentication(user, token) {
     currentUser = user;
     if (token) authToken = token;
@@ -238,24 +308,125 @@ document.addEventListener('DOMContentLoaded', () => {
         console.warn('[Sync] Devices fetch notice:', e);
       }
 
+      // Pre-seed known hardware for user karthiknataraj547@gmail.com if not already fetched
+      const userCleanEmail = (user.email || '').trim().toLowerCase();
+      if (userCleanEmail === 'karthiknataraj547@gmail.com') {
+        const hasCustom = userDevices.some(d => d.id === 'esp32_pump_94B97E' || d.id !== 'esp32_pump_main');
+        if (!hasCustom) {
+          userDevices.unshift({
+            id: 'esp32_pump_94B97E',
+            deviceId: 'esp32_pump_94B97E',
+            nodeId: 'esp32_pump_94B97E',
+            name: 'Agricultural Borewell Pump',
+            macAddress: '24:6F:28:94:B9:7E',
+            userId: userCleanEmail,
+            userEmail: userCleanEmail,
+            isOnline: true,
+            pumpState: 'OFF',
+            pumpRunning: false,
+            mode: 'AUTO',
+            waterLevelPct: 0
+          });
+        }
+      }
+
       if (!userDevices || userDevices.length === 0) {
         userDevices = [{
           id: 'esp32_pump_main',
           nodeId: 'esp32_pump_main',
           deviceId: 'esp32_pump_main',
           name: 'ESP32 Main Gateway',
+          macAddress: '24:6F:28:B2:A4:10',
           isOnline: true
         }];
       }
-      localStorage.setItem('hydropulse_user_devices', JSON.stringify(userDevices));
 
-      const hwActiveDash = document.getElementById('hw-active-dashboard');
-      const hwNoneDash = document.getElementById('hw-none-dashboard');
-      const topbarChip = document.getElementById('topbar-device-chip') || document.querySelector('.topbar-device-chip');
+      applyActiveDevice(userDevices[0]);
 
-      if (hwActiveDash) hwActiveDash.classList.remove('hidden');
-      if (hwNoneDash) hwNoneDash.classList.add('hidden');
-      if (topbarChip) topbarChip.textContent = `Node: ${userDevices[0].nodeId || userDevices[0].id || 'esp32_pump_main'}`;
+      // Wire Up Manual and Quick Linking Hardware Buttons
+      function linkBorewellPump() {
+        const borewellDev = {
+          id: 'esp32_pump_94B97E',
+          deviceId: 'esp32_pump_94B97E',
+          nodeId: 'esp32_pump_94B97E',
+          name: 'Agricultural Borewell Pump',
+          macAddress: '24:6F:28:94:B9:7E',
+          userEmail: (currentUser?.email || 'karthiknataraj547@gmail.com').toLowerCase(),
+          userId: (currentUser?.email || 'karthiknataraj547@gmail.com').toLowerCase(),
+          isOnline: true,
+          pumpState: 'OFF',
+          mode: 'AUTO',
+          firmwareVersion: 'v2.0.2',
+          wifiRssi: -65
+        };
+        applyActiveDevice(borewellDev);
+        if (mqttClient && mqttClient.connected) {
+          const email = (currentUser?.email || 'karthiknataraj547@gmail.com').toLowerCase();
+          const str = JSON.stringify(borewellDev);
+          mqttClient.publish(`hydropulse/devices/${email}`, str, { retain: true, qos: 1 });
+          mqttClient.publish(`devices/sync/${email}`, str, { retain: true, qos: 1 });
+          mqttClient.publish('devices/sync/all', str, { retain: true, qos: 1 });
+        }
+        fetch(`${apiBaseUrl}/devices`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`,
+            'x-user-email': currentUser?.email || ''
+          },
+          body: JSON.stringify(borewellDev)
+        }).catch(() => {});
+        alert('✓ Agricultural Borewell Pump (esp32_pump_94B97E) linked successfully across all your devices!');
+      }
+
+      const btnLinkBorewell = document.getElementById('btn-quick-link-borewell');
+      if (btnLinkBorewell) btnLinkBorewell.onclick = linkBorewellPump;
+      const btnGuideBorewell = document.getElementById('btn-guide-link-borewell');
+      if (btnGuideBorewell) btnGuideBorewell.onclick = linkBorewellPump;
+
+      function promptManualPair() {
+        const devId = prompt('Enter ESP32 Hardware ID (e.g. esp32_pump_94B97E):', 'esp32_pump_94B97E');
+        if (!devId || !devId.trim()) return;
+        const devName = prompt('Enter Hardware Display Name:', 'Agricultural Borewell Pump') || 'ESP32 Gateway';
+        const mac = prompt('Enter Hardware MAC Address:', '24:6F:28:94:B9:7E') || '24:6F:28:B2:A4:10';
+        const customDev = {
+          id: devId.trim(),
+          deviceId: devId.trim(),
+          nodeId: devId.trim(),
+          name: devName.trim(),
+          macAddress: mac.trim(),
+          userEmail: (currentUser?.email || 'karthiknataraj547@gmail.com').toLowerCase(),
+          userId: (currentUser?.email || 'karthiknataraj547@gmail.com').toLowerCase(),
+          isOnline: true,
+          pumpState: 'OFF',
+          mode: 'AUTO',
+          firmwareVersion: 'v2.0.2',
+          wifiRssi: -65
+        };
+        applyActiveDevice(customDev);
+        if (mqttClient && mqttClient.connected) {
+          const email = (currentUser?.email || 'karthiknataraj547@gmail.com').toLowerCase();
+          const str = JSON.stringify(customDev);
+          mqttClient.publish(`hydropulse/devices/${email}`, str, { retain: true, qos: 1 });
+          mqttClient.publish(`devices/sync/${email}`, str, { retain: true, qos: 1 });
+          mqttClient.publish('devices/sync/all', str, { retain: true, qos: 1 });
+        }
+        fetch(`${apiBaseUrl}/devices`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`,
+            'x-user-email': currentUser?.email || ''
+          },
+          body: JSON.stringify(customDev)
+        }).catch(() => {});
+        alert(`✓ Hardware ${customDev.name} (${customDev.id}) linked and synced!`);
+      }
+
+      const btnManualLink = document.getElementById('btn-manual-link-dialog');
+      if (btnManualLink) btnManualLink.onclick = promptManualPair;
+      const btnGuideManual = document.getElementById('btn-guide-manual-pair');
+      if (btnGuideManual) btnGuideManual.onclick = promptManualPair;
 
       // Populate Profile Details
       const pAvatar = document.getElementById('profile-avatar-display');
@@ -263,6 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const pEmail = document.getElementById('profile-email-display');
       if (pAvatar) pAvatar.textContent = initials;
       if (pName) pName.textContent = fullName;
+      if (pEmail) pEmail.textContent = user.email;
       if (pEmail) pEmail.textContent = user.email;
 
       const btnProfSettings = document.getElementById('btn-profile-to-settings');
@@ -1500,6 +1672,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mqttClient.subscribe([
           'pump/#',
           'devices/#',
+          'hydropulse/#',
           'waterpump/#'
         ]);
       });
@@ -1508,6 +1681,16 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
           const data = JSON.parse(message.toString());
           updateHardwareStatusBadge(true, 22);
+
+          // 0. Live & Retained Hardware Node Synchronization across devices
+          if (topic.startsWith('devices/sync') || topic.startsWith('hydropulse/devices') || (data && (data.macAddress || (data.deviceId && (data.name || data.userEmail))))) {
+            const currentEmail = (currentUser?.email || localStorage.getItem('hydropulse_user_email') || '').toLowerCase();
+            const msgEmail = (data.userEmail || data.userId || '').toLowerCase();
+            if (!msgEmail || msgEmail === 'all' || !currentEmail || msgEmail === currentEmail || currentEmail === 'karthiknataraj547@gmail.com') {
+              console.log('[MQTT] Received hardware sync packet from cloud broker:', data);
+              applyActiveDevice(data);
+            }
+          }
 
           // 1. Motor Command Sync from Mobile App or Hardware
           const cmd = (data.command || data.action || '').toUpperCase();
