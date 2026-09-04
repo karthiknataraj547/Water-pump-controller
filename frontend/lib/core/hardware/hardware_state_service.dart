@@ -541,7 +541,7 @@ class HardwareStateService extends ChangeNotifier {
       pumpState: 'STOPPED',
       mode: 'AUTO',
       wifiRssi: -58,
-      firmwareVersion: 'v2.0.2',
+      firmwareVersion: 'v2.0.7',
       lastSeen: DateTime.now(),
     );
   }
@@ -755,7 +755,7 @@ class HardwareStateService extends ChangeNotifier {
           pumpState: 'OFF',
           mode: (data['mode'] ?? 'AUTO').toString().toUpperCase(),
           wifiRssi: -65,
-          firmwareVersion: '2.0.6',
+          firmwareVersion: '2.0.7',
           lastSeen: DateTime.now(),
         );
         _persistActiveDevice();
@@ -895,7 +895,7 @@ class HardwareStateService extends ChangeNotifier {
           pumpState: 'OFF',
           mode: (data['mode'] ?? 'AUTO').toString().toUpperCase(),
           wifiRssi: data['rssi'] ?? data['wifiRssi'] ?? -65,
-          firmwareVersion: (data['fw_version'] ?? data['firmware_version'] ?? '2.0.6').toString(),
+          firmwareVersion: (data['fw_version'] ?? data['firmware_version'] ?? '2.0.7').toString(),
           lastSeen: now,
         );
         _persistActiveDevice();
@@ -1046,7 +1046,7 @@ class HardwareStateService extends ChangeNotifier {
           pumpState: 'OFF',
           mode: (data['mode'] ?? 'AUTO').toString().toUpperCase(),
           wifiRssi: -65,
-          firmwareVersion: '2.0.6',
+          firmwareVersion: '2.0.7',
           lastSeen: now,
         );
         _persistActiveDevice();
@@ -1239,7 +1239,7 @@ class HardwareStateService extends ChangeNotifier {
       pumpState: 'OFF',
       mode: 'AUTO',
       wifiRssi: -65,
-      firmwareVersion: '2.0.6',
+      firmwareVersion: '2.0.7',
       lastSeen: DateTime.now(),
     );
 

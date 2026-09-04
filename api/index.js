@@ -241,13 +241,13 @@ module.exports = async (req, res) => {
       path.join(process.cwd(), '../version.json')
     ];
     let manifest = {
-      version: '2.0.6',
-      build_number: 9,
+      version: '2.0.7',
+      build_number: 10,
       release_date: '2026-09-04',
       min_supported_version: '1.0.0',
       download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk',
       website_url: 'https://water-pump-controller.vercel.app',
-      title: 'HydroPulse v2.0.6 - Strict Online Detection, Node Removal & Emergency Stop Indicator',
+      title: 'HydroPulse v2.0.7 - MQTT Synchronization, Hardware Auto-Adoption & Live Telemetry',
       changelog: [
         "Nodes Tab: 'Factory Reset' renamed to 'Remove Hardware' with instant node unbinding and clean state reset",
         "Strict Online/Offline Detection: 6-second heartbeat watchdog immediately marks hardware offline when disconnected",
@@ -903,13 +903,13 @@ module.exports = async (req, res) => {
       }
     } catch (_) {}
     return res.status(200).json({
-      version: "2.0.6",
-      build_number: 9,
+      version: "2.0.7",
+      build_number: 10,
       release_date: "2026-09-04",
       min_supported_version: "1.0.0",
       download_url: "https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk",
       website_url: "https://water-pump-controller.vercel.app",
-      title: "HydroPulse v2.0.6 - Strict Online Detection, Node Removal & Emergency Stop Indicator",
+      title: "HydroPulse v2.0.7 - MQTT Synchronization, Hardware Auto-Adoption & Live Telemetry",
       changelog: [
         "Nodes Tab: 'Factory Reset' renamed to 'Remove Hardware' with instant node unbinding and clean state reset",
         "Strict Online/Offline Detection: 6-second heartbeat watchdog immediately marks hardware offline when disconnected",

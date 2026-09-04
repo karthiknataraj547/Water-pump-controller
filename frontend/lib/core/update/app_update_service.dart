@@ -34,10 +34,10 @@ class AppVersionInfo {
 
   factory AppVersionInfo.fromJson(Map<String, dynamic> json) {
     return AppVersionInfo(
-      version: json['version']?.toString() ?? '2.0.6',
+      version: json['version']?.toString() ?? '2.0.7',
       buildNumber: json['build_number'] is int
           ? json['build_number']
-          : int.tryParse(json['build_number']?.toString() ?? '9') ?? 9,
+          : int.tryParse(json['build_number']?.toString() ?? '10') ?? 10,
       releaseDate: json['release_date']?.toString() ?? '',
       downloadUrl: json['download_url']?.toString() ??
           'https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk',
@@ -62,9 +62,9 @@ class AppUpdateService {
     receiveTimeout: const Duration(seconds: 8),
   ));
 
-  // Dynamic installed version (defaults to active release v2.0.6 Build 9)
-  String _currentVersion = '2.0.6';
-  int _currentBuildNumber = 9;
+  // Dynamic installed version (defaults to active release v2.0.7 Build 10)
+  String _currentVersion = '2.0.7';
+  int _currentBuildNumber = 10;
   static String get currentVersion => _instance._currentVersion;
   static int get currentBuildNumber => _instance._currentBuildNumber;
   bool _initialized = false;

@@ -1,6 +1,6 @@
 class AppConstants {
   static const String appName = 'HydroPulse IoT';
-  static const String appVersion = '2.0.6';
+  static const String appVersion = '2.0.7';
 
   // API & MQTT Backend (Centralized HydroPulse Cloud Sync)
   static const String cloudApiBaseUrl = 'https://water-pump-controller.vercel.app/api/v1';

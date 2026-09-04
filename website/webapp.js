@@ -332,7 +332,7 @@ document.addEventListener('DOMContentLoaded', () => {
           isOnline: true,
           pumpState: 'OFF',
           mode: 'AUTO',
-          firmwareVersion: 'v2.0.6',
+          firmwareVersion: 'v2.0.7',
           wifiRssi: -65
         };
         applyActiveDevice(borewellDev);
@@ -375,7 +375,7 @@ document.addEventListener('DOMContentLoaded', () => {
           isOnline: true,
           pumpState: 'OFF',
           mode: 'AUTO',
-          firmwareVersion: 'v2.0.6',
+          firmwareVersion: 'v2.0.7',
           wifiRssi: -65
         };
         applyActiveDevice(customDev);
