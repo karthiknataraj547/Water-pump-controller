@@ -3,8 +3,8 @@
   "build_number": 9,
   "release_date": "2026-09-04",
   "min_supported_version": "1.0.0",
-  "download_url": "https://github.com/karthiknataraj547/Water-pump-controller/raw/main/releases/HydroPulse_WaterPumpController.apk",
-  "website_url": "https://github.com/karthiknataraj547/Water-pump-controller",
+  "download_url": "https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk",
+  "website_url": "https://water-pump-controller.vercel.app",
   "title": "HydroPulse v2.0.6 - Strict Online Detection, Node Removal & Emergency Stop Indicator",
   "changelog": [
     "Nodes Tab: 'Factory Reset' renamed to 'Remove Hardware' with instant node unbinding and clean state reset",

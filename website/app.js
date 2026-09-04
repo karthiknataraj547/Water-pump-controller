@@ -396,9 +396,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const downloadLinks = document.querySelectorAll('a[href*="HydroPulse_WaterPumpController.apk"], .download-trigger');
         downloadLinks.forEach(link => {
-          if (data.download_url) {
-            link.setAttribute('href', data.download_url);
-          }
+          const targetUrl = data.download_url ? `${data.download_url}?v=${data.version}` : `releases/HydroPulse_WaterPumpController.apk?v=${data.version}`;
+          link.setAttribute('href', targetUrl);
           const span = link.querySelector('span');
           if (span && span.textContent.includes('Download HydroPulse APK')) {
             span.textContent = `Download HydroPulse APK (v${data.version})`;

@@ -241,19 +241,19 @@ module.exports = async (req, res) => {
       path.join(process.cwd(), '../version.json')
     ];
     let manifest = {
-      version: '2.0.3',
-      build_number: 6,
+      version: '2.0.6',
+      build_number: 9,
       release_date: '2026-09-04',
       min_supported_version: '1.0.0',
-      download_url: 'https://github.com/karthiknataraj547/Water-pump-controller/raw/main/releases/HydroPulse_WaterPumpController.apk',
-      website_url: 'https://github.com/karthiknataraj547/Water-pump-controller',
-      title: 'HydroPulse v2.0.3 - Real-Time In-App OTA Update Engine',
+      download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk',
+      website_url: 'https://water-pump-controller.vercel.app',
+      title: 'HydroPulse v2.0.6 - Strict Online Detection, Node Removal & Emergency Stop Indicator',
       changelog: [
-        'Automatic in-app update popup with full changelog changes on developer release',
-        'Real-time instant update push notification via Cloud MQTT broadcast',
-        'Direct in-app APK downloader with live progress percentage and auto-installer',
-        'Global background update check on app launch, resume, and 15-minute intervals',
-        'Cross-device hardware synchronization and persistent multi-client device pairing'
+        "Nodes Tab: 'Factory Reset' renamed to 'Remove Hardware' with instant node unbinding and clean state reset",
+        "Strict Online/Offline Detection: 6-second heartbeat watchdog immediately marks hardware offline when disconnected",
+        "Fixed multi-tenant device leakage: completely eliminated cross-account flickering between dashboard and add-device screen",
+        "Mode Memory: preserves and restores prior operational mode (Auto/Manual) when clearing emergency stop",
+        "Emergency Stop State: pulsating active alert banner, motor start lockout, and tap-to-reset toggle across mobile app and web console"
       ],
       is_critical: false
     };
@@ -266,6 +266,8 @@ module.exports = async (req, res) => {
         } catch (_) {}
       }
     }
+
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
 
     if (method === 'POST') {
       const { version, build_number, title, changelog, is_critical, download_url } = body;
@@ -299,7 +301,8 @@ module.exports = async (req, res) => {
 
   // 2b. Direct APK Download Endpoint
   if (url.includes('/api/v1/app/download')) {
-    return res.redirect(302, 'https://github.com/karthiknataraj547/Water-pump-controller/raw/main/releases/HydroPulse_WaterPumpController.apk');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    return res.redirect(302, '/releases/HydroPulse_WaterPumpController.apk');
   }
 
   // 3. User Registration (Pushes to Database)
@@ -891,6 +894,7 @@ module.exports = async (req, res) => {
 
   // 11. Application Release Version Manifest (OTA Update Engine)
   if (method === 'GET' && (url.includes('/api/v1/app/version') || url.includes('/app/version') || url.endsWith('/version.json'))) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     try {
       const vPath = path.join(__dirname, '..', 'version.json');
       if (fs.existsSync(vPath)) {
@@ -903,8 +907,8 @@ module.exports = async (req, res) => {
       build_number: 9,
       release_date: "2026-09-04",
       min_supported_version: "1.0.0",
-      download_url: "https://github.com/karthiknataraj547/Water-pump-controller/raw/main/releases/HydroPulse_WaterPumpController.apk",
-      website_url: "https://github.com/karthiknataraj547/Water-pump-controller",
+      download_url: "https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk",
+      website_url: "https://water-pump-controller.vercel.app",
       title: "HydroPulse v2.0.6 - Strict Online Detection, Node Removal & Emergency Stop Indicator",
       changelog: [
         "Nodes Tab: 'Factory Reset' renamed to 'Remove Hardware' with instant node unbinding and clean state reset",

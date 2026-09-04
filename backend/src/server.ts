@@ -62,19 +62,19 @@ function getVersionManifest() {
     }
   }
   return {
-    version: '2.0.3',
-    build_number: 6,
-    release_date: new Date().toISOString().split('T')[0],
+    version: '2.0.6',
+    build_number: 9,
+    release_date: '2026-09-04',
     min_supported_version: '1.0.0',
-    download_url: 'https://github.com/karthiknataraj547/Water-pump-controller/raw/main/releases/HydroPulse_WaterPumpController.apk',
-    website_url: 'https://github.com/karthiknataraj547/Water-pump-controller',
-    title: 'HydroPulse v2.0.3 - Real-Time In-App OTA Update Engine',
+    download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk',
+    website_url: 'https://water-pump-controller.vercel.app',
+    title: 'HydroPulse v2.0.6 - Strict Online Detection, Node Removal & Emergency Stop Indicator',
     changelog: [
-      'Automatic in-app update popup with full changelog changes on developer release',
-      'Real-time instant update push notification via Cloud MQTT broadcast',
-      'Direct in-app APK downloader with live progress percentage and auto-installer',
-      'Global background update check on app launch, resume, and 15-minute intervals',
-      'Cross-device hardware synchronization and persistent multi-client device pairing'
+      "Nodes Tab: 'Factory Reset' renamed to 'Remove Hardware' with instant node unbinding and clean state reset",
+      "Strict Online/Offline Detection: 6-second heartbeat watchdog immediately marks hardware offline when disconnected",
+      "Fixed multi-tenant device leakage: completely eliminated cross-account flickering between dashboard and add-device screen",
+      "Mode Memory: preserves and restores prior operational mode (Auto/Manual) when clearing emergency stop",
+      "Emergency Stop State: pulsating active alert banner, motor start lockout, and tap-to-reset toggle across mobile app and web console"
     ],
     is_critical: false,
   };
@@ -135,7 +135,7 @@ app.get('/api/v1/app/download', (req, res) => {
       return res.download(p, 'HydroPulse_WaterPumpController.apk');
     }
   }
-  return res.redirect('https://github.com/karthiknataraj547/Water-pump-controller/raw/main/releases/HydroPulse_WaterPumpController.apk');
+  return res.redirect('https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk');
 });
 
 // API Routes Mounting

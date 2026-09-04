@@ -1,6 +1,6 @@
 # Enterprise IoT Water Pump Monitoring & Control Platform
 
-[![Download Android APK](https://img.shields.io/badge/Download-Android%20APK%20(v2.0.2)-00C853?style=for-the-badge&logo=android&logoColor=white)](releases/HydroPulse_WaterPumpController.apk)
+[![Download Android APK](https://img.shields.io/badge/Download-Android%20APK%20(v2.0.6)-00C853?style=for-the-badge&logo=android&logoColor=white)](releases/HydroPulse_WaterPumpController.apk)
 [![Flutter](https://img.shields.io/badge/Flutter-3.19+-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![ESP32](https://img.shields.io/badge/ESP32-FreeRTOS-E7352C?logo=espressif&logoColor=white)](https://www.espressif.com)
@@ -16,8 +16,8 @@ A complete, production-grade IoT water pump monitoring and control ecosystem des
 
 ### Option 1: Direct APK Download
 You can directly download and install the Android Application on your mobile phone:
-* **[📥 Download HydroPulse Android APK (v2.0.2 Production Release)](releases/HydroPulse_WaterPumpController.apk)**
-* File size: ~55.3 MB (Production Release with ARM64 / ARMv7 support)
+* **[📥 Download HydroPulse Android APK (v2.0.6 Production Release)](releases/HydroPulse_WaterPumpController.apk)**
+* File size: ~55.6 MB (Production Release with ARM64 / ARMv7 support)
 
 ### 📲 How to Install on Android:
 1. Download the `.apk` file directly on your Android device (or transfer it from your PC).

@@ -332,7 +332,7 @@ document.addEventListener('DOMContentLoaded', () => {
           isOnline: true,
           pumpState: 'OFF',
           mode: 'AUTO',
-          firmwareVersion: 'v2.0.5',
+          firmwareVersion: 'v2.0.6',
           wifiRssi: -65
         };
         applyActiveDevice(borewellDev);
@@ -375,7 +375,7 @@ document.addEventListener('DOMContentLoaded', () => {
           isOnline: true,
           pumpState: 'OFF',
           mode: 'AUTO',
-          firmwareVersion: 'v2.0.5',
+          firmwareVersion: 'v2.0.6',
           wifiRssi: -65
         };
         applyActiveDevice(customDev);
@@ -433,9 +433,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
               const dlLinks = document.querySelectorAll('a[href*="HydroPulse_WaterPumpController.apk"]');
               dlLinks.forEach(link => {
-                if (data.download_url) link.setAttribute('href', data.download_url);
+                const targetUrl = data.download_url ? `${data.download_url}?v=${data.version}` : `releases/HydroPulse_WaterPumpController.apk?v=${data.version}`;
+                link.setAttribute('href', targetUrl);
                 const sp = link.querySelector('span');
-                if (sp) sp.textContent = `📥 Download Android APK v${data.version} (55.4 MB)`;
+                if (sp) sp.textContent = `📥 Download Android APK v${data.version} (55.6 MB)`;
               });
             }
           })

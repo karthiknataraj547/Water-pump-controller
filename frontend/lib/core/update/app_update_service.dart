@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -33,15 +34,15 @@ class AppVersionInfo {
 
   factory AppVersionInfo.fromJson(Map<String, dynamic> json) {
     return AppVersionInfo(
-      version: json['version']?.toString() ?? '2.0.4',
+      version: json['version']?.toString() ?? '2.0.6',
       buildNumber: json['build_number'] is int
           ? json['build_number']
-          : int.tryParse(json['build_number']?.toString() ?? '7') ?? 7,
+          : int.tryParse(json['build_number']?.toString() ?? '9') ?? 9,
       releaseDate: json['release_date']?.toString() ?? '',
       downloadUrl: json['download_url']?.toString() ??
-          'https://github.com/karthiknataraj547/Water-pump-controller/raw/main/releases/HydroPulse_WaterPumpController.apk',
+          'https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk',
       websiteUrl: json['website_url']?.toString() ??
-          'https://github.com/karthiknataraj547/Water-pump-controller',
+          'https://water-pump-controller.vercel.app',
       title: json['title']?.toString() ?? 'HydroPulse Update Available',
       changelog: json['changelog'] is List
           ? (json['changelog'] as List).map((e) => e.toString()).toList()
@@ -549,17 +550,27 @@ class AppUpdateService {
     });
   }
 
-  /// In-App Direct APK Downloader with real-time byte progress and auto-installer trigger
+  /// In-App Direct APK Downloader with multi-mirror fallback, byte progress, and auto-installer trigger
   Future<void> startInAppDownloadAndInstall(BuildContext context, AppVersionInfo info) async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cancelToken = CancelToken();
+    CancelToken? cancelToken = CancelToken();
 
     double progress = 0.0;
-    String status = 'Connecting to release server...';
-    String byteInfo = '0.0 MB / 55.4 MB';
+    String status = 'Connecting to high-speed CDN release server...';
+    String byteInfo = '0.0 MB / 55.6 MB';
     bool isCompleted = false;
     String? errorMessage;
     String? localApkPath;
+    bool isDownloading = false;
+
+    // Ordered candidate mirrors: prioritize direct fast Vercel CDN, followed by versioned APK, then raw fallback
+    final candidateUrls = <String>[
+      'https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk',
+      'https://water-pump-controller.vercel.app/releases/HydroPulse_v${info.version}_build${info.buildNumber}.apk',
+      if (info.downloadUrl.isNotEmpty && !info.downloadUrl.contains('github.com')) info.downloadUrl,
+      'https://raw.githubusercontent.com/karthiknataraj547/Water-pump-controller/main/releases/HydroPulse_WaterPumpController.apk',
+      'https://github.com/karthiknataraj547/Water-pump-controller/raw/main/releases/HydroPulse_WaterPumpController.apk',
+    ];
 
     await showDialog(
       context: context,
@@ -567,34 +578,93 @@ class AppUpdateService {
       builder: (dialogCtx) {
         return StatefulBuilder(
           builder: (builderCtx, setDialogState) {
-            void downloadApk() async {
+            Future<void> executeDownload() async {
+              if (isDownloading) return;
+              isDownloading = true;
+
+              setDialogState(() {
+                errorMessage = null;
+                progress = 0.0;
+                status = 'Connecting to high-speed CDN release server...';
+                byteInfo = '0.0 MB / 55.6 MB';
+              });
+
+              cancelToken = CancelToken();
+
               try {
                 final tempDir = await getTemporaryDirectory();
-                final filePath = '${tempDir.path}/HydroPulse_v${info.version}.apk';
+                final filePath = '${tempDir.path}/HydroPulse_v${info.version}_b${info.buildNumber}.apk';
                 localApkPath = filePath;
 
-                final downloadDio = Dio();
-                await downloadDio.download(
-                  info.downloadUrl,
-                  filePath,
-                  cancelToken: cancelToken,
-                  onReceiveProgress: (received, total) {
-                    if (total != -1) {
-                      setDialogState(() {
-                        progress = received / total;
-                        final recMB = (received / (1024 * 1024)).toStringAsFixed(1);
-                        final totMB = (total / (1024 * 1024)).toStringAsFixed(1);
-                        byteInfo = '$recMB MB / $totMB MB';
-                        status = 'Downloading HydroPulse v${info.version}...';
-                      });
-                    }
+                final downloadDio = Dio(BaseOptions(
+                  connectTimeout: const Duration(seconds: 25),
+                  receiveTimeout: const Duration(minutes: 10),
+                  followRedirects: true,
+                  maxRedirects: 10,
+                  validateStatus: (code) => code != null && code < 400,
+                  headers: {
+                    'User-Agent': 'Mozilla/5.0 (Linux; Android) HydroPulse-AppUpdate/${info.version}',
+                    'Accept': 'application/vnd.android.package-archive, */*',
                   },
-                );
+                ));
+
+                bool downloadSuccess = false;
+                String failureReason = '';
+
+                for (int i = 0; i < candidateUrls.length; i++) {
+                  final url = candidateUrls[i];
+                  try {
+                    debugPrint('[Update] Attempting download from mirror [$i]: $url');
+                    setDialogState(() {
+                      status = i == 0
+                          ? 'Downloading HydroPulse v${info.version}...'
+                          : 'Mirror $i: Downloading update binary...';
+                    });
+
+                    await downloadDio.download(
+                      url,
+                      filePath,
+                      cancelToken: cancelToken,
+                      deleteOnError: true,
+                      onReceiveProgress: (received, total) {
+                        if (total > 0) {
+                          setDialogState(() {
+                            progress = (received / total).clamp(0.0, 1.0);
+                            final recMB = (received / (1024 * 1024)).toStringAsFixed(1);
+                            final totMB = (total / (1024 * 1024)).toStringAsFixed(1);
+                            byteInfo = '$recMB MB / $totMB MB';
+                            status = 'Downloading HydroPulse v${info.version}...';
+                          });
+                        }
+                      },
+                    );
+
+                    final f = File(filePath);
+                    if (await f.exists() && (await f.length()) > 20 * 1024 * 1024) {
+                      downloadSuccess = true;
+                      debugPrint('[Update] Successfully downloaded APK (${await f.length()} bytes) from mirror $url');
+                      break;
+                    }
+                  } catch (err) {
+                    if (CancelToken.isCancel(err as dynamic)) {
+                      debugPrint('[Update] Download cancelled by user');
+                      isDownloading = false;
+                      return;
+                    }
+                    failureReason = err.toString().split('\n').first;
+                    debugPrint('[Update] Mirror [$url] failed: $err. Trying next mirror...');
+                  }
+                }
+
+                if (!downloadSuccess) {
+                  throw Exception('Could not complete download from available mirrors ($failureReason)');
+                }
 
                 setDialogState(() {
                   progress = 1.0;
                   status = 'Download complete! Launching Android package installer...';
                   isCompleted = true;
+                  isDownloading = false;
                 });
 
                 // Launch native Android package installer
@@ -604,28 +674,28 @@ class AppUpdateService {
                 );
 
                 if (result.type != ResultType.done) {
-                  debugPrint('[Update] OpenFilex notice: ${result.message}. Opening browser fallback...');
-                  final uri = Uri.parse(info.downloadUrl);
-                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  debugPrint('[Update] OpenFilex notice: ${result.message}.');
+                  setDialogState(() {
+                    status = 'Tap below to install package.';
+                  });
                 }
               } catch (e) {
                 if (CancelToken.isCancel(e as dynamic)) {
-                  debugPrint('[Update] Download cancelled by user');
+                  isDownloading = false;
                   return;
                 }
                 debugPrint('[Update] Direct in-app download notice: $e');
                 setDialogState(() {
-                  errorMessage = 'Direct download note: ${e.toString().split('\n').first}';
+                  isDownloading = false;
+                  errorMessage = 'Download issue: ${e.toString().split('\n').first.replaceAll('Exception: ', '')}';
+                  status = 'Download stalled. You can retry or download via browser.';
                 });
-                // Fallback to external browser launcher
-                final uri = Uri.parse(info.downloadUrl);
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
               }
             }
 
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (progress == 0.0 && errorMessage == null && !isCompleted) {
-                downloadApk();
+              if (progress == 0.0 && errorMessage == null && !isCompleted && !isDownloading) {
+                executeDownload();
               }
             });
 
@@ -641,17 +711,21 @@ class AppUpdateService {
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: AppTheme.accent.withValues(alpha: 0.15),
+                        color: (errorMessage != null ? AppTheme.warning : AppTheme.accent).withValues(alpha: 0.15),
                       ),
                       child: Icon(
-                        isCompleted ? Icons.check_circle_rounded : Icons.system_update_rounded,
-                        color: AppTheme.accent,
+                        isCompleted
+                            ? Icons.check_circle_rounded
+                            : (errorMessage != null ? Icons.warning_amber_rounded : Icons.system_update_rounded),
+                        color: errorMessage != null ? AppTheme.warning : AppTheme.accent,
                         size: 36,
                       ),
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      isCompleted ? 'Ready to Install!' : 'Downloading Update',
+                      isCompleted
+                          ? 'Ready to Install!'
+                          : (errorMessage != null ? 'Download Notice' : 'Downloading Update'),
                       style: Theme.of(builderCtx).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w800,
                           ),
@@ -666,10 +740,12 @@ class AppUpdateService {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: LinearProgressIndicator(
-                        value: progress > 0 ? progress : null,
+                        value: progress > 0 ? progress : (isDownloading ? null : 0.0),
                         minHeight: 8,
                         backgroundColor: isDark ? Colors.white12 : Colors.grey.shade200,
-                        valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.accent),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          errorMessage != null ? AppTheme.warning : AppTheme.accent,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -688,14 +764,21 @@ class AppUpdateService {
                     ),
                     if (errorMessage != null) ...[
                       const SizedBox(height: 12),
-                      Text(
-                        errorMessage!,
-                        style: const TextStyle(color: AppTheme.danger, fontSize: 12),
-                        textAlign: TextAlign.center,
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.danger.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          errorMessage!,
+                          style: const TextStyle(color: AppTheme.danger, fontSize: 11),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                     ],
                     const SizedBox(height: 20),
-                    if (isCompleted)
+                    if (isCompleted) ...[
                       ElevatedButton.icon(
                         onPressed: () {
                           if (localApkPath != null) {
@@ -713,15 +796,58 @@ class AppUpdateService {
                           minimumSize: const Size(double.infinity, 44),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                      )
-                    else
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: () => Navigator.of(builderCtx).pop(),
+                        child: const Text('Dismiss'),
+                      ),
+                    ] else if (errorMessage != null) ...[
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          executeDownload();
+                        },
+                        icon: const Icon(Icons.refresh_rounded),
+                        label: const Text('Retry Download'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.accent,
+                          foregroundColor: Colors.black,
+                          minimumSize: const Size(double.infinity, 42),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          final uri = Uri.parse(
+                            'https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk?v=${info.version}',
+                          );
+                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        },
+                        icon: const Icon(Icons.open_in_browser_rounded),
+                        label: const Text('Direct Browser Download'),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(double.infinity, 42),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
                       TextButton(
                         onPressed: () {
-                          cancelToken.cancel();
+                          cancelToken?.cancel();
+                          Navigator.of(builderCtx).pop();
+                        },
+                        child: const Text('Cancel'),
+                      ),
+                    ] else ...[
+                      TextButton(
+                        onPressed: () {
+                          cancelToken?.cancel();
                           Navigator.of(builderCtx).pop();
                         },
                         child: const Text('Cancel Download'),
                       ),
+                    ],
                   ],
                 ),
               ),
