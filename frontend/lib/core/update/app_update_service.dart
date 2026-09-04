@@ -33,10 +33,10 @@ class AppVersionInfo {
 
   factory AppVersionInfo.fromJson(Map<String, dynamic> json) {
     return AppVersionInfo(
-      version: json['version']?.toString() ?? '2.0.3',
+      version: json['version']?.toString() ?? '2.0.4',
       buildNumber: json['build_number'] is int
           ? json['build_number']
-          : int.tryParse(json['build_number']?.toString() ?? '6') ?? 6,
+          : int.tryParse(json['build_number']?.toString() ?? '7') ?? 7,
       releaseDate: json['release_date']?.toString() ?? '',
       downloadUrl: json['download_url']?.toString() ??
           'https://github.com/karthiknataraj547/Water-pump-controller/raw/main/releases/HydroPulse_WaterPumpController.apk',
@@ -61,9 +61,9 @@ class AppUpdateService {
     receiveTimeout: const Duration(seconds: 8),
   ));
 
-  // Dynamic installed version (defaults to active release v2.0.3 Build 6)
-  String _currentVersion = '2.0.3';
-  int _currentBuildNumber = 6;
+  // Dynamic installed version (defaults to active release v2.0.4 Build 7)
+  String _currentVersion = '2.0.4';
+  int _currentBuildNumber = 7;
   static String get currentVersion => _instance._currentVersion;
   static int get currentBuildNumber => _instance._currentBuildNumber;
   bool _initialized = false;

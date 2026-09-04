@@ -892,6 +892,34 @@ module.exports = async (req, res) => {
     });
   }
 
+  // 11. Application Release Version Manifest (OTA Update Engine)
+  if (method === 'GET' && (url.includes('/api/v1/app/version') || url.includes('/app/version') || url.endsWith('/version.json'))) {
+    try {
+      const vPath = path.join(__dirname, '..', 'version.json');
+      if (fs.existsSync(vPath)) {
+        const vData = JSON.parse(fs.readFileSync(vPath, 'utf8'));
+        return res.status(200).json(vData);
+      }
+    } catch (_) {}
+    return res.status(200).json({
+      version: "2.0.4",
+      build_number: 7,
+      release_date: "2026-09-04",
+      min_supported_version: "1.0.0",
+      download_url: "https://github.com/karthiknataraj547/Water-pump-controller/raw/main/releases/HydroPulse_WaterPumpController.apk",
+      website_url: "https://github.com/karthiknataraj547/Water-pump-controller",
+      title: "HydroPulse v2.0.4 - Real-Time Motor Sync & Watchdog Stabilization",
+      changelog: [
+        "Zero-delay cross-device motor synchronization between Android app and web console",
+        "Watchdog timeout extended to eliminate online/offline status flickering on cellular/Wi-Fi",
+        "Automatic button & mode lockouts when hardware is offline to prevent false actuation",
+        "Seamless background refresh with preserved last-known state and zero offline flashing",
+        "Direct MQTT command acknowledgement (ACK) with instant tactile confirmation"
+      ],
+      is_critical: false
+    });
+  }
+
   // Default fallback
   return res.status(404).json({ status: 'error', message: 'Endpoint not found' });
 };

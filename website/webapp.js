@@ -356,7 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
           isOnline: true,
           pumpState: 'OFF',
           mode: 'AUTO',
-          firmwareVersion: 'v2.0.3',
+          firmwareVersion: 'v2.0.4',
           wifiRssi: -65
         };
         applyActiveDevice(borewellDev);
@@ -400,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
           isOnline: true,
           pumpState: 'OFF',
           mode: 'AUTO',
-          firmwareVersion: 'v2.0.3',
+          firmwareVersion: 'v2.0.4',
           wifiRssi: -65
         };
         applyActiveDevice(customDev);
@@ -452,10 +452,10 @@ document.addEventListener('DOMContentLoaded', () => {
           .then(data => {
             if (data && data.version) {
               const otaVer = document.getElementById('ota-current-version');
-              if (otaVer) otaVer.textContent = `v${data.version} • Build ${data.build_number || 6}`;
+              if (otaVer) otaVer.textContent = `v${data.version} • Build ${data.build_number || 7}`;
 
               const setVer = document.getElementById('settings-app-version');
-              if (setVer) setVer.textContent = `v${data.version} (Build ${data.build_number || 6})`;
+              if (setVer) setVer.textContent = `v${data.version} (Build ${data.build_number || 7})`;
 
               const dlLinks = document.querySelectorAll('a[href*="HydroPulse_WaterPumpController.apk"]');
               dlLinks.forEach(link => {
@@ -475,9 +475,9 @@ document.addEventListener('DOMContentLoaded', () => {
           try {
             const res = await fetch(`version.json?t=${Date.now()}`);
             const data = await res.json();
-            alert(`HydroPulse Update Engine:\nLatest Release: v${data.version} (Build ${data.build_number || 6})\nRelease Date: ${data.release_date}\nTitle: ${data.title}\nStatus: System is synchronized with the latest release.`);
+            alert(`HydroPulse Update Engine:\nLatest Release: v${data.version} (Build ${data.build_number || 7})\nRelease Date: ${data.release_date}\nTitle: ${data.title}\nStatus: System is synchronized with the latest release.`);
           } catch (_) {
-            alert('HydroPulse Update Engine:\nInstalled Client: v2.0.3 (Build 6)\nStatus: Running latest official release with in-app OTA and direct package installer support.');
+            alert('HydroPulse Update Engine:\nInstalled Client: v2.0.4 (Build 7)\nStatus: Running latest official release with in-app OTA and direct package installer support.');
           }
         };
       }
