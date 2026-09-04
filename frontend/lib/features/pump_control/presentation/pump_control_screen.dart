@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/hardware/hardware_state_service.dart';
-import '../../../core/utils/formatters.dart';
 import '../../../shared/widgets/confirmation_dialog.dart';
 
 class PumpControlScreen extends ConsumerStatefulWidget {
@@ -16,11 +15,30 @@ class PumpControlScreen extends ConsumerStatefulWidget {
 class _PumpControlScreenState extends ConsumerState<PumpControlScreen> {
   bool _isPumpRunning = false;
   bool _isAutoMode = true;
-  int _runningSeconds = 0;
+  bool _isLoading = false;
   double _autoStartLevel = 30.0;
   double _autoStopLevel = 90.0;
 
+  Future<void> _loadPumpData() async {
+    setState(() => _isLoading = true);
+    // Add logic to fetch initial state
+    await Future.delayed(const Duration(milliseconds: 500));
+    setState(() => _isLoading = false);
+  }
+
   Future<void> _sendCommand(String command, {Map<String, dynamic>? params}) async {
+    final isOnline = hardwareStateService.isHardwareOnline;
+    if (!isOnline) {
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: AppTheme.accentRose,
+          content: Text('🔒 Hardware Offline • Connect or power on ESP32 first.'),
+        ),
+      );
+      return;
+    }
+
     final devId = hardwareStateService.activeDevice?.id;
     if (devId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -70,100 +88,139 @@ class _PumpControlScreenState extends ConsumerState<PumpControlScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isOnline = hardwareStateService.isHardwareOnline;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Pump Control Center', style: TextStyle(fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: () {
+              hardwareStateService.refresh();
+              _loadPumpData();
+            },
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-        child: Column(
-          children: [
-            // 1. Large Main Action Control Button
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 36.0, horizontal: 20.0),
-                child: Column(
-                  children: [
-                    Text(
-                      _isPumpRunning ? 'MOTOR RUNNING' : 'MOTOR STOPPED',
-                      style: TextStyle(
-                        color: _isPumpRunning ? AppTheme.accentEmerald : Colors.white70,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.2,
-                      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+              child: Column(
+                children: [
+                  // 1. Interactive Pump Relay Toggle Hero
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(28.0),
+                    decoration: BoxDecoration(
+                      color: AppTheme.darkCard,
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(color: AppTheme.darkCardBorder),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _isPumpRunning
-                          ? Formatters.formatDurationSeconds(_runningSeconds)
-                          : 'Ready for activation',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.5),
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-
-                    // Big Circular Toggle Button
-                    GestureDetector(
-                      onTap: () {
-                        if (_isPumpRunning) {
-                          _sendCommand('PUMP_OFF');
-                        } else {
-                          showDialog(
-                            context: context,
-                            builder: (_) => ConfirmationDialog(
-                              title: 'Activate Pump?',
-                              content: 'Confirm starting the water pump motor. Local safety watchdogs will automatically halt the pump if the tank fills or flow stops.',
-                              confirmText: 'Start Motor',
-                              confirmColor: AppTheme.accentEmerald,
-                              onConfirm: () => _sendCommand('PUMP_ON'),
-                            ),
-                          );
-                        }
-                      },
-                      child: Container(
-                        width: 140,
-                        height: 140,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: _isPumpRunning ? AppTheme.dangerGradient : AppTheme.emeraldGradient,
-                          boxShadow: [
-                            BoxShadow(
-                              color: (_isPumpRunning ? AppTheme.accentRose : AppTheme.accentEmerald).withOpacity(0.35),
-                              blurRadius: 32,
-                              spreadRadius: 4,
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Icon(
-                            _isPumpRunning ? Icons.power_settings_new_rounded : Icons.play_arrow_rounded,
-                            size: 64,
-                            color: Colors.white,
+                    child: Column(
+                      children: [
+                        Text(
+                          'PUMP RELAY STATE',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.5),
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.5,
+                            fontSize: 12,
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      _isPumpRunning ? 'Tap to STOP Pump' : 'Tap to START Pump',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
+                        const SizedBox(height: 8),
+                        Text(
+                          !isOnline
+                              ? 'OFFLINE'
+                              : (_isPumpRunning ? 'ACTIVE (PUMPING)' : 'IDLE (STANDBY)'),
+                          style: TextStyle(
+                            color: !isOnline
+                                ? AppTheme.accentRose
+                                : (_isPumpRunning ? AppTheme.accentRose : AppTheme.accentEmerald),
+                            fontWeight: FontWeight.w900,
+                            fontSize: 22,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        const SizedBox(height: 28),
 
-            // 2. Emergency Cutoff Button
-            SizedBox(
+                        // Big Circular Toggle Button
+                        GestureDetector(
+                          onTap: () {
+                            if (!isOnline) {
+                              ScaffoldMessenger.of(context).clearSnackBars();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  backgroundColor: AppTheme.accentRose,
+                                  content: Text('🔒 Hardware Offline • Connect or power on ESP32 first.'),
+                                ),
+                              );
+                              return;
+                            }
+                            if (_isPumpRunning) {
+                              _sendCommand('PUMP_OFF');
+                            } else {
+                              showDialog(
+                                context: context,
+                                builder: (_) => ConfirmationDialog(
+                                  title: 'Activate Pump?',
+                                  content: 'Confirm starting the water pump motor. Local safety watchdogs will automatically halt the pump if the tank fills or flow stops.',
+                                  confirmText: 'Start Motor',
+                                  confirmColor: AppTheme.accentEmerald,
+                                  onConfirm: () => _sendCommand('PUMP_ON'),
+                                ),
+                              );
+                            }
+                          },
+                          child: Container(
+                            width: 140,
+                            height: 140,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: !isOnline
+                                  ? null
+                                  : (_isPumpRunning ? AppTheme.dangerGradient : AppTheme.emeraldGradient),
+                              color: !isOnline ? const Color(0xFF1E293B) : null,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: (!isOnline
+                                          ? Colors.black26
+                                          : (_isPumpRunning ? AppTheme.accentRose : AppTheme.accentEmerald))
+                                      .withOpacity(0.35),
+                                  blurRadius: 32,
+                                  spreadRadius: 4,
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: Icon(
+                                !isOnline
+                                    ? Icons.cloud_off_rounded
+                                    : (_isPumpRunning ? Icons.power_settings_new_rounded : Icons.play_arrow_rounded),
+                                size: 64,
+                                color: !isOnline ? AppTheme.darkTextTertiary : Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          !isOnline
+                              ? 'Hardware Offline • Control Locked'
+                              : (_isPumpRunning ? 'Tap to STOP Pump' : 'Tap to START Pump'),
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.7),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // 2. Emergency Cutoff Button
+                  SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(

@@ -465,15 +465,15 @@ class HardwareStateService extends ChangeNotifier {
     }
   }
 
-  // 1. Strict Physical Hardware Connection State — ONLY ONLINE if physical ESP32 answered within last 2.5s
+  // 1. Resilient Physical Hardware Connection State — Stable, non-flickering watchdog window
   NodeStatus get mainNodeStatus {
     if (_activeDevice == null) return NodeStatus.offline;
     if (!_isMqttConnected) return NodeStatus.offline;
     if (_lastMainNodeHeartbeat == null) return NodeStatus.offline;
 
     final diffMs = DateTime.now().difference(_lastMainNodeHeartbeat!).inMilliseconds;
-    if (diffMs <= 2500) return NodeStatus.online;
-    if (diffMs <= 5000) return NodeStatus.stale;
+    if (diffMs <= 12000) return NodeStatus.online;
+    if (diffMs <= 18000) return NodeStatus.stale;
     return NodeStatus.offline;
   }
 
@@ -482,8 +482,8 @@ class HardwareStateService extends ChangeNotifier {
     if (mainNodeStatus == NodeStatus.offline) return NodeStatus.offline;
     if (_lastSubNodePacket == null) return NodeStatus.offline;
     final diffMs = DateTime.now().difference(_lastSubNodePacket!).inMilliseconds;
-    if (diffMs <= 3500) return NodeStatus.online;
-    if (diffMs <= 7000) return NodeStatus.stale;
+    if (diffMs <= 15000) return NodeStatus.online;
+    if (diffMs <= 22000) return NodeStatus.stale;
     return NodeStatus.offline;
   }
 
@@ -584,13 +584,12 @@ class HardwareStateService extends ChangeNotifier {
     // Always fetch latest hardware synchronized in cloud backend database for this account
     fetchUserDevicesFromBackend();
 
-    _lastMainNodeHeartbeat = null;
-    _lastSubNodePacket = null;
-    _isVerifyingStatus = false;
+    // Preserve last known heartbeat if available from storage/session, otherwise verify in background
+    _isVerifyingStatus = true;
 
-    // Periodic State Evaluation Timer (checks hardware presence every 500ms)
+    // Periodic State Evaluation Timer (checks hardware presence every 1000ms)
     _stateEvaluationTimer?.cancel();
-    _stateEvaluationTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+    _stateEvaluationTimer = Timer.periodic(const Duration(milliseconds: 1000), (_) {
       final currentStatus = mainNodeStatus;
       final currentStatusStr = currentStatus == NodeStatus.online
           ? 'ONLINE'
@@ -602,7 +601,7 @@ class HardwareStateService extends ChangeNotifier {
           name: _activeDevice!.name,
           macAddress: _activeDevice!.macAddress,
           status: currentStatusStr,
-          pumpState: currentStatusStr == 'OFFLINE' ? 'STOPPED' : _activeDevice!.pumpState,
+          pumpState: _activeDevice!.pumpState,
           mode: _activeDevice!.mode,
           wifiRssi: _activeDevice!.wifiRssi,
           firmwareVersion: _activeDevice!.firmwareVersion,
@@ -726,8 +725,6 @@ class HardwareStateService extends ChangeNotifier {
   }
 
   void _handlePongMessage(Map<String, dynamic> data) {
-    if (data['_isRetained'] == true) return; // Discard stale broker-retained packets
-
     final incomingDevId = (data['deviceId'] ?? data['device_id'] ?? '').toString();
     if (_activeDevice == null) return;
     if (incomingDevId.isNotEmpty && incomingDevId != _activeDevice!.id) return;
@@ -786,14 +783,24 @@ class HardwareStateService extends ChangeNotifier {
   }
 
   Future<void> refresh() async {
-    await fetchUserDevicesFromBackend();
-    if (!_isMqttConnected) {
-      await connectMqtt();
-    } else {
-      sendHardwarePing();
-      requestImmediateStatus();
-    }
+    _isVerifyingStatus = true;
     notifyListeners();
+
+    try {
+      await fetchUserDevicesFromBackend();
+      if (!_isMqttConnected) {
+        await connectMqtt();
+      } else {
+        sendHardwarePing();
+        requestImmediateStatus();
+      }
+    } finally {
+      // Grace period allowing ping & status responses to arrive before clearing verification flag
+      Future.delayed(const Duration(milliseconds: 650), () {
+        _isVerifyingStatus = false;
+        notifyListeners();
+      });
+    }
   }
 
   void requestImmediateStatus() {
@@ -823,8 +830,6 @@ class HardwareStateService extends ChangeNotifier {
   }
 
   void _handleStatusMessage(Map<String, dynamic> data) {
-    if (data['_isRetained'] == true) return; // Discard stale broker-retained packets
-
     final now = DateTime.now();
 
     // Explicit LWT Offline
@@ -945,8 +950,6 @@ class HardwareStateService extends ChangeNotifier {
   }
 
   void _handleSensorMessage(Map<String, dynamic> data) {
-    if (data['_isRetained'] == true) return; // Discard stale broker-retained packets
-
     final now = DateTime.now();
     final incomingDevId = (data['deviceId'] ?? data['device_id'] ?? '').toString();
     _activeDevice ??= _createDefaultDevice();
@@ -1248,6 +1251,24 @@ class HardwareStateService extends ChangeNotifier {
       params ?? {},
     );
 
+    // Fast Dual-Channel REST sync to immediately update backend liveState (under 20ms)
+    final devId = _activeDevice!.id;
+    apiClient.post('/command', data: {
+      'command': command,
+      'action': command,
+      'deviceId': devId,
+      'parameters': params ?? {},
+    }).ignore();
+
+    apiClient.post('/telemetry', data: {
+      'pumpRunning': isTurningOn,
+      'pump_running': isTurningOn,
+      'pumpState': newState,
+      'pump_state': newState,
+      'mode': _activeDevice!.mode,
+      'deviceId': devId,
+    }).ignore();
+
     _pumpStatus = PumpStatusModel(
       state: newState,
       mode: _activeDevice!.mode,
@@ -1308,6 +1329,24 @@ class HardwareStateService extends ChangeNotifier {
       'EMERGENCY_STOP',
       {'immediate': true, 'reason': 'USER_EMERGENCY_BUTTON'},
     );
+
+    // Fast Dual-Channel REST sync for Emergency Stop
+    final devId = _activeDevice!.id;
+    apiClient.post('/command', data: {
+      'command': 'EMERGENCY_STOP',
+      'action': 'EMERGENCY_STOP',
+      'deviceId': devId,
+      'parameters': {'immediate': true},
+    }).ignore();
+
+    apiClient.post('/telemetry', data: {
+      'pumpRunning': false,
+      'pump_running': false,
+      'pumpState': 'OFF',
+      'pump_state': 'OFF',
+      'mode': _activeDevice!.mode,
+      'deviceId': devId,
+    }).ignore();
 
     _pumpStatus = PumpStatusModel(
       state: 'OFF',

@@ -322,7 +322,7 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
           // ==================================================================
           // 3. OPERATIONAL MODE SWITCHER [ AUTOMATIC | MANUAL ] WITH ANIMATIONS
           // ==================================================================
-          _buildModeSelector(),
+          _buildModeSelector(isOnline),
 
           const SizedBox(height: 16),
 
@@ -394,7 +394,7 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
     );
   }
 
-  Widget _buildModeSelector() {
+  Widget _buildModeSelector(bool isOnline) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
 
@@ -409,7 +409,23 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
         children: [
           Expanded(
             child: AnimatedPressable(
-              onTap: () => widget.onModeChanged('AUTO'),
+              onTap: () {
+                if (!isOnline) {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      duration: Duration(seconds: 2),
+                      backgroundColor: Color(0xFFE11D48),
+                      content: Text(
+                        '⚠️ Hardware Offline • Mode selection locked until ESP32 reconnects.',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  );
+                  return;
+                }
+                widget.onModeChanged('AUTO');
+              },
               pressedScale: 0.97,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 300),
@@ -451,7 +467,23 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
           const SizedBox(width: 3),
           Expanded(
             child: AnimatedPressable(
-              onTap: () => widget.onModeChanged('MANUAL'),
+              onTap: () {
+                if (!isOnline) {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      duration: Duration(seconds: 2),
+                      backgroundColor: Color(0xFFE11D48),
+                      content: Text(
+                        '⚠️ Hardware Offline • Mode selection locked until ESP32 reconnects.',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  );
+                  return;
+                }
+                widget.onModeChanged('MANUAL');
+              },
               pressedScale: 0.97,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 300),
@@ -499,6 +531,57 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isAuto = widget.mode == 'AUTO';
+
+    if (!isOnline) {
+      return AnimatedPressable(
+        onTap: () {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              duration: Duration(seconds: 2),
+              backgroundColor: Color(0xFFE11D48),
+              content: Text(
+                '🔒 Hardware Offline • Connect ESP32 to operate pump motor.',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+            ),
+          );
+        },
+        pressedScale: 0.98,
+        child: Container(
+          height: 52,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B).withOpacity(0.5) : const Color(0xFFE2E8F0).withOpacity(0.8),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark ? Colors.white12 : Colors.black12,
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.cloud_off_rounded,
+                color: isDark ? AppTheme.darkTextTertiary : AppTheme.lightTextTertiary,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'HARDWARE OFFLINE • CONTROL LOCKED',
+                style: TextStyle(
+                  color: isDark ? AppTheme.darkTextTertiary : AppTheme.lightTextTertiary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     if (isAuto) {
       // In AUTO mode, manual button is disabled/interlocked with clear status
@@ -602,41 +685,63 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
             opacity: anim,
             child: ScaleTransition(scale: Tween(begin: 0.85, end: 1.0).animate(anim), child: child),
           ),
-          child: widget.isPumpRunning
+          child: widget.commandState == CommandTransitState.sending
               ? Row(
-                  key: const ValueKey('STOP_BUTTON'),
+                  key: const ValueKey('PENDING_BUTTON'),
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Icon(Icons.stop_rounded, color: Colors.white, size: 22),
-                    SizedBox(width: 8),
+                  children: [
+                    const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    ),
+                    const SizedBox(width: 10),
                     Text(
-                      'STOP MOTOR',
-                      style: TextStyle(
+                      widget.isPumpRunning ? 'STOPPING MOTOR...' : 'STARTING MOTOR...',
+                      style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 15,
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        letterSpacing: 1,
+                        letterSpacing: 0.8,
                       ),
                     ),
                   ],
                 )
-              : Row(
-                  key: const ValueKey('START_BUTTON'),
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Icon(Icons.play_arrow_rounded, color: Colors.white, size: 22),
-                    SizedBox(width: 8),
-                    Text(
-                      'START MOTOR',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                  ],
-                ),
+              : (widget.isPumpRunning
+                  ? Row(
+                      key: const ValueKey('STOP_BUTTON'),
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        Icon(Icons.stop_rounded, color: Colors.white, size: 22),
+                        SizedBox(width: 8),
+                        Text(
+                          'STOP MOTOR',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Row(
+                      key: const ValueKey('START_BUTTON'),
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        Icon(Icons.play_arrow_rounded, color: Colors.white, size: 22),
+                        SizedBox(width: 8),
+                        Text(
+                          'START MOTOR',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
+                    )),
         ),
       ),
     );

@@ -267,6 +267,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                       systemHealth: hardwareStateService.systemHealth,
                       commandState: hardwareStateService.lastCommand?.state ?? CommandTransitState.idle,
                       onModeChanged: (newMode) {
+                        if (!isOnline) {
+                          ScaffoldMessenger.of(context).clearSnackBars();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('⚠️ Hardware Offline • Cannot switch mode.'),
+                              backgroundColor: AppTheme.danger,
+                            ),
+                          );
+                          return;
+                        }
                         hardwareStateService.setMode(newMode);
                         ScaffoldMessenger.of(context).clearSnackBars();
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -277,11 +287,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                         );
                       },
                       onTogglePump: () {
-                        if (!isOnline && !isMqttConnected) {
+                        if (!isOnline) {
                           ScaffoldMessenger.of(context).clearSnackBars();
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text('Hardware offline. Power on ESP32 first.'),
+                            const SnackBar(
+                              content: Text('🔒 Hardware Offline • Power on or connect ESP32 first.'),
                               backgroundColor: AppTheme.danger,
                             ),
                           );

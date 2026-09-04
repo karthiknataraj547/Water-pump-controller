@@ -120,6 +120,17 @@ class _TankControlScreenState extends ConsumerState<TankControlScreen> {
                     subNodeStatus: hardwareStateService.subNodeStatus,
                     systemHealth: hardwareStateService.systemHealth,
                     onTogglePump: () {
+                      if (!hardwareStateService.isHardwareOnline) {
+                        ScaffoldMessenger.of(context).clearSnackBars();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            duration: Duration(seconds: 2),
+                            backgroundColor: Color(0xFFE11D48),
+                            content: Text('🔒 Hardware Offline • Connect ESP32 first to operate motor.'),
+                          ),
+                        );
+                        return;
+                      }
                       if (mode == 'AUTO') {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -146,6 +157,17 @@ class _TankControlScreenState extends ConsumerState<TankControlScreen> {
                       }
                     },
                     onModeChanged: (newMode) {
+                      if (!hardwareStateService.isHardwareOnline) {
+                        ScaffoldMessenger.of(context).clearSnackBars();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            duration: Duration(seconds: 2),
+                            backgroundColor: Color(0xFFE11D48),
+                            content: Text('⚠️ Hardware Offline • Cannot switch mode.'),
+                          ),
+                        );
+                        return;
+                      }
                       hardwareStateService.setMode(newMode);
                     },
                   ),

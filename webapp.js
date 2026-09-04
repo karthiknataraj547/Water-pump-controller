@@ -823,6 +823,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let waterLevel = 0.0;
   let totalCapacityLiters = 5000.0;
   let isPumpRunning = false;
+  let isHardwareOnline = true;
+  let lastHardwareHeartbeat = Date.now();
+  let lastMqttCommandTimestamp = 0;
   let controlMode = 'AUTO';
   let runSeconds = 0;
   let runTimer = null;
@@ -1543,6 +1546,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function updateHardwareStatusBadge(isOnline, rtt = 22) {
+    isHardwareOnline = isOnline;
+    if (isOnline) lastHardwareHeartbeat = Date.now();
     const hwText = document.querySelector('.hw-status-text');
     const hwDot = document.querySelector('.hw-indicator-dot');
     const hwPing = document.getElementById('sidebar-ping');
@@ -1550,12 +1555,47 @@ document.addEventListener('DOMContentLoaded', () => {
     if (hwText) hwText.style.color = isOnline ? 'var(--accent)' : 'var(--danger)';
     if (hwDot) hwDot.style.background = isOnline ? 'var(--accent)' : 'var(--danger)';
     if (hwPing) hwPing.textContent = `Ping ${rtt}ms`;
+
+    if (btnPumpToggle) {
+      if (!isOnline) {
+        btnPumpToggle.classList.add('control-disabled');
+        btnPumpToggle.style.opacity = '0.5';
+        btnPumpToggle.style.pointerEvents = 'none';
+      } else {
+        btnPumpToggle.classList.remove('control-disabled');
+        btnPumpToggle.style.opacity = '1';
+        btnPumpToggle.style.pointerEvents = 'auto';
+      }
+    }
+  }
+
+  function syncStateToBackend(active) {
+    fetch(`${apiBaseUrl}/telemetry`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({
+        pumpRunning: active,
+        pump_running: active,
+        pumpState: active ? 'ON' : 'OFF',
+        pump_state: active ? 'ON' : 'OFF'
+      })
+    }).catch(() => null);
   }
 
   function setMotorRunning(active, shouldPublish = true) {
+    if (shouldPublish && !isHardwareOnline) {
+      alert('⚠️ Hardware is Offline. Ensure ESP32 is powered on and connected before operating pump.');
+      return;
+    }
     if (isPumpRunning === active && !shouldPublish) return;
     const wasRunning = isPumpRunning;
     isPumpRunning = active;
+    if (shouldPublish) {
+      lastMqttCommandTimestamp = Date.now();
+    }
 
     if (active) {
       if (!wasRunning) dailyCycles++;
@@ -1611,13 +1651,14 @@ document.addEventListener('DOMContentLoaded', () => {
           timestamp: Math.floor(Date.now() / 1000)
         });
 
-        mqttClient.publish('pump/command', payload, { qos: 0 });
-        mqttClient.publish(`pump/${activeDevId}/command`, payload, { qos: 0 });
-        mqttClient.publish(`pump/${currentUser ? currentUser.id : 'user'}/${activeDevId}/command`, payload, { qos: 0 });
-        mqttClient.publish(`devices/${activeDevId}/command`, payload, { qos: 0 });
-        mqttClient.publish('pump/status', payload, { qos: 0 });
-        mqttClient.publish('waterpump/esp32/control', payload, { qos: 0 });
-        mqttClient.publish('waterpump/esp32/status', payload, { qos: 0 });
+        mqttClient.publish('pump/command', payload, { qos: 1 });
+        mqttClient.publish(`pump/${activeDevId}/command`, payload, { qos: 1 });
+        mqttClient.publish(`pump/${currentUser ? currentUser.id : 'user'}/${activeDevId}/command`, payload, { qos: 1 });
+        mqttClient.publish(`devices/${activeDevId}/command`, payload, { qos: 1 });
+        mqttClient.publish('pump/status', payload, { qos: 1, retain: true });
+        mqttClient.publish(`pump/${activeDevId}/status`, payload, { qos: 1, retain: true });
+        mqttClient.publish('waterpump/esp32/control', payload, { qos: 1 });
+        mqttClient.publish('waterpump/esp32/status', payload, { qos: 1, retain: true });
       }
 
       // 2. Backend REST Command
@@ -1724,18 +1765,36 @@ document.addEventListener('DOMContentLoaded', () => {
           // 1. Motor Command Sync from Mobile App or Hardware
           const cmd = (data.command || data.action || '').toUpperCase();
           if (cmd === 'START_PUMP' || cmd === 'PUMP_ON' || cmd === 'ON') {
+            lastMqttCommandTimestamp = Date.now();
             setMotorRunning(true, false);
+            syncStateToBackend(true);
           } else if (cmd === 'STOP_PUMP' || cmd === 'PUMP_OFF' || cmd === 'OFF' || cmd === 'EMERGENCY_STOP' || cmd === 'E_STOP') {
+            lastMqttCommandTimestamp = Date.now();
             setMotorRunning(false, false);
+            syncStateToBackend(false);
           }
 
           // 2. Hardware / Mobile Pump State Sync
           if (data.pumpState !== undefined || data.pump_state !== undefined || data.state !== undefined || data.status !== undefined || data.isRunning !== undefined || data.pump_running !== undefined || data.pumpRunning !== undefined) {
             const raw = String(data.pumpState || data.pump_state || data.state || data.status || data.isRunning || (data.pump_running !== undefined ? data.pump_running : data.pumpRunning)).toUpperCase();
             if (raw === 'ON' || raw === 'RUNNING' || raw === 'TRUE' || raw === '1') {
+              lastMqttCommandTimestamp = Date.now();
               setMotorRunning(true, false);
+              syncStateToBackend(true);
             } else if (raw === 'OFF' || raw === 'STOPPED' || raw === 'FALSE' || raw === '0' || raw === 'IDLE') {
+              lastMqttCommandTimestamp = Date.now();
               setMotorRunning(false, false);
+              syncStateToBackend(false);
+            }
+          }
+
+          // 2b. Hardware Command Acknowledgement (ACK)
+          if (topic.includes('/ack') || (data && (data.action === 'ACK' || data.acknowledged || data.ack))) {
+            console.log('[MQTT] Hardware command execution verified by ACK:', data);
+            const hwDot = document.querySelector('.hw-indicator-dot');
+            if (hwDot) {
+              hwDot.style.boxShadow = '0 0 14px #22C55E';
+              setTimeout(() => { if (hwDot) hwDot.style.boxShadow = 'none'; }, 2500);
             }
           }
 
@@ -1843,8 +1902,10 @@ document.addEventListener('DOMContentLoaded', () => {
           if (json.data) {
             const d = json.data;
             if (d.pumpRunning !== undefined) {
-              if (d.pumpRunning !== isPumpRunning) {
-                setMotorRunning(d.pumpRunning, false);
+              if (Date.now() - lastMqttCommandTimestamp > 10000) {
+                if (d.pumpRunning !== isPumpRunning) {
+                  setMotorRunning(d.pumpRunning, false);
+                }
               }
             }
             if (d.mode && d.mode !== controlMode) {
@@ -1880,6 +1941,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     fetchLive();
     restPollInterval = setInterval(fetchLive, 2500);
+
+    // Watchdog to detect hardware silence (> 25s)
+    setInterval(() => {
+      if (Date.now() - lastHardwareHeartbeat > 25000) {
+        updateHardwareStatusBadge(false);
+      }
+    }, 4000);
   }
 
   resizeTankCanvas();

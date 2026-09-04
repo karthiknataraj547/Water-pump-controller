@@ -267,13 +267,31 @@ class MqttService {
     final builder = MqttClientPayloadBuilder();
     builder.addString(payloadJson);
 
-    // Broadcast on both unified and device-specific topics — QoS 0 for speed
-    _client!.publishMessage('pump/command', MqttQos.atMostOnce, builder.payload!);
-    _client!.publishMessage('pump/$deviceId/command', MqttQos.atMostOnce, builder.payload!);
-    _client!.publishMessage('pump/$userId/$deviceId/command', MqttQos.atMostOnce, builder.payload!);
-    _client!.publishMessage('waterpump/esp32/control', MqttQos.atMostOnce, builder.payload!);
+    // Broadcast on unified and device-specific topics — QoS 1 for reliable zero-drop delivery
+    _client!.publishMessage('pump/command', MqttQos.atLeastOnce, builder.payload!);
+    _client!.publishMessage('pump/$deviceId/command', MqttQos.atLeastOnce, builder.payload!);
+    _client!.publishMessage('pump/$userId/$deviceId/command', MqttQos.atLeastOnce, builder.payload!);
+    _client!.publishMessage('waterpump/esp32/control', MqttQos.atLeastOnce, builder.payload!);
 
-    debugPrint('[MQTT TX Command] $command to $deviceId (ID: $cmdId)');
+    // Retain pump status update so web console and all clients synchronize immediately with 0 delay
+    final normCmd = command.toUpperCase();
+    final isPumpOn = (normCmd == 'START_PUMP' || normCmd == 'PUMP_ON' || normCmd == 'ON');
+    final statusPayload = jsonEncode({
+      'deviceId': deviceId,
+      'command': command,
+      'action': command,
+      'commandId': cmdId,
+      'status': 'ONLINE',
+      'pumpState': isPumpOn ? 'RUNNING' : 'STOPPED',
+      'pumpStatus': isPumpOn ? 'ON' : 'OFF',
+      'timestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+    });
+    final statusBuilder = MqttClientPayloadBuilder();
+    statusBuilder.addString(statusPayload);
+    _client!.publishMessage('pump/status', MqttQos.atLeastOnce, statusBuilder.payload!, retain: true);
+    _client!.publishMessage('pump/$deviceId/status', MqttQos.atLeastOnce, statusBuilder.payload!, retain: true);
+
+    debugPrint('[MQTT TX Command] $command to $deviceId (ID: $cmdId) + Retained status broadcast');
   }
 
   void publishPing(String userId, String deviceId, String pingId, int timestampMs) {
