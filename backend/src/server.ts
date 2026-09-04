@@ -62,19 +62,18 @@ function getVersionManifest() {
     }
   }
   return {
-    version: '2.0.7',
-    build_number: 10,
-    release_date: '2026-09-04',
+    version: '2.0.9',
+    build_number: 12,
+    release_date: '2026-09-05',
     min_supported_version: '1.0.0',
     download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk',
     website_url: 'https://water-pump-controller.vercel.app',
-    title: 'HydroPulse v2.0.7 - MQTT Synchronization, Hardware Auto-Adoption & Live Telemetry',
+    title: 'HydroPulse v2.0.9 - Backend Double Verification of Online Status & Clean Pump Control Card',
     changelog: [
-      "Nodes Tab: 'Factory Reset' renamed to 'Remove Hardware' with instant node unbinding and clean state reset",
-      "Strict Online/Offline Detection: 6-second heartbeat watchdog immediately marks hardware offline when disconnected",
-      "Fixed multi-tenant device leakage: completely eliminated cross-account flickering between dashboard and add-device screen",
-      "Mode Memory: preserves and restores prior operational mode (Auto/Manual) when clearing emergency stop",
-      "Emergency Stop State: pulsating active alert banner, motor start lockout, and tap-to-reset toggle across mobile app and web console"
+      'Backend Double-Verification: Device status verified strictly against authentic hardware heartbeats (<15s window). Offline by default until physical connection is confirmed.',
+      'Zero False Online: Fixed bug where reading live telemetry or arbitrary MQTT broadcasts marked hardware as online.',
+      'Pump Control Card Cleanup: Removed redundant status pills from the pump control card, returning to a clean, minimal interface.',
+      'Web & Mobile Consistency: Both app and webapp enforce double-verified hardware presence and start in offline state when unpowered.'
     ],
     is_critical: false,
   };

@@ -378,34 +378,51 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 6. Dynamic Version & Release Highlights Sync
-  fetch(`version.json?t=${Date.now()}`)
-    .then(res => res.json())
-    .then(data => {
-      if (data && data.version) {
-        const pill = document.getElementById('hero-release-pill');
-        if (pill) pill.innerHTML = `Latest Release: <strong>v${data.version}</strong> Live • ${data.title || 'Real-Time In-App OTA Update Engine'}`;
-        
-        const subLabels = document.querySelectorAll('.apk-sub-version');
-        subLabels.forEach(el => el.textContent = `v${data.version} • 55.4 MB • Direct Install`);
+  function syncWebsiteVersion() {
+    fetch(`version.json?t=${Date.now()}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.version) {
+          // Version tags in navbar and hero
+          document.querySelectorAll('.version-tag').forEach(el => el.textContent = `v${data.version}`);
+          
+          const pill = document.getElementById('hero-release-pill');
+          if (pill) pill.innerHTML = `Latest Release: <strong>v${data.version}</strong> Live • ${data.title || 'Real-Time In-App OTA Update Engine'}`;
+          
+          const subLabels = document.querySelectorAll('.apk-sub-version');
+          subLabels.forEach(el => el.textContent = `v${data.version} • 55.6 MB • Direct Install`);
 
-        const specVer = document.getElementById('spec-version-badge');
-        if (specVer) specVer.innerHTML = `📱 Version: <strong>v${data.version}</strong>`;
-        
-        const specRelease = document.getElementById('spec-release-date');
-        if (specRelease && data.release_date) specRelease.innerHTML = `📅 Released: <strong>${data.release_date}</strong>`;
+          const specVer = document.getElementById('spec-version-badge');
+          if (specVer) specVer.innerHTML = `📱 Version: <strong>v${data.version}</strong>`;
+          
+          const specRelease = document.getElementById('spec-release-date');
+          if (specRelease && data.release_date) specRelease.innerHTML = `📅 Released: <strong>${data.release_date}</strong>`;
 
-        const downloadLinks = document.querySelectorAll('a[href*="HydroPulse_WaterPumpController.apk"], .download-trigger');
-        downloadLinks.forEach(link => {
-          const targetUrl = data.download_url ? `${data.download_url}?v=${data.version}` : `releases/HydroPulse_WaterPumpController.apk?v=${data.version}`;
-          link.setAttribute('href', targetUrl);
-          const span = link.querySelector('span');
-          if (span && span.textContent.includes('Download HydroPulse APK')) {
-            span.textContent = `Download HydroPulse APK (v${data.version})`;
+          // Update changelog section
+          const changelogBadge = document.querySelector('.release-notes-banner span');
+          if (changelogBadge) changelogBadge.textContent = `NEW IN v${data.version}`;
+          const changelogTitle = document.querySelector('.release-notes-banner strong');
+          if (changelogTitle && data.title) changelogTitle.textContent = data.title;
+          const changelogList = document.querySelector('.release-notes-banner ul');
+          if (changelogList && Array.isArray(data.changelog) && data.changelog.length > 0) {
+            changelogList.innerHTML = data.changelog.map(item => `<li>${item}</li>`).join('');
           }
-        });
-      }
-    })
-    .catch(() => {});
+
+          // All APK download links
+          const downloadLinks = document.querySelectorAll('a[href*="HydroPulse_WaterPumpController.apk"], .download-trigger, .nav-download-btn');
+          downloadLinks.forEach(link => {
+            const targetUrl = data.download_url ? `${data.download_url}?v=${data.version}` : `releases/HydroPulse_WaterPumpController.apk?v=${data.version}`;
+            link.setAttribute('href', targetUrl);
+            const span = link.querySelector('span');
+            if (span && span.textContent.includes('Download HydroPulse APK')) {
+              span.textContent = `Download HydroPulse APK (v${data.version})`;
+            }
+          });
+        }
+      })
+      .catch(() => {});
+  }
+  syncWebsiteVersion();
 
   // Initialize
   drawQrPlaceholder();

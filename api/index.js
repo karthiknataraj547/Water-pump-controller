@@ -285,41 +285,49 @@ module.exports = async (req, res) => {
   }
 
   // 2. In-App Version & OTA Manifest
-  if (url.includes('/api/v1/app/version') || url === '/version.json') {
-    const versionFilePaths = [
-      path.join(__dirname, '../version.json'),
-      path.join(__dirname, 'version.json'),
-      path.join(process.cwd(), 'version.json'),
-      path.join(process.cwd(), '../version.json')
-    ];
-    let manifest = {
-      version: '2.0.7',
-      build_number: 10,
-      release_date: '2026-09-04',
-      min_supported_version: '1.0.0',
-      download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk',
-      website_url: 'https://water-pump-controller.vercel.app',
-      title: 'HydroPulse v2.0.7 - MQTT Synchronization, Hardware Auto-Adoption & Live Telemetry',
-      changelog: [
-        "Nodes Tab: 'Factory Reset' renamed to 'Remove Hardware' with instant node unbinding and clean state reset",
-        "Strict Online/Offline Detection: 6-second heartbeat watchdog immediately marks hardware offline when disconnected",
-        "Fixed multi-tenant device leakage: completely eliminated cross-account flickering between dashboard and add-device screen",
-        "Mode Memory: preserves and restores prior operational mode (Auto/Manual) when clearing emergency stop",
-        "Emergency Stop State: pulsating active alert banner, motor start lockout, and tap-to-reset toggle across mobile app and web console"
-      ],
-      is_critical: false
-    };
-
-    for (const p of versionFilePaths) {
-      if (fs.existsSync(p)) {
-        try {
-          manifest = JSON.parse(fs.readFileSync(p, 'utf-8'));
-          break;
-        } catch (_) {}
+  if (url.includes('/api/v1/app/version') || url.includes('/app/version') || url.endsWith('/version.json')) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+    let manifest;
+    try {
+      manifest = require('./version.json');
+    } catch (_) {
+      try {
+        manifest = require('../version.json');
+      } catch (_) {
+        const versionFilePaths = [
+          path.join(__dirname, 'version.json'),
+          path.join(__dirname, '../version.json'),
+          path.join(process.cwd(), 'version.json')
+        ];
+        for (const p of versionFilePaths) {
+          if (fs.existsSync(p)) {
+            try {
+              manifest = JSON.parse(fs.readFileSync(p, 'utf-8'));
+              break;
+            } catch (_) {}
+          }
+        }
       }
     }
 
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    if (!manifest) {
+      manifest = {
+        version: '2.0.9',
+        build_number: 12,
+        release_date: '2026-09-05',
+        min_supported_version: '1.0.0',
+        download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk',
+        website_url: 'https://water-pump-controller.vercel.app',
+        title: 'HydroPulse v2.0.9 - Backend Double Verification of Online Status & Clean Pump Control Card',
+        changelog: [
+          'Backend Double-Verification: Device status verified strictly against authentic hardware heartbeats (<15s window). Offline by default until physical connection is confirmed.',
+          'Zero False Online: Fixed bug where reading live telemetry or arbitrary MQTT broadcasts marked hardware as online.',
+          'Pump Control Card Cleanup: Removed redundant status pills from the pump control card, returning to a clean, minimal interface.',
+          'Web & Mobile Consistency: Both app and webapp enforce double-verified hardware presence and start in offline state when unpowered.'
+        ],
+        is_critical: false
+      };
+    }
 
     if (method === 'POST') {
       const { version, build_number, title, changelog, is_critical, download_url } = body;
@@ -334,10 +342,14 @@ module.exports = async (req, res) => {
         download_url: download_url || manifest.download_url
       };
 
-      for (const p of versionFilePaths) {
+      const savePaths = [
+        path.join(__dirname, 'version.json'),
+        path.join(__dirname, '../version.json'),
+        path.join(process.cwd(), 'version.json')
+      ];
+      for (const p of savePaths) {
         try {
           fs.writeFileSync(p, JSON.stringify(updated, null, 2));
-          break;
         } catch (_) {}
       }
 
@@ -886,35 +898,6 @@ module.exports = async (req, res) => {
         remainingDevices: devicesDb.size,
         timestamp: new Date().toISOString()
       }
-    });
-  }
-
-  // 11. Application Release Version Manifest (OTA Update Engine)
-  if (method === 'GET' && (url.includes('/api/v1/app/version') || url.includes('/app/version') || url.endsWith('/version.json'))) {
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    try {
-      const vPath = path.join(__dirname, '..', 'version.json');
-      if (fs.existsSync(vPath)) {
-        const vData = JSON.parse(fs.readFileSync(vPath, 'utf8'));
-        return res.status(200).json(vData);
-      }
-    } catch (_) {}
-    return res.status(200).json({
-      version: "2.0.7",
-      build_number: 10,
-      release_date: "2026-09-04",
-      min_supported_version: "1.0.0",
-      download_url: "https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk",
-      website_url: "https://water-pump-controller.vercel.app",
-      title: "HydroPulse v2.0.7 - MQTT Synchronization, Hardware Auto-Adoption & Live Telemetry",
-      changelog: [
-        "Nodes Tab: 'Factory Reset' renamed to 'Remove Hardware' with instant node unbinding and clean state reset",
-        "Strict Online/Offline Detection: 6-second heartbeat watchdog immediately marks hardware offline when disconnected",
-        "Fixed multi-tenant device leakage: completely eliminated cross-account flickering between dashboard and add-device screen",
-        "Mode Memory: preserves and restores prior operational mode (Auto/Manual) when clearing emergency stop",
-        "Emergency Stop State: pulsating active alert banner, motor start lockout, and tap-to-reset toggle across mobile app and web console"
-      ],
-      is_critical: false
     });
   }
 

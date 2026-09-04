@@ -1,3 +1,5 @@
+import '../../core/constants/app_constants.dart';
+
 class DeviceModel {
   final String id;
   final String name;
@@ -42,7 +44,7 @@ class DeviceModel {
       pumpState: (json['pumpState'] ?? json['pump_state'] ?? 'OFF').toString(),
       mode: (json['mode'] ?? 'AUTO').toString(),
       wifiRssi: (json['wifiRssi'] ?? json['wifi_rssi'] ?? -65) is int ? (json['wifiRssi'] ?? json['wifi_rssi'] ?? -65) as int : -65,
-      firmwareVersion: (json['firmwareVersion'] ?? json['firmware_version'] ?? '2.0.7').toString(),
+      firmwareVersion: (json['firmwareVersion'] ?? json['firmware_version'] ?? AppConstants.appVersion).toString(),
       lastSeen: json['lastSeen'] != null ? (DateTime.tryParse(json['lastSeen'].toString()) ?? DateTime.now()) : DateTime.now(),
       unresolvedAlertCount: json['unresolvedAlertCount'] is int ? json['unresolvedAlertCount'] as int : 0,
     );

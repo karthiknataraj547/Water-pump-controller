@@ -1190,7 +1190,7 @@ class HardwareStateService extends ChangeNotifier {
       pumpState: 'OFF',
       mode: 'AUTO',
       wifiRssi: -65,
-      firmwareVersion: '2.0.7',
+      firmwareVersion: AppConstants.appVersion,
       lastSeen: DateTime.now(),
     );
 

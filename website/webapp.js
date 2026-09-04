@@ -333,7 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
           status: 'OFFLINE',
           pumpState: 'OFF',
           mode: 'AUTO',
-          firmwareVersion: 'v2.0.8',
+          firmwareVersion: 'v2.0.9',
           wifiRssi: -65
         };
         applyActiveDevice(borewellDev);
@@ -377,7 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
           status: 'OFFLINE',
           pumpState: 'OFF',
           mode: 'AUTO',
-          firmwareVersion: 'v2.0.8',
+          firmwareVersion: 'v2.0.9',
           wifiRssi: -65
         };
         applyActiveDevice(customDev);
@@ -428,17 +428,24 @@ document.addEventListener('DOMContentLoaded', () => {
           .then(data => {
             if (data && data.version) {
               const otaVer = document.getElementById('ota-current-version');
-              if (otaVer) otaVer.textContent = `v${data.version} • Build ${data.build_number || 7}`;
+              if (otaVer) otaVer.textContent = `v${data.version} • Build ${data.build_number || 12}`;
 
               const setVer = document.getElementById('settings-app-version');
-              if (setVer) setVer.textContent = `v${data.version} (Build ${data.build_number || 7})`;
+              if (setVer) setVer.textContent = `v${data.version} (Build ${data.build_number || 12})`;
 
-              const dlLinks = document.querySelectorAll('a[href*="HydroPulse_WaterPumpController.apk"]');
+              document.querySelectorAll('.sb-edition').forEach(el => el.textContent = `System Console v${data.version}`);
+              document.querySelectorAll('.sys-chip').forEach(el => {
+                if (el.textContent.startsWith('v2.')) el.textContent = `v${data.version}`;
+              });
+
+              const dlLinks = document.querySelectorAll('a[href*="HydroPulse_WaterPumpController.apk"], .btn-mobile-download');
               dlLinks.forEach(link => {
                 const targetUrl = data.download_url ? `${data.download_url}?v=${data.version}` : `releases/HydroPulse_WaterPumpController.apk?v=${data.version}`;
                 link.setAttribute('href', targetUrl);
                 const sp = link.querySelector('span');
-                if (sp) sp.textContent = `📥 Download Android APK v${data.version} (55.6 MB)`;
+                if (sp && sp.textContent.includes('Download Android APK')) {
+                  sp.textContent = `📥 Download Android APK v${data.version} (55.6 MB)`;
+                }
               });
             }
           })
@@ -452,9 +459,9 @@ document.addEventListener('DOMContentLoaded', () => {
           try {
             const res = await fetch(`version.json?t=${Date.now()}`);
             const data = await res.json();
-            alert(`HydroPulse Update Engine:\nLatest Release: v${data.version} (Build ${data.build_number || 7})\nRelease Date: ${data.release_date}\nTitle: ${data.title}\nStatus: System is synchronized with the latest release.`);
+            alert(`HydroPulse Update Engine:\nLatest Release: v${data.version} (Build ${data.build_number || 12})\nRelease Date: ${data.release_date}\nTitle: ${data.title}\nStatus: System is synchronized with the latest release.`);
           } catch (_) {
-            alert('HydroPulse Update Engine:\nInstalled Client: v2.0.4 (Build 7)\nStatus: Running latest official release with in-app OTA and direct package installer support.');
+            alert('HydroPulse Update Engine:\nInstalled Client: v2.0.9 (Build 12)\nStatus: Running latest official release with in-app OTA and direct package installer support.');
           }
         };
       }

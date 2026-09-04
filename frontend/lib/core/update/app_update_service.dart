@@ -62,9 +62,9 @@ class AppUpdateService {
     receiveTimeout: const Duration(seconds: 8),
   ));
 
-  // Dynamic installed version (defaults to active release v2.0.7 Build 10)
-  String _currentVersion = '2.0.7';
-  int _currentBuildNumber = 10;
+  // Dynamic installed version (defaults to AppConstants)
+  String _currentVersion = AppConstants.appVersion;
+  int _currentBuildNumber = AppConstants.appBuildNumber;
   static String get currentVersion => _instance._currentVersion;
   static int get currentBuildNumber => _instance._currentBuildNumber;
   bool _initialized = false;
@@ -177,14 +177,40 @@ class AppUpdateService {
     }
   }
 
-  /// Checks for updates using GitHub raw (cache-busted) as primary, followed by backend
+  /// Checks for updates using static Vercel JSON as primary, followed by GitHub raw and backend
   Future<AppVersionInfo?> fetchLatestVersion() async {
     _isChecking = true;
     await initVersion();
     final timestamp = DateTime.now().millisecondsSinceEpoch;
 
-    // 1. Primary: GitHub Raw Manifest with timestamp cache-buster
-    // Canonical real-time source of truth for developer pushes
+    // 1. Primary: Direct Vercel Edge Static JSON (fastest, guaranteed fresh edge CDN)
+    try {
+      final staticUrl = '${AppConstants.staticVersionUrl}?t=$timestamp';
+      final res = await _dio.get(
+        staticUrl,
+        options: Options(
+          responseType: ResponseType.json,
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          },
+        ),
+      );
+      if (res.statusCode == 200 && res.data != null) {
+        final data = res.data is String ? jsonDecode(res.data) : res.data;
+        if (data is Map<String, dynamic>) {
+          _latestVersionInfo = AppVersionInfo.fromJson(data);
+          _isChecking = false;
+          debugPrint('[AppUpdateService] Fetched from Vercel static: v${_latestVersionInfo!.version}+${_latestVersionInfo!.buildNumber}');
+          return _latestVersionInfo;
+        }
+      }
+    } catch (e) {
+      debugPrint('[AppUpdateService] Vercel static check notice: $e');
+    }
+
+    // 2. Secondary: GitHub Raw Manifest with timestamp cache-buster
     try {
       final cacheBusterUrl = '$_githubRawVersionUrl?t=$timestamp';
       final res = await _dio.get(

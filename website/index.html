@@ -32,7 +32,7 @@
           </svg>
         </div>
         <span class="brand-title">Hydro<span>Pulse</span></span>
-        <span class="version-tag">v2.0.7</span>
+        <span class="version-tag">v2.0.9</span>
       </a>
 
       <nav class="nav-links">
@@ -66,7 +66,7 @@
       <div class="hero-content">
         <div class="hero-badge">
           <span class="pulse-dot"></span>
-          <span id="hero-release-pill">Latest Release: <strong>v2.0.7</strong> Live • Real-Time In-App OTA Update Engine</span>
+          <span id="hero-release-pill">Latest Release: <strong>v2.0.9</strong> Live • Real-Time In-App OTA Update Engine</span>
         </div>
         <h1 class="hero-title">
           Intelligent Water Pump Control & <span class="gradient-text">Real-Time Telemetry</span>
@@ -88,13 +88,13 @@
             </div>
           </a>
 
-          <a href="releases/HydroPulse_WaterPumpController.apk?v=2.0.7" class="btn btn-secondary btn-large download-trigger" download="HydroPulse_WaterPumpController.apk">
+          <a href="releases/HydroPulse_WaterPumpController.apk?v=2.0.9" class="btn btn-secondary btn-large download-trigger" download="HydroPulse_WaterPumpController.apk">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
               <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
             </svg>
             <div class="btn-text-wrap">
               <span class="btn-main">Download Android APK</span>
-              <span class="btn-sub apk-sub-version">v2.0.7 • 55.6 MB • Direct Install</span>
+              <span class="btn-sub apk-sub-version">v2.0.9 • 55.6 MB • Direct Install</span>
             </div>
           </a>
         </div>
@@ -423,7 +423,7 @@
           <p>Download the standalone APK directly onto your Android device or build from source using Flutter.</p>
 
           <div class="download-specs">
-            <div class="spec-chip" id="spec-version-badge">📱 Version: <strong>v2.0.7</strong></div>
+            <div class="spec-chip" id="spec-version-badge">📱 Version: <strong>v2.0.9</strong></div>
             <div class="spec-chip">📦 Package: <strong>55.6 MB</strong></div>
             <div class="spec-chip" id="spec-release-date">📅 Released: <strong>September 2026</strong></div>
             <div class="spec-chip">🤖 Target: <strong>Android 8.0+ (API 26+)</strong></div>
@@ -432,22 +432,23 @@
 
           <div class="release-notes-banner" style="margin-top: 18px; margin-bottom: 22px; padding: 16px 18px; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.25); border-radius: 14px;">
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-              <span style="background: #10b981; color: #000; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px;">NEW IN v2.0.7</span>
-              <strong style="font-size: 14px; color: #fff;">MQTT Synchronization, Hardware Auto-Adoption & Live Telemetry</strong>
+              <span style="background: #10b981; color: #000; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px;">NEW IN v2.0.9</span>
+              <strong style="font-size: 14px; color: #fff;">Backend Double-Verification & Clean Pump Control Card</strong>
             </div>
             <ul style="margin: 0; padding-left: 18px; font-size: 13px; color: rgba(255,255,255,0.75); line-height: 1.6;">
-              <li><strong>MQTT Broker Alignment:</strong> Primary routing configured on broker.emqx.io for instant mobile-firmware sync.</li>
-              <li><strong>Hardware Auto-Adoption:</strong> Mobile app seamlessly discovers active ESP32 nodes and binds live stream.</li>
-              <li><strong>Live Periodic Telemetry:</strong> Real-time water level, flow rate, temperature, TDS, and battery updates.</li>
+              <li><strong>Backend Double-Verification:</strong> Hardware status verified strictly against authentic heartbeats (&lt;15s window). Offline by default until confirmed.</li>
+              <li><strong>Zero False Online:</strong> Fixed bug where reading live telemetry or arbitrary MQTT broadcasts marked hardware as online.</li>
+              <li><strong>Pump Control Card Cleanup:</strong> Removed redundant status pills from the pump control card, returning to a clean, minimal interface.</li>
+              <li><strong>Web & Mobile Consistency:</strong> Real-time hardware synchronization and consistent offline startup across platforms.</li>
             </ul>
           </div>
 
           <div class="download-btn-row">
-            <a href="releases/HydroPulse_WaterPumpController.apk?v=2.0.7" class="btn btn-primary btn-large download-trigger" download="HydroPulse_WaterPumpController.apk">
+            <a href="releases/HydroPulse_WaterPumpController.apk?v=2.0.9" class="btn btn-primary btn-large download-trigger" download="HydroPulse_WaterPumpController.apk">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
                 <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
               </svg>
-              <span>Download HydroPulse APK (v2.0.7)</span>
+              <span>Download HydroPulse APK (v2.0.9)</span>
             </a>
 
             <a href="https://github.com/karthiknataraj547/Water-pump-controller" target="_blank" rel="noreferrer" class="btn btn-secondary btn-large">
