@@ -18,6 +18,7 @@ class _HardwareScreenState extends State<HardwareScreen> {
   void initState() {
     super.initState();
     hardwareStateService.addListener(_onHardwareStateChanged);
+    hardwareStateService.fetchUserDevicesFromBackend();
   }
 
   @override
@@ -55,6 +56,7 @@ class _HardwareScreenState extends State<HardwareScreen> {
             icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Refresh Status',
             onPressed: () async {
+              await hardwareStateService.fetchUserDevicesFromBackend();
               await hardwareStateService.connectMqtt();
             },
           ),
@@ -62,6 +64,7 @@ class _HardwareScreenState extends State<HardwareScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
+          await hardwareStateService.fetchUserDevicesFromBackend();
           await hardwareStateService.connectMqtt();
         },
         color: colorScheme.primary,

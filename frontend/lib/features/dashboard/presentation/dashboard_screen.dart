@@ -35,6 +35,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     super.initState();
     _loadUserProfile();
     hardwareStateService.addListener(_onHardwareStateChanged);
+    hardwareStateService.fetchUserDevicesFromBackend();
     overflowAlertService.addListener(_onHardwareStateChanged);
     ThemeNotifier.instance.addListener(_onHardwareStateChanged);
 

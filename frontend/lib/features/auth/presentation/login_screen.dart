@@ -215,9 +215,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         await storage.write(key: AppConstants.keyAccessToken, value: finalToken);
         await storage.write(key: AppConstants.keyRefreshToken, value: finalRefresh);
 
-        // CRITICAL: A new user has NOT added any device yet!
-        await storage.delete(key: AppConstants.keySelectedDeviceId);
-        await hardwareStateService.clearDevice();
+        // Check if hardware already registered in cloud backend database for this account
+        await hardwareStateService.fetchUserDevicesFromBackend();
 
         // Refresh auth state immediately
         authStateNotifier.value = finalToken;
@@ -304,9 +303,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         await storage.write(key: AppConstants.keyAccessToken, value: finalToken);
         await storage.write(key: AppConstants.keyRefreshToken, value: finalRefresh);
 
-        // Clean out any old mock device association
-        await storage.delete(key: AppConstants.keySelectedDeviceId);
-        await hardwareStateService.clearDevice();
+        // Synchronize and activate paired hardware for this account from cloud backend database
+        await hardwareStateService.fetchUserDevicesFromBackend();
 
         // Trigger GoRouter refresh
         authStateNotifier.value = finalToken;
@@ -504,9 +502,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         await storage.write(key: AppConstants.keyAccessToken, value: finalToken);
         await storage.write(key: AppConstants.keyRefreshToken, value: finalRefresh);
 
-        // Clean out any old mock device association
-        await storage.delete(key: AppConstants.keySelectedDeviceId);
-        await hardwareStateService.clearDevice();
+        // Synchronize and activate paired hardware for this account from cloud backend database
+        await hardwareStateService.fetchUserDevicesFromBackend();
 
         // Trigger GoRouter refresh
         authStateNotifier.value = finalToken;

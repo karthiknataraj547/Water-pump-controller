@@ -5,9 +5,10 @@
 
 const crypto = require('crypto');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
-const STORE_PATH = process.env.STORE_PATH || path.join('/tmp', 'hydropulse_store.json');
+const STORE_PATH = process.env.STORE_PATH || path.join(os.tmpdir(), 'hydropulse_store.json');
 
 // Persistent Database Registries (Persisted across requests / restarts)
 const usersDb = new Map();
@@ -172,6 +173,8 @@ module.exports = async (req, res) => {
 
   const url = req.url || '';
   const method = req.method;
+  const parsedUrl = new URL(url, 'http://localhost');
+  const query = req.query || Object.fromEntries(parsedUrl.searchParams.entries());
 
   // Parse JSON body if present
   let body = {};
@@ -447,78 +450,108 @@ module.exports = async (req, res) => {
   }
 
   // 7. Get User Devices
-  if (method === 'GET' && url.includes('/api/v1/devices')) {
+  // 7. Get User Devices (Shared across devices & accounts)
+  if (method === 'GET' && (url.includes('/devices/claim-token') || url.includes('/claim-token'))) {
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        claimToken: `tok_claim_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
+      }
+    });
+  }
+
+  if (method === 'GET' && (url.includes('/devices') || url.includes('/api/v1/devices'))) {
     const authHeader = req.headers['authorization'] || '';
     const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
     const payload = verifyToken(token);
 
-    if (payload && payload.userId) {
-      let userDevices = Array.from(devicesDb.values()).filter(d => d.userId === payload.userId);
-      if (userDevices.length === 0) {
-        const defaultDev = {
-          id: 'esp32_pump_main',
-          deviceId: 'esp32_pump_main',
-          nodeId: 'esp32_pump_main',
-          name: 'ESP32 Main Gateway',
-          macAddress: '24:6F:28:B2:A4:10',
-          userId: payload.userId,
-          isOnline: true,
-          pumpRunning: liveState.pumpRunning,
-          mode: liveState.mode,
-          waterLevelPct: liveState.waterLevelPct,
-          pairedAt: new Date().toISOString()
-        };
-        devicesDb.set(`esp32_pump_main_${payload.userId}`, defaultDev);
-        userDevices = [defaultDev];
-      }
-      return res.status(200).json({
-        status: 'success',
-        data: userDevices
-      });
-    }
+    const targetEmail = (payload?.email || query.email || req.headers['x-user-email'] || '').toLowerCase();
+    const targetUserId = payload?.userId || query.userId || '';
 
-    return res.status(200).json({
-      status: 'success',
-      data: [{
+    let userDevices = Array.from(devicesDb.values()).filter(d => {
+      if (d.userId === 'all') return true;
+      if (targetUserId && d.userId === targetUserId) return true;
+      if (targetEmail && d.userEmail && d.userEmail.toLowerCase() === targetEmail) return true;
+      if (targetEmail && d.userId && d.userId.toLowerCase() === targetEmail) return true;
+      return false;
+    });
+
+    // If user has custom added hardware, prioritize that over generic default
+    const customDevices = userDevices.filter(d => (d.userEmail && targetEmail && d.userEmail.toLowerCase() === targetEmail) || (d.id !== 'esp32_pump_main'));
+    if (customDevices.length > 0) {
+      userDevices = customDevices;
+    } else if (userDevices.length === 0) {
+      const defaultDev = {
         id: 'esp32_pump_main',
         deviceId: 'esp32_pump_main',
         nodeId: 'esp32_pump_main',
         name: 'ESP32 Main Gateway',
         macAddress: '24:6F:28:B2:A4:10',
-        userId: 'default_guest',
+        userId: targetUserId || targetEmail || 'default_user',
+        userEmail: targetEmail || '',
         isOnline: true,
         pumpRunning: liveState.pumpRunning,
         mode: liveState.mode,
         waterLevelPct: liveState.waterLevelPct,
-        pairedAt: new Date().toISOString()
-      }]
+        pairedAt: new Date().toISOString(),
+        lastSeen: new Date().toISOString()
+      };
+      devicesDb.set(`esp32_pump_main_${targetUserId || targetEmail || 'default'}`, defaultDev);
+      userDevices = [defaultDev];
+      saveState();
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      data: userDevices
     });
   }
 
-  // 7b. Register / Pair New Device
-  if (method === 'POST' && url.includes('/api/v1/devices')) {
+  // 7b. Register / Pair / Claim New Device (Saves to Persistent Database)
+  if (method === 'POST' && (url.includes('/devices/claim') || url.includes('/devices/pair') || url.includes('/devices'))) {
     const authHeader = req.headers['authorization'] || '';
     const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
     const payload = verifyToken(token);
 
-    const { name, macAddress, deviceId } = body;
+    const targetEmail = (payload?.email || body.userEmail || body.email || req.headers['x-user-email'] || '').toLowerCase();
+    const targetUserId = payload?.userId || body.userId || (targetEmail ? targetEmail : 'unassigned');
+
+    const devId = body.deviceId || body.id || body.nodeId || `esp32_${Date.now()}`;
     const newDevice = {
-      id: deviceId || `esp32_${Date.now()}`,
-      deviceId: deviceId || `esp32_${Date.now()}`,
-      name: name || 'HydroPulse Pump Gateway',
-      macAddress: macAddress || '00:00:00:00:00:00',
-      userId: payload ? payload.userId : 'unassigned',
+      id: devId,
+      deviceId: devId,
+      nodeId: devId,
+      name: body.name || 'ESP32 Main Gateway',
+      macAddress: body.macAddress || body.mac || '24:6F:28:B2:A4:10',
+      userId: targetUserId,
+      userEmail: targetEmail,
       isOnline: true,
       pumpRunning: liveState.pumpRunning,
       mode: liveState.mode,
       waterLevelPct: liveState.waterLevelPct,
-      pairedAt: new Date().toISOString()
+      pairedAt: new Date().toISOString(),
+      lastSeen: new Date().toISOString()
     };
-    devicesDb.set(newDevice.id, newDevice);
+    devicesDb.set(devId, newDevice);
+    saveState();
 
     return res.status(201).json({
       status: 'success',
+      message: 'Device successfully registered and synchronized with user account.',
       data: newDevice
+    });
+  }
+
+  // 7c. Unpair / Delete Device
+  if ((method === 'DELETE' && url.includes('/devices')) || (method === 'POST' && url.includes('/devices/unpair'))) {
+    const devId = req.query?.id || body.deviceId || body.id || (url.split('/').pop() !== 'devices' ? url.split('/').pop() : '');
+    if (devId && devicesDb.has(devId)) {
+      devicesDb.delete(devId);
+      saveState();
+    }
+    return res.status(200).json({
+      status: 'success',
+      message: `Device ${devId} unpaired successfully.`
     });
   }
 

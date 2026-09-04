@@ -221,8 +221,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Fetch user's devices from the centralized backend to check for hardware
       try {
-        const devRes = await fetch(`${apiBaseUrl}/devices`, {
-          headers: { 'Authorization': `Bearer ${authToken}` }
+        const queryEmail = user.email ? `?email=${encodeURIComponent(user.email)}` : '';
+        const devRes = await fetch(`${apiBaseUrl}/devices${queryEmail}`, {
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'x-user-email': user.email || ''
+          }
         });
         if (devRes.ok) {
           const devJson = await devRes.json();

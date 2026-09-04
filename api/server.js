@@ -40,10 +40,12 @@ const server = http.createServer(async (req, res) => {
     pathname === '/auth/register' ||
     pathname === '/command' ||
     pathname === '/telemetry' ||
+    pathname.startsWith('/devices') ||
     pathname.startsWith('/pumps/') ||
     pathname.startsWith('/automation/')
   ) {
     // Wrap req / res to provide express/vercel compatibility
+    req.query = parsedUrl.query || {};
     res.status = function (code) {
       res.statusCode = code;
       return res;

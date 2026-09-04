@@ -2,8 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../mqtt/mqtt_service.dart';
 import '../constants/app_constants.dart';
+import '../network/api_client.dart';
 import '../../shared/models/device_model.dart';
 import '../../shared/models/sensor_data_model.dart';
 import '../../shared/models/pump_status_model.dart';
@@ -171,6 +174,115 @@ class HardwareStateService extends ChangeNotifier {
     _lastMainNodeHeartbeat = DateTime.now();
     _lastSubNodePacket = null;
     notifyListeners();
+  }
+
+  Future<void> syncDeviceToBackend(DeviceModel device) async {
+    try {
+      const storage = FlutterSecureStorage();
+      final email = await storage.read(key: AppConstants.keyUserEmail);
+      final token = await storage.read(key: AppConstants.keyAccessToken);
+
+      final payload = {
+        'deviceId': device.id,
+        'id': device.id,
+        'nodeId': device.id,
+        'name': device.name,
+        'macAddress': device.macAddress,
+        'userEmail': email?.trim().toLowerCase() ?? '',
+        'userId': email?.trim().toLowerCase() ?? 'user',
+        'status': device.status,
+        'pumpState': device.pumpState,
+        'mode': device.mode,
+        'wifiRssi': device.wifiRssi,
+        'firmwareVersion': device.firmwareVersion,
+      };
+
+      final headers = <String, dynamic>{
+        if (email != null && email.isNotEmpty) 'x-user-email': email.trim().toLowerCase(),
+        if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+      };
+
+      await apiClient.post(
+        '/devices',
+        data: payload,
+        options: Options(headers: headers),
+      );
+
+      // Call /devices/claim as well for compatibility
+      await apiClient.post(
+        '/devices/claim',
+        data: payload,
+        options: Options(headers: headers),
+      );
+
+      await storage.write(key: AppConstants.keySelectedDeviceId, value: device.id);
+      debugPrint('[HardwareStateService] Synchronized device ${device.id} to cloud backend database for $email');
+    } catch (e) {
+      debugPrint('[HardwareStateService] syncDeviceToBackend notice: $e');
+    }
+  }
+
+  Future<void> fetchUserDevicesFromBackend() async {
+    try {
+      const storage = FlutterSecureStorage();
+      final email = await storage.read(key: AppConstants.keyUserEmail);
+      final token = await storage.read(key: AppConstants.keyAccessToken);
+
+      final Map<String, dynamic> queryParams = {};
+      if (email != null && email.trim().isNotEmpty) {
+        queryParams['email'] = email.trim().toLowerCase();
+      }
+
+      final res = await apiClient.get(
+        '/devices',
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+        options: Options(
+          headers: {
+            if (email != null && email.isNotEmpty) 'x-user-email': email.trim().toLowerCase(),
+            if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+          },
+        ),
+      );
+
+      if (res.statusCode == 200 && res.data != null && res.data['status'] == 'success') {
+        final rawList = res.data['data'];
+        if (rawList is List && rawList.isNotEmpty) {
+          // Look for any custom paired device first, or first device in list
+          final customDevices = rawList.where((d) => d is Map && (d['id'] != 'esp32_pump_main' || (email != null && d['userEmail'] == email))).toList();
+          final target = (customDevices.isNotEmpty ? customDevices.first : rawList.first) as Map<String, dynamic>;
+
+          final devId = (target['deviceId'] ?? target['id'] ?? target['nodeId'] ?? '').toString();
+          if (devId.isNotEmpty) {
+            final devName = (target['name'] ?? 'HydroPulse Gateway').toString();
+            final devMac = (target['macAddress'] ?? target['mac'] ?? '24:6F:28:B2:A4:10').toString();
+            final rawPump = (target['pumpState'] ?? target['pump_state'] ?? 'OFF').toString().toUpperCase();
+            final pumpNorm = (rawPump == 'ON' || rawPump == 'RUNNING' || rawPump == '1') ? 'ON' : 'OFF';
+            final devMode = (target['mode'] ?? 'AUTO').toString().toUpperCase();
+            final fwVer = (target['firmwareVersion'] ?? target['firmware_version'] ?? 'v2.0.2').toString();
+            final rssi = target['wifiRssi'] ?? target['wifi_rssi'] ?? -65;
+
+            _activeDevice = DeviceModel(
+              id: devId,
+              name: devName,
+              macAddress: devMac,
+              status: 'ONLINE',
+              pumpState: pumpNorm,
+              mode: devMode,
+              wifiRssi: rssi is int ? rssi : -65,
+              firmwareVersion: fwVer,
+              lastSeen: DateTime.now(),
+            );
+
+            await _persistActiveDevice();
+            await storage.write(key: AppConstants.keySelectedDeviceId, value: devId);
+            notifyListeners();
+            debugPrint('[HardwareStateService] Fetched and activated device $devId ($devName) from cloud backend for $email');
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[HardwareStateService] fetchUserDevicesFromBackend notice: $e');
+    }
   }
   SensorDataModel? get sensorData => _sensorData;
   PumpStatusModel? get pumpStatus => _pumpStatus;
@@ -437,6 +549,14 @@ class HardwareStateService extends ChangeNotifier {
       _activeDevice = _createDefaultDevice();
     }
 
+    // If a saved custom device exists locally, sync to backend to ensure cloud persistence
+    if (_activeDevice != null && _activeDevice!.id != 'esp32_pump_main') {
+      syncDeviceToBackend(_activeDevice!);
+    }
+
+    // Always fetch latest hardware synchronized in cloud backend database for this account
+    fetchUserDevicesFromBackend();
+
     _lastMainNodeHeartbeat = null;
     _lastSubNodePacket = null;
     _isVerifyingStatus = false;
@@ -590,6 +710,7 @@ class HardwareStateService extends ChangeNotifier {
   }
 
   Future<void> refresh() async {
+    await fetchUserDevicesFromBackend();
     if (!_isMqttConnected) {
       await connectMqtt();
     } else {
@@ -935,6 +1056,7 @@ class HardwareStateService extends ChangeNotifier {
     );
 
     _persistActiveDevice();
+    syncDeviceToBackend(_activeDevice!);
     notifyListeners();
   }
 
@@ -981,6 +1103,7 @@ class HardwareStateService extends ChangeNotifier {
   }
 
   Future<void> removeDevice() async {
+    final devId = _activeDevice?.id;
     _activeDevice = null;
     _sensorData = null;
     _pumpStatus = null;
@@ -990,6 +1113,36 @@ class HardwareStateService extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('saved_paired_device');
     await prefs.remove('last_heartbeat_ms');
+    const storage = FlutterSecureStorage();
+    await storage.delete(key: AppConstants.keySelectedDeviceId);
+
+    if (devId != null && devId.isNotEmpty) {
+      try {
+        final email = await storage.read(key: AppConstants.keyUserEmail);
+        final token = await storage.read(key: AppConstants.keyAccessToken);
+        await apiClient.delete(
+          '/devices/$devId',
+          options: Options(
+            headers: {
+              if (email != null && email.isNotEmpty) 'x-user-email': email.trim().toLowerCase(),
+              if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+            },
+          ),
+        );
+        await apiClient.post(
+          '/devices/unpair',
+          data: {'deviceId': devId},
+          options: Options(
+            headers: {
+              if (email != null && email.isNotEmpty) 'x-user-email': email.trim().toLowerCase(),
+              if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+            },
+          ),
+        );
+      } catch (e) {
+        debugPrint('[HardwareStateService] Notice unpairing device from cloud: $e');
+      }
+    }
     notifyListeners();
   }
 
