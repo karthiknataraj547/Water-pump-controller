@@ -151,8 +151,8 @@ unsigned long lastSensorPacketTime = 0;
 TaskHandle_t TaskNetworkHandle = NULL;
 TaskHandle_t TaskControlHandle = NULL;
 
-// Cloud Broker Failover Pool (Prioritizing Mosquitto MQTT broker for low-latency communication)
-const char* CLOUD_BROKERS[] = {"test.mosquitto.org", "broker.emqx.io", "broker.hivemq.com"};
+// Cloud Broker Failover Pool (Prioritizing EMQX Cloud MQTT broker for low-latency synchronized communication)
+const char* CLOUD_BROKERS[] = {"broker.emqx.io", "broker.hivemq.com", "test.mosquitto.org"};
 int currentBrokerIdx = 0;
 unsigned long lastMqttRetry = 0;
 
@@ -659,13 +659,16 @@ void TaskNetwork(void *pvParameters) {
         if (mqttClient.connect(clientId.c_str(), ("pump/" + deviceId + "/status").c_str(), 1, true, lwtPayload.c_str())) {
           Serial.printf("[MQTT] Connected to Broker: %s!\n", targetBroker);
 
-          // Subscriptions - commands and fast ping topics
+          // Subscriptions - commands, wildcards, and fast ping topics
           String cmdTopic = "pump/" + deviceId + "/command";
           String pingTopic = "pump/" + deviceId + "/ping";
           mqttClient.subscribe("pump/command");
           mqttClient.subscribe(cmdTopic.c_str());
           mqttClient.subscribe("pump/ping");
           mqttClient.subscribe(pingTopic.c_str());
+          mqttClient.subscribe("waterpump/esp32/control");
+          mqttClient.subscribe("pump/+/+/command");
+          mqttClient.subscribe("pump/+/+/ping");
 
           // Send immediate live ONLINE status
           StaticJsonDocument<256> initDoc;
@@ -767,10 +770,10 @@ void TaskNetwork(void *pvParameters) {
         }
       }
 
-      // 3. Dedicated Main Node Heartbeat (every 2.0 seconds)
+      // 3. Dedicated Main Node Heartbeat & Live Telemetry (every 2.0 seconds)
       if (millis() - lastReport > STATUS_REPORT_INTERVAL) {
         lastReport = millis();
-        StaticJsonDocument<256> doc;
+        StaticJsonDocument<384> doc;
         doc["deviceId"] = deviceId;
         doc["nodeType"] = "MAIN_NODE";
         doc["status"] = "ONLINE";
@@ -779,6 +782,12 @@ void TaskNetwork(void *pvParameters) {
         doc["emergencyStopped"] = emergencyStopped;
         bool subAlive = (lastSensorPacketTime > 0 && (millis() - lastSensorPacketTime) < SUB_NODE_TIMEOUT_MS);
         doc["subNodeOnline"] = subAlive;
+        doc["waterLevel"] = currentLevelPct;
+        doc["waterVolume"] = currentVolumeL;
+        doc["flowRate"] = currentFlowRateLpm;
+        doc["temperature"] = currentTempC;
+        doc["tds"] = currentTdsPpm;
+        doc["battery"] = currentBatteryV;
         doc["ip"] = WiFi.localIP().toString();
         doc["rssi"] = WiFi.RSSI();
         doc["timestamp"] = millis();
@@ -786,8 +795,10 @@ void TaskNetwork(void *pvParameters) {
         serializeJson(doc, out);
         mqttClient.publish("pump/status", out.c_str(), false);
         mqttClient.publish("pump/heartbeat", out.c_str(), false);
+        mqttClient.publish("pump/telemetry", out.c_str(), false);
         mqttClient.publish(("devices/" + deviceId + "/heartbeat").c_str(), out.c_str(), false);
         mqttClient.publish(("pump/" + deviceId + "/status").c_str(), out.c_str(), false);
+        mqttClient.publish(("pump/" + deviceId + "/telemetry").c_str(), out.c_str(), false);
       }
     }
 

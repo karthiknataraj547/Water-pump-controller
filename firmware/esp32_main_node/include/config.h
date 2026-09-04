@@ -21,7 +21,7 @@
 #define BLE_DEVICE_PREFIX      "PumpController-"
 
 #define DEFAULT_MQTT_PORT      1883
-#define DEFAULT_MQTT_BROKER    "test.mosquitto.org"  // Mosquitto standard broker default
+#define DEFAULT_MQTT_BROKER    "broker.emqx.io"  // Standard centralized EMQX Cloud MQTT broker
 
 #define SENSOR_TIMEOUT_MS      45000  // 45s without ESP-NOW packet = sensor offline
 #define STATUS_REPORT_INTERVAL 1000   // 1000ms (1s) periodic MQTT status report (fast heartbeat)

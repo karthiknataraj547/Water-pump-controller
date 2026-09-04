@@ -67,16 +67,20 @@ void MqttManager::reconnect() {
 
       // Subscribe to command, config, and ping topics
       String cmdTopic = "pump/" + userId + "/" + devId + "/command";
+      String devCmdTopic = "pump/" + devId + "/command";
       String cfgTopic = "pump/" + userId + "/" + devId + "/config";
       String pingTopic = "pump/" + userId + "/" + devId + "/ping";
       String devPingTopic = "pump/" + devId + "/ping";
+      client.subscribe("pump/command", 0);
+      client.subscribe(devCmdTopic.c_str(), 0);
       client.subscribe(cmdTopic.c_str(), 0);
+      client.subscribe("waterpump/esp32/control", 0);
       client.subscribe(cfgTopic.c_str(), 0);
       client.subscribe(pingTopic.c_str(), 0);
       client.subscribe(devPingTopic.c_str(), 0);
       client.subscribe("pump/ping", 0);
 
-      Serial.printf("[MQTT] Subscribed to %s, %s, and %s\n", cmdTopic.c_str(), cfgTopic.c_str(), pingTopic.c_str());
+      Serial.printf("[MQTT] Subscribed to %s, %s, %s, and %s\n", devCmdTopic.c_str(), cmdTopic.c_str(), cfgTopic.c_str(), pingTopic.c_str());
     } else {
       Serial.printf("[MQTT] Connection failed, rc=%d. Will retry in 5s.\n", client.state());
     }

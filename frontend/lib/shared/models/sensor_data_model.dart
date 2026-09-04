@@ -36,22 +36,54 @@ class SensorDataModel {
   }
 
   factory SensorDataModel.fromJson(Map<String, dynamic> json) {
+    final lvl = (json['waterLevel'] ?? json['water_level'] ?? json['water_level_pct'] ?? json['waterLevelPct'] ?? 0.0 as num).toDouble();
+    final lvlCm = (json['water_level_cm'] ?? json['waterLevelCm'] ?? ((lvl / 100.0) * 200.0) as num).toDouble();
+    final flow = (json['flowRate'] ?? json['flow_rate'] ?? json['flow_rate_lpm'] ?? json['flowRateLpm'] ?? 0.0 as num).toDouble();
+    final vol = (json['waterVolume'] ?? json['water_volume'] ?? json['total_water_liters'] ?? json['totalWaterLiters'] ?? ((lvl / 100.0) * 5000.0) as num).toDouble();
+    final tds = (json['tds'] ?? json['tds_ppm'] ?? json['tdsPpm'] ?? 0 as num).toInt();
+    final temp = (json['temperature'] ?? json['temperature_c'] ?? json['temperatureC'] ?? json['waterTempC'] ?? 25.0 as num).toDouble();
+    final battV = (json['battery'] ?? json['battery_voltage'] ?? json['batteryVoltage'] ?? 4.2 as num).toDouble();
+    final battPct = json['battery_pct'] ?? json['batteryPct'] ?? (((battV - 3.3) / 0.9 * 100).clamp(0, 100).toInt());
+
     return SensorDataModel(
-      subNodeId: json['sub_node_id'] ?? json['nodeId'] ?? 'tank_node_001',
-      seqNum: json['seq_num'] ?? 0,
-      waterLevelPct: (json['water_level_pct'] ?? json['waterLevelPct'] ?? 0.0).toDouble(),
-      waterLevelCm: (json['water_level_cm'] ?? json['waterLevelCm'] ?? 0.0).toDouble(),
-      flowRateLpm: (json['flow_rate_lpm'] ?? json['flowRateLpm'] ?? 0.0).toDouble(),
-      totalWaterLiters: (json['total_water_liters'] ?? json['totalWaterLiters'] ?? 0.0).toDouble(),
-      tdsPpm: json['tds_ppm'] ?? json['tdsPpm'] ?? 0,
-      temperatureC: (json['temperature_c'] ?? json['temperatureC'] ?? 25.0).toDouble(),
-      batteryVoltage: (json['battery_voltage'] ?? json['batteryVoltage'] ?? 4.2).toDouble(),
-      batteryPct: json['battery_pct'] ?? json['batteryPct'] ?? 100,
+      subNodeId: (json['subNodeId'] ?? json['sub_node_id'] ?? json['nodeId'] ?? 'tank_node_001').toString(),
+      seqNum: (json['sequence'] ?? json['seq_num'] ?? json['seqNum'] ?? 0 as num).toInt(),
+      waterLevelPct: lvl,
+      waterLevelCm: lvlCm,
+      flowRateLpm: flow,
+      totalWaterLiters: vol,
+      tdsPpm: tds,
+      temperatureC: temp,
+      batteryVoltage: battV,
+      batteryPct: battPct is int ? battPct : (battPct as num).toInt(),
       timestamp: json['timestamp'] != null
           ? (json['timestamp'] is int
-              ? DateTime.fromMillisecondsSinceEpoch((json['timestamp'] as int) * 1000)
-              : DateTime.parse(json['timestamp']))
+              ? DateTime.fromMillisecondsSinceEpoch(
+                  (json['timestamp'] as int) > 100000000000
+                      ? (json['timestamp'] as int)
+                      : (json['timestamp'] as int) * 1000)
+              : (DateTime.tryParse(json['timestamp'].toString()) ?? DateTime.now()))
           : DateTime.now(),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'subNodeId': subNodeId,
+    'seqNum': seqNum,
+    'waterLevel': waterLevelPct,
+    'water_level_pct': waterLevelPct,
+    'water_level_cm': waterLevelCm,
+    'flowRate': flowRateLpm,
+    'flow_rate_lpm': flowRateLpm,
+    'waterVolume': totalWaterLiters,
+    'total_water_liters': totalWaterLiters,
+    'tds': tdsPpm,
+    'tds_ppm': tdsPpm,
+    'temperature': temperatureC,
+    'temperature_c': temperatureC,
+    'battery': batteryVoltage,
+    'battery_voltage': batteryVoltage,
+    'battery_pct': batteryPct,
+    'timestamp': timestamp.toIso8601String(),
+  };
 }

@@ -35,16 +35,30 @@ class DeviceModel {
 
   factory DeviceModel.fromJson(Map<String, dynamic> json) {
     return DeviceModel(
-      id: json['id'] ?? '',
-      name: json['name'] ?? 'Pump Gateway',
-      macAddress: json['macAddress'] ?? '',
-      status: json['status'] ?? 'OFFLINE',
-      pumpState: json['pumpState'] ?? 'OFF',
-      mode: json['mode'] ?? 'AUTO',
-      wifiRssi: json['wifiRssi'] ?? -70,
-      firmwareVersion: json['firmwareVersion'] ?? '1.0.0',
-      lastSeen: json['lastSeen'] != null ? DateTime.parse(json['lastSeen']) : DateTime.now(),
-      unresolvedAlertCount: json['unresolvedAlertCount'] ?? 0,
+      id: (json['id'] ?? json['deviceId'] ?? json['nodeId'] ?? '').toString(),
+      name: (json['name'] ?? 'HydroPulse Gateway').toString(),
+      macAddress: (json['macAddress'] ?? json['mac'] ?? '').toString(),
+      status: (json['status'] ?? 'ONLINE').toString(),
+      pumpState: (json['pumpState'] ?? json['pump_state'] ?? 'OFF').toString(),
+      mode: (json['mode'] ?? 'AUTO').toString(),
+      wifiRssi: (json['wifiRssi'] ?? json['wifi_rssi'] ?? -65) is int ? (json['wifiRssi'] ?? json['wifi_rssi'] ?? -65) as int : -65,
+      firmwareVersion: (json['firmwareVersion'] ?? json['firmware_version'] ?? '2.0.6').toString(),
+      lastSeen: json['lastSeen'] != null ? (DateTime.tryParse(json['lastSeen'].toString()) ?? DateTime.now()) : DateTime.now(),
+      unresolvedAlertCount: json['unresolvedAlertCount'] is int ? json['unresolvedAlertCount'] as int : 0,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'deviceId': id,
+    'name': name,
+    'macAddress': macAddress,
+    'status': status,
+    'pumpState': pumpState,
+    'mode': mode,
+    'wifiRssi': wifiRssi,
+    'firmwareVersion': firmwareVersion,
+    'lastSeen': lastSeen.toIso8601String(),
+    'unresolvedAlertCount': unresolvedAlertCount,
+  };
 }
