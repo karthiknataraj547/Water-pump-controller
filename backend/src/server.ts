@@ -62,19 +62,19 @@ function getVersionManifest() {
     }
   }
   return {
-    version: '2.0.2',
-    build_number: 4,
+    version: '2.0.3',
+    build_number: 6,
     release_date: new Date().toISOString().split('T')[0],
     min_supported_version: '1.0.0',
     download_url: 'https://github.com/karthiknataraj547/Water-pump-controller/raw/main/releases/HydroPulse_WaterPumpController.apk',
     website_url: 'https://github.com/karthiknataraj547/Water-pump-controller',
-    title: 'HydroPulse v2.0.2 - In-App OTA Update Engine & Direct Package Installer',
+    title: 'HydroPulse v2.0.3 - Real-Time In-App OTA Update Engine',
     changelog: [
-      'In-App OTA direct APK downloader with live progress percentage',
-      'Automatic Android package installer trigger with zero sandbox blocks',
-      'Native dynamic version detection via Android package manager',
-      'Zero-failure authentic customer onboarding and device setup',
-      'Real-time bidirectional MQTT sync between mobile and web console'
+      'Automatic in-app update popup with full changelog changes on developer release',
+      'Real-time instant update push notification via Cloud MQTT broadcast',
+      'Direct in-app APK downloader with live progress percentage and auto-installer',
+      'Global background update check on app launch, resume, and 15-minute intervals',
+      'Cross-device hardware synchronization and persistent multi-client device pairing'
     ],
     is_critical: false,
   };

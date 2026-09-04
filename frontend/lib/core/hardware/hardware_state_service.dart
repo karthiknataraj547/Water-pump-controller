@@ -149,19 +149,9 @@ class HardwareStateService extends ChangeNotifier {
   bool _isVerifyingStatus = true;
   Timer? _verificationTimer;
 
-  // Anti-flicker debounce: count consecutive offline ticks before transitioning
+  // Anti-flicker debounce and connection tracking
   int _offlineTickCount = 0;
-  static const int _offlineDebounceThreshold = 4; // 4 ticks × 1s = 4s before OFFLINE
-
-  // Grace period after MQTT connect — don't evaluate offline during this window
   DateTime? _mqttConnectedAt;
-  static const int _gracePeriodSeconds = 8;
-
-  // Track whether we're in grace period (waiting for first heartbeat after reconnect)
-  bool get _isInGracePeriod {
-    if (_mqttConnectedAt == null) return false;
-    return DateTime.now().difference(_mqttConnectedAt!).inSeconds < _gracePeriodSeconds;
-  }
 
   DeviceModel? get activeDevice => _activeDevice;
 

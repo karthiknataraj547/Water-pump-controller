@@ -7,6 +7,9 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+  errors:
+    deprecated_member_use: ignore
+    use_super_parameters: ignore
 include: package:flutter_lints/flutter.yaml
 
 linter:

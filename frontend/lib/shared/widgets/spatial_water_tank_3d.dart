@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../../core/theme/app_theme.dart';
 
 class SpatialWaterTank3D extends StatefulWidget {
   final double levelPercentage; // 0.0 to 100.0

@@ -378,21 +378,32 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 6. Dynamic Version & Release Highlights Sync
-  fetch('version.json')
+  fetch(`version.json?t=${Date.now()}`)
     .then(res => res.json())
     .then(data => {
       if (data && data.version) {
         const pill = document.getElementById('hero-release-pill');
-        if (pill) pill.innerHTML = `Latest Release: <strong>v${data.version}</strong> Live • In-App OTA & Direct Package Installer`;
+        if (pill) pill.innerHTML = `Latest Release: <strong>v${data.version}</strong> Live • ${data.title || 'Real-Time In-App OTA Update Engine'}`;
         
         const subLabels = document.querySelectorAll('.apk-sub-version');
-        subLabels.forEach(el => el.textContent = `v${data.version} • 55.3 MB • Direct Install`);
+        subLabels.forEach(el => el.textContent = `v${data.version} • 55.4 MB • Direct Install`);
 
         const specVer = document.getElementById('spec-version-badge');
         if (specVer) specVer.innerHTML = `📱 Version: <strong>v${data.version}</strong>`;
         
         const specRelease = document.getElementById('spec-release-date');
         if (specRelease && data.release_date) specRelease.innerHTML = `📅 Released: <strong>${data.release_date}</strong>`;
+
+        const downloadLinks = document.querySelectorAll('a[href*="HydroPulse_WaterPumpController.apk"], .download-trigger');
+        downloadLinks.forEach(link => {
+          if (data.download_url) {
+            link.setAttribute('href', data.download_url);
+          }
+          const span = link.querySelector('span');
+          if (span && span.textContent.includes('Download HydroPulse APK')) {
+            span.textContent = `Download HydroPulse APK (v${data.version})`;
+          }
+        });
       }
     })
     .catch(() => {});

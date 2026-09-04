@@ -19,6 +19,7 @@ class MqttService {
   final _alertController = StreamController<Map<String, dynamic>>.broadcast();
   final _pongController = StreamController<Map<String, dynamic>>.broadcast();
   final _deviceController = StreamController<Map<String, dynamic>>.broadcast();
+  final _appUpdateController = StreamController<Map<String, dynamic>>.broadcast();
 
   Stream<Map<String, dynamic>> get statusStream => _statusController.stream;
   Stream<Map<String, dynamic>> get sensorStream => _sensorController.stream;
@@ -26,6 +27,7 @@ class MqttService {
   Stream<Map<String, dynamic>> get alertStream => _alertController.stream;
   Stream<Map<String, dynamic>> get pongStream => _pongController.stream;
   Stream<Map<String, dynamic>> get deviceStream => _deviceController.stream;
+  Stream<Map<String, dynamic>> get appUpdateStream => _appUpdateController.stream;
 
   // Cloud Broker candidate targets (Prioritizing EMQX Cloud MQTT broker for synchronized IoT communication)
   static const List<Map<String, dynamic>> brokerTargets = [
@@ -318,6 +320,15 @@ class MqttService {
             _deviceController.add(data);
           }
 
+          // Real-time developer release & OTA in-app update notification
+          if (topic == 'hydropulse/app/update' ||
+              topic == 'hydropulse/ota' ||
+              topic.endsWith('/app/update') ||
+              data.containsKey('min_supported_version') ||
+              (data.containsKey('version') && data.containsKey('build_number') && data.containsKey('download_url'))) {
+            _appUpdateController.add(data);
+          }
+
           if (topic.endsWith('/pong') || topic == 'pump/pong' || topic.endsWith('/ping/pong')) {
             _pongController.add(data);
           } else if (topic.endsWith('/status') || topic.endsWith('/heartbeat') || topic == 'pump/status' || topic == 'pump/heartbeat') {
@@ -375,6 +386,8 @@ class MqttService {
     _ackController.close();
     _alertController.close();
     _pongController.close();
+    _deviceController.close();
+    _appUpdateController.close();
   }
 }
 

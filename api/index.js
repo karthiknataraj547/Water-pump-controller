@@ -222,40 +222,67 @@ module.exports = async (req, res) => {
 
   // 2. In-App Version & OTA Manifest
   if (url.includes('/api/v1/app/version') || url === '/version.json') {
-    if (method === 'POST') {
-      const { version, build_number, title, changelog, is_critical } = body;
-      return res.status(200).json({
-        status: 'success',
-        message: `Application update v${version || '2.0.1'} published successfully.`,
-        data: {
-          version: version || '2.0.1',
-          build_number: build_number || 3,
-          release_date: new Date().toISOString().split('T')[0],
-          download_url: 'https://github.com/karthiknataraj547/Water-pump-controller/raw/main/releases/HydroPulse_WaterPumpController.apk',
-          title: title || 'HydroPulse v2.0.1 - System Console & OTA Update',
-          changelog: changelog || ['System Console update with left sidebar navigation', 'Automated OTA update system'],
-          is_critical: is_critical || false
-        }
-      });
-    }
-
-    return res.status(200).json({
-      version: '2.0.2',
-      build_number: 4,
-      release_date: '2026-09-03',
+    const versionFilePaths = [
+      path.join(__dirname, '../version.json'),
+      path.join(__dirname, 'version.json'),
+      path.join(process.cwd(), 'version.json'),
+      path.join(process.cwd(), '../version.json')
+    ];
+    let manifest = {
+      version: '2.0.3',
+      build_number: 6,
+      release_date: '2026-09-04',
       min_supported_version: '1.0.0',
       download_url: 'https://github.com/karthiknataraj547/Water-pump-controller/raw/main/releases/HydroPulse_WaterPumpController.apk',
       website_url: 'https://github.com/karthiknataraj547/Water-pump-controller',
-      title: 'HydroPulse v2.0.2 - In-App OTA Update Engine & Direct Package Installer',
+      title: 'HydroPulse v2.0.3 - Real-Time In-App OTA Update Engine',
       changelog: [
-        'In-App OTA direct APK downloader with live progress percentage',
-        'Automatic Android package installer trigger with zero sandbox blocks',
-        'Native dynamic version detection via Android package manager',
-        'Zero-failure authentic customer onboarding and device setup',
-        'Real-time bidirectional MQTT sync between mobile and web console'
+        'Automatic in-app update popup with full changelog changes on developer release',
+        'Real-time instant update push notification via Cloud MQTT broadcast',
+        'Direct in-app APK downloader with live progress percentage and auto-installer',
+        'Global background update check on app launch, resume, and 15-minute intervals',
+        'Cross-device hardware synchronization and persistent multi-client device pairing'
       ],
       is_critical: false
-    });
+    };
+
+    for (const p of versionFilePaths) {
+      if (fs.existsSync(p)) {
+        try {
+          manifest = JSON.parse(fs.readFileSync(p, 'utf-8'));
+          break;
+        } catch (_) {}
+      }
+    }
+
+    if (method === 'POST') {
+      const { version, build_number, title, changelog, is_critical, download_url } = body;
+      const updated = {
+        ...manifest,
+        version: version || manifest.version,
+        build_number: build_number || (manifest.build_number + 1),
+        release_date: new Date().toISOString().split('T')[0],
+        title: title || manifest.title,
+        changelog: changelog || manifest.changelog,
+        is_critical: typeof is_critical === 'boolean' ? is_critical : manifest.is_critical,
+        download_url: download_url || manifest.download_url
+      };
+
+      for (const p of versionFilePaths) {
+        try {
+          fs.writeFileSync(p, JSON.stringify(updated, null, 2));
+          break;
+        } catch (_) {}
+      }
+
+      return res.status(200).json({
+        status: 'success',
+        message: `Application update v${updated.version} published successfully.`,
+        data: updated
+      });
+    }
+
+    return res.status(200).json(manifest);
   }
 
   // 2b. Direct APK Download Endpoint

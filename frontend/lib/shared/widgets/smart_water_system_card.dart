@@ -156,23 +156,10 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
     });
   }
 
-  void _resetTankRotation() {
-    setState(() {
-      _tankRotY = 0.0;
-    });
-  }
-
-  int get _normalizedDegrees {
-    double deg = (_tankRotY * 180 / math.pi) % 360;
-    if (deg < 0) deg += 360;
-    return deg.round();
-  }
-
   @override
   Widget build(BuildContext context) {
     final isOnline = widget.mainNodeStatus != NodeStatus.offline;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
     return AnimatedContainer(

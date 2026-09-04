@@ -55,7 +55,9 @@ class BleProvisioningService {
       final scan = await Permission.bluetoothScan.status;
       final connect = await Permission.bluetoothConnect.status;
       final location = await Permission.locationWhenInUse.status;
-      permissionsGranted = (scan.isGranted || !scan.isRestricted) && (connect.isGranted || !connect.isRestricted);
+      permissionsGranted = (scan.isGranted || !scan.isRestricted) &&
+          (connect.isGranted || !connect.isRestricted) &&
+          (location.isGranted || !location.isRestricted);
     } catch (_) {
       permissionsGranted = true;
     }

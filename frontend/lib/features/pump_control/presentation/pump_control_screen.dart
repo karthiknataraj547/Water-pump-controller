@@ -19,7 +19,6 @@ class _PumpControlScreenState extends ConsumerState<PumpControlScreen> {
   int _runningSeconds = 0;
   double _autoStartLevel = 30.0;
   double _autoStopLevel = 90.0;
-  int _maxRunMinutes = 45;
 
   Future<void> _sendCommand(String command, {Map<String, dynamic>? params}) async {
     final devId = hardwareStateService.activeDevice?.id;

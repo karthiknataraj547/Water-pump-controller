@@ -20,13 +20,16 @@ import 'features/pump_control/presentation/pump_control_screen.dart';
 import 'features/provisioning/presentation/provisioning_wizard_screen.dart';
 import 'features/notifications/presentation/notifications_screen.dart';
 import 'shared/widgets/animated_pressable.dart';
+import 'core/update/app_update_service.dart';
 
 final authStateNotifier = ValueNotifier<String?>(null);
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final router = GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/dashboard',
     refreshListenable: authStateNotifier,
     redirect: (context, state) async {
@@ -166,12 +169,37 @@ void main() async {
   WidgetsBinding.instance.addPostFrameCallback((_) {
     hardwareStateService.initialize();
     overflowAlertService.initialize();
+    appUpdateService.initialize(navigatorKey: rootNavigatorKey);
   });
 }
 
-class HydroPulseApp extends StatelessWidget {
+class HydroPulseApp extends StatefulWidget {
   final GoRouter router;
   const HydroPulseApp({Key? key, required this.router}) : super(key: key);
+
+  @override
+  State<HydroPulseApp> createState() => _HydroPulseAppState();
+}
+
+class _HydroPulseAppState extends State<HydroPulseApp> {
+  late final AppLifecycleListener _lifecycleListener;
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycleListener = AppLifecycleListener(
+      onResume: () {
+        debugPrint('[AppLifecycle] Resumed - Performing real-time update check...');
+        appUpdateService.checkForUpdatesGlobally();
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _lifecycleListener.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -184,7 +212,7 @@ class HydroPulseApp extends StatelessWidget {
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: ThemeNotifier.instance.themeMode,
-          routerConfig: router,
+          routerConfig: widget.router,
         );
       },
     );

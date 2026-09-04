@@ -15,10 +15,6 @@ class TankControlScreen extends ConsumerStatefulWidget {
 }
 
 class _TankControlScreenState extends ConsumerState<TankControlScreen> {
-  double _autoStartLevel = 25.0;
-  double _autoStopLevel = 95.0;
-  bool _dryRunProtection = true;
-
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -40,9 +36,6 @@ class _TankControlScreenState extends ConsumerState<TankControlScreen> {
         final totalWaterLiters = sensor?.totalWaterLiters ?? (waterLevelPct / 100.0 * 5000.0);
         final flowRate = sensor?.flowRateLpm ?? (isPumpRunning ? 18.5 : 0.0);
         final tdsPpm = sensor?.tdsPpm ?? 120;
-        final tempC = sensor?.temperatureC ?? 25.0;
-        final battV = sensor?.batteryVoltage ?? 3.95;
-        final battPct = sensor?.batteryPct ?? 85;
 
         return Scaffold(
           appBar: AppBar(
