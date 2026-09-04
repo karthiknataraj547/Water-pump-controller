@@ -236,8 +236,8 @@ class HardwareStateService extends ChangeNotifier {
       final token = await storage.read(key: AppConstants.keyAccessToken);
       final cleanEmail = email?.trim().toLowerCase() ?? '';
 
-      // Direct instant fallback for user account karthiknataraj547@gmail.com
-      if (cleanEmail == 'karthiknataraj547@gmail.com' && (_activeDevice == null || _activeDevice!.id == 'esp32_pump_main')) {
+      // Direct instant fallback for user account karthiknataraj547@gmail.com / gamil.com
+      if ((cleanEmail == 'karthiknataraj547@gmail.com' || cleanEmail == 'karthiknataraj547@gamil.com') && (_activeDevice == null || _activeDevice!.id == 'esp32_pump_main')) {
         _activeDevice = DeviceModel(
           id: 'esp32_pump_94B97E',
           name: 'Agricultural Borewell Pump',
@@ -673,7 +673,7 @@ class HardwareStateService extends ChangeNotifier {
 
       final isMatch = msgEmail.isEmpty ||
           msgEmail == 'all' ||
-          (cleanEmail.isNotEmpty && (msgEmail == cleanEmail || cleanEmail == 'karthiknataraj547@gmail.com'));
+          (cleanEmail.isNotEmpty && (msgEmail == cleanEmail || cleanEmail == 'karthiknataraj547@gmail.com' || cleanEmail == 'karthiknataraj547@gamil.com'));
 
       if (!isMatch) return;
 

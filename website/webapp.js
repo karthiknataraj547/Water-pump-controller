@@ -310,7 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Pre-seed known hardware for user karthiknataraj547@gmail.com if not already fetched
       const userCleanEmail = (user.email || '').trim().toLowerCase();
-      if (userCleanEmail === 'karthiknataraj547@gmail.com') {
+      if (userCleanEmail === 'karthiknataraj547@gmail.com' || userCleanEmail === 'karthiknataraj547@gamil.com') {
         const hasCustom = userDevices.some(d => d.id === 'esp32_pump_94B97E' || d.id !== 'esp32_pump_main');
         if (!hasCustom) {
           userDevices.unshift({
@@ -1715,7 +1715,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (topic.startsWith('devices/sync') || topic.startsWith('hydropulse/devices') || (data && (data.macAddress || (data.deviceId && (data.name || data.userEmail))))) {
             const currentEmail = (currentUser?.email || localStorage.getItem('hydropulse_user_email') || '').toLowerCase();
             const msgEmail = (data.userEmail || data.userId || '').toLowerCase();
-            if (!msgEmail || msgEmail === 'all' || !currentEmail || msgEmail === currentEmail || currentEmail === 'karthiknataraj547@gmail.com') {
+            if (!msgEmail || msgEmail === 'all' || !currentEmail || msgEmail === currentEmail || currentEmail === 'karthiknataraj547@gmail.com' || currentEmail === 'karthiknataraj547@gamil.com') {
               console.log('[MQTT] Received hardware sync packet from cloud broker:', data);
               applyActiveDevice(data);
             }
