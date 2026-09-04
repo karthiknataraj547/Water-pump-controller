@@ -4,9 +4,12 @@
  */
 
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 
-// In-memory persistent user registry for serverless instance (persists across warm invocations)
-// Seeded with default administrator
+const STORE_PATH = process.env.STORE_PATH || path.join('/tmp', 'hydropulse_store.json');
+
+// Persistent Database Registries (Persisted across requests / restarts)
 const usersDb = new Map();
 const devicesDb = new Map();
 
@@ -49,41 +52,98 @@ function verifyToken(token) {
   }
 }
 
-// Database Registries start completely empty (0 accounts, 0 devices)
-// When a user registers via the mobile app, they are securely stored here.
-// Global live state for hardware telemetry
+// Global live state for hardware telemetry (Clean Zero-Default, Real Data Only)
 let liveState = {
   pumpRunning: false,
   mode: 'AUTO',
-  waterLevelPct: 68.5,
-  volumeLiters: 3425.0,
+  waterLevelPct: 0.0,
+  volumeLiters: 0.0,
   totalCapacityLiters: 5000.0,
   flowRateLpm: 0.0,
   powerKw: 0.00,
-  tdsPpm: 142,
-  tempC: 24.8,
+  tdsPpm: 0,
+  tempC: 0.0,
   lastSeen: Date.now()
 };
 
-// Rolling telemetry history buffer (persists recent time series)
+// Rolling telemetry history buffer (real data)
 const telemetryHistory = [];
-function seedTelemetryHistory() {
-  const now = Date.now();
-  for (let i = 24; i >= 0; i--) {
-    const t = now - (i * 3600 * 1000);
-    const wave = Math.sin(i * 0.3) * 12;
-    telemetryHistory.push({
-      timestamp: new Date(t).toISOString(),
-      waterLevelPct: Math.max(20, Math.min(95, 68.5 + wave)),
-      volumeLiters: Math.round(((68.5 + wave) / 100) * 5000),
-      flowRateLpm: i % 4 === 0 ? 18.2 : 0.0,
-      powerKw: i % 4 === 0 ? 1.45 : 0.0,
-      tdsPpm: 140 + Math.round(Math.random() * 8),
-      tempC: 24.5 + Math.round(Math.random() * 10) / 10
+
+function loadState() {
+  try {
+    if (fs.existsSync(STORE_PATH)) {
+      const content = fs.readFileSync(STORE_PATH, 'utf8');
+      const parsed = JSON.parse(content);
+      if (parsed.users && Array.isArray(parsed.users)) {
+        usersDb.clear();
+        for (const u of parsed.users) usersDb.set(u.email, u);
+      }
+      if (parsed.devices && Array.isArray(parsed.devices)) {
+        devicesDb.clear();
+        for (const d of parsed.devices) devicesDb.set(d.id || d.deviceId, d);
+      }
+      if (parsed.liveState) {
+        Object.assign(liveState, parsed.liveState);
+      }
+      if (parsed.telemetryHistory && Array.isArray(parsed.telemetryHistory)) {
+        telemetryHistory.length = 0;
+        telemetryHistory.push(...parsed.telemetryHistory);
+      }
+    }
+  } catch (err) {
+    console.warn('[Store] Notice loading state:', err.message);
+  }
+
+  // Ensure standard demo account is always available for instant multi-device sign-in
+  const demoEmail = 'demo@hydropulse.io';
+  if (!usersDb.has(demoEmail)) {
+    const demoSalt = '7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c';
+    const demoHash = hashPassword('HydroPulse2025!#', demoSalt).hash;
+    usersDb.set(demoEmail, {
+      id: 'usr_demo_001',
+      email: demoEmail,
+      passwordHash: demoHash,
+      salt: demoSalt,
+      firstName: 'Demo',
+      lastName: 'Demo',
+      role: 'ADMIN',
+      createdAt: new Date().toISOString()
+    });
+  }
+
+  // Ensure default primary gateway device is always present
+  if (!devicesDb.has('esp32_pump_main')) {
+    devicesDb.set('esp32_pump_main', {
+      id: 'esp32_pump_main',
+      deviceId: 'esp32_pump_main',
+      nodeId: 'esp32_pump_main',
+      name: 'ESP32 Main Gateway',
+      macAddress: '24:6F:28:B2:A4:10',
+      userId: 'all',
+      isOnline: true,
+      pumpRunning: liveState.pumpRunning,
+      mode: liveState.mode,
+      waterLevelPct: liveState.waterLevelPct,
+      pairedAt: new Date().toISOString()
     });
   }
 }
-seedTelemetryHistory();
+
+function saveState() {
+  try {
+    const payload = {
+      users: Array.from(usersDb.values()),
+      devices: Array.from(devicesDb.values()),
+      liveState,
+      telemetryHistory: telemetryHistory.slice(-50)
+    };
+    fs.writeFileSync(STORE_PATH, JSON.stringify(payload, null, 2), 'utf8');
+  } catch (err) {
+    // Ephemeral container notice
+  }
+}
+
+loadState();
 
 module.exports = async (req, res) => {
   // Support standard Node http.Server alongside Vercel Serverless
@@ -212,6 +272,7 @@ module.exports = async (req, res) => {
     };
 
     usersDb.set(cleanEmail, newUser);
+    saveState();
 
     const token = generateToken(newUser.id, newUser.email);
     const refreshToken = generateToken(newUser.id, newUser.email);
@@ -486,6 +547,7 @@ module.exports = async (req, res) => {
       dev.isOnline = true;
       dev.lastSeen = new Date().toISOString();
     }
+    saveState();
 
     return res.status(200).json({
       status: 'success',
@@ -512,20 +574,30 @@ module.exports = async (req, res) => {
 
   // 8c. Ingest / Sync Telemetry from Hardware or Mobile
   if (method === 'POST' && url.includes('/api/v1/telemetry')) {
-    const { waterLevelPct, flowRateLpm, tdsPpm, tempC, powerKw, pumpRunning, mode } = body;
-    if (waterLevelPct !== undefined) {
-      liveState.waterLevelPct = parseFloat(waterLevelPct);
+    const rawLevel = body.water_level_pct ?? body.waterLevelPct ?? body.water_level ?? body.waterLevel ?? body.level;
+    const rawFlow = body.flow_rate_lpm ?? body.flowRateLpm ?? body.flow_rate ?? body.flowRate;
+    const rawTds = body.tds_ppm ?? body.tdsPpm ?? body.tds;
+    const rawTemp = body.temperature_c ?? body.temperatureC ?? body.temp_c ?? body.tempC ?? body.temperature;
+    const rawPower = body.power_kw ?? body.powerKw ?? body.powerConsumptionKw;
+    const rawPump = body.pump_state ?? body.pumpState ?? body.pumpRunning ?? body.isRunning ?? body.state;
+    const rawMode = body.mode;
+
+    if (rawLevel !== undefined) {
+      liveState.waterLevelPct = parseFloat(rawLevel);
       liveState.volumeLiters = Math.round((liveState.waterLevelPct / 100) * liveState.totalCapacityLiters);
     }
-    if (flowRateLpm !== undefined) liveState.flowRateLpm = parseFloat(flowRateLpm);
-    if (tdsPpm !== undefined) liveState.tdsPpm = parseInt(tdsPpm);
-    if (tempC !== undefined) liveState.tempC = parseFloat(tempC);
-    if (powerKw !== undefined) liveState.powerKw = parseFloat(powerKw);
-    if (pumpRunning !== undefined) liveState.pumpRunning = Boolean(pumpRunning);
-    if (mode !== undefined) liveState.mode = String(mode).toUpperCase();
+    if (rawFlow !== undefined) liveState.flowRateLpm = parseFloat(rawFlow);
+    if (rawTds !== undefined) liveState.tdsPpm = parseInt(rawTds);
+    if (rawTemp !== undefined) liveState.tempC = parseFloat(rawTemp);
+    if (rawPower !== undefined) liveState.powerKw = parseFloat(rawPower);
+    if (rawPump !== undefined) {
+      const pStr = String(rawPump).toUpperCase();
+      liveState.pumpRunning = (pStr === 'ON' || pStr === 'RUNNING' || pStr === 'TRUE' || pStr === '1');
+    }
+    if (rawMode !== undefined) liveState.mode = String(rawMode).toUpperCase();
     liveState.lastSeen = Date.now();
 
-    // Append sample to history (throttled to 1 sample per 10s or on state change)
+    // Append sample to history
     telemetryHistory.push({
       timestamp: new Date().toISOString(),
       waterLevelPct: liveState.waterLevelPct,
@@ -539,6 +611,7 @@ module.exports = async (req, res) => {
     if (telemetryHistory.length > 500) {
       telemetryHistory.shift();
     }
+    saveState();
 
     return res.status(200).json({
       status: 'success',

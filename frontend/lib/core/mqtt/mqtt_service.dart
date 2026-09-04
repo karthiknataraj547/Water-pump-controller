@@ -217,7 +217,8 @@ class MqttService {
     // Single wildcard covers all device topics — QoS 0 for fastest delivery
     _client!.subscribe('pump/#', MqttQos.atMostOnce);
     _client!.subscribe('devices/#', MqttQos.atMostOnce);
-    debugPrint('[MQTT] Subscribed to pump/# and devices/# (QoS 0).');
+    _client!.subscribe('waterpump/#', MqttQos.atMostOnce);
+    debugPrint('[MQTT] Subscribed to pump/#, devices/#, and waterpump/# (QoS 0).');
   }
 
   void subscribeToDevice(String userId, String deviceId) {
@@ -253,6 +254,7 @@ class MqttService {
     _client!.publishMessage('pump/command', MqttQos.atMostOnce, builder.payload!);
     _client!.publishMessage('pump/$deviceId/command', MqttQos.atMostOnce, builder.payload!);
     _client!.publishMessage('pump/$userId/$deviceId/command', MqttQos.atMostOnce, builder.payload!);
+    _client!.publishMessage('waterpump/esp32/control', MqttQos.atMostOnce, builder.payload!);
 
     debugPrint('[MQTT TX Command] $command to $deviceId (ID: $cmdId)');
   }

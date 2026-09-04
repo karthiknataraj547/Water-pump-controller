@@ -150,9 +150,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let authToken = localStorage.getItem('hydropulse_auth_token') || null;
   let currentUser = null;
+  let userDevices = [];
   try {
     const cached = localStorage.getItem('hydropulse_current_user');
     if (cached) currentUser = JSON.parse(cached);
+    const cachedDevs = localStorage.getItem('hydropulse_user_devices');
+    if (cachedDevs) userDevices = JSON.parse(cachedDevs);
   } catch {}
 
   const authView = document.getElementById('auth-view');
@@ -217,14 +220,13 @@ document.addEventListener('DOMContentLoaded', () => {
       if (sApi) sApi.textContent = `${apiBaseUrl} (Central Sync Active)`;
 
       // Fetch user's devices from the centralized backend to check for hardware
-      let userDevices = [];
       try {
         const devRes = await fetch(`${apiBaseUrl}/devices`, {
           headers: { 'Authorization': `Bearer ${authToken}` }
         });
         if (devRes.ok) {
           const devJson = await devRes.json();
-          if (devJson.data && Array.isArray(devJson.data)) {
+          if (devJson.data && Array.isArray(devJson.data) && devJson.data.length > 0) {
             userDevices = devJson.data;
           }
         }
@@ -241,6 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
           isOnline: true
         }];
       }
+      localStorage.setItem('hydropulse_user_devices', JSON.stringify(userDevices));
 
       const hwActiveDash = document.getElementById('hw-active-dashboard');
       const hwNoneDash = document.getElementById('hw-none-dashboard');
@@ -612,13 +615,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const gridValVol = document.getElementById('grid-val-vol');
   const gridSubVol = document.getElementById('grid-sub-vol');
 
-  let waterLevel = 68.5;
+  let waterLevel = 0.0;
   let totalCapacityLiters = 5000.0;
   let isPumpRunning = false;
   let controlMode = 'AUTO';
   let runSeconds = 0;
   let runTimer = null;
-  let dailyCycles = 14;
+  let dailyCycles = 0;
 
   // Animation phases (matching Flutter SmartWaterSystemCard)
   let wavePhase = 0;
@@ -635,8 +638,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Real-time sensor metrics
   let liveFlowRate = 0.0;
   let livePowerKw = 0.0;
-  let liveTds = 142;
-  let liveTemp = 24.8;
+  let liveTds = 0;
+  let liveTemp = 0.0;
 
   const tankDataHud = document.getElementById('tank-data-hud');
   const tankFillingStatus = document.getElementById('tank-filling-status');
@@ -1245,12 +1248,6 @@ document.addEventListener('DOMContentLoaded', () => {
     cascadePhase = (cascadePhase + 0.06) % 1.0;
     splashPhase = (splashPhase + 0.05) % 1.0;
 
-    // Gradual Refill Simulation in Auto Mode
-    if (isPumpRunning && controlMode === 'AUTO' && waterLevel < 98) {
-      waterLevel += 0.015;
-      updateMetrics();
-    }
-
     // Guaranteed Continuous Loop
     requestAnimationFrame(drawTank);
   }
@@ -1264,8 +1261,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (gridSubVol) gridSubVol.textContent = `Level: ${waterLevel.toFixed(0)}%`;
 
     if (isPumpRunning) {
-      liveFlowRate = 18.2 + (Math.random() * 0.4 - 0.2);
-      livePowerKw = 1.45 + (Math.random() * 0.02 - 0.01);
+      if (liveFlowRate <= 0.0) liveFlowRate = 18.2;
+      if (livePowerKw <= 0.0) livePowerKw = 1.45;
       if (valPowerKw) valPowerKw.innerHTML = `${livePowerKw.toFixed(2)} <small>kW</small>`;
       if (gridValFlow) gridValFlow.textContent = liveFlowRate.toFixed(1);
       if (gridSubFlow) gridSubFlow.textContent = 'Active Inflow';
@@ -1280,9 +1277,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const tdsEl = document.getElementById('grid-val-tds');
-    if (tdsEl) tdsEl.textContent = liveTds;
+    if (tdsEl) tdsEl.textContent = liveTds > 0 ? liveTds : '--';
     const tempEl = document.getElementById('grid-val-temp');
-    if (tempEl) tempEl.textContent = liveTemp.toFixed(1);
+    if (tempEl) tempEl.textContent = liveTemp > 0 ? liveTemp.toFixed(1) : '--';
     const cyclesEl = document.getElementById('val-cycles-count');
     if (cyclesEl) cyclesEl.textContent = dailyCycles;
   }
@@ -1389,7 +1386,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Publish to MQTT broker and post to Backend API when triggered by user
     if (shouldPublish) {
-      const activeDevId = userDevices.length > 0 ? (userDevices[0].id || userDevices[0].nodeId) : 'esp32_pump_main';
+      const activeDevId = (userDevices && userDevices.length > 0) ? (userDevices[0].id || userDevices[0].nodeId || userDevices[0].deviceId) : 'esp32_pump_main';
       const cmd = active ? 'START_PUMP' : 'STOP_PUMP';
 
       // 1. MQTT Publish to all topics matching Mobile App & Hardware
@@ -1400,6 +1397,7 @@ document.addEventListener('DOMContentLoaded', () => {
           commandId: `cmd_web_${Date.now()}`,
           command_id: `cmd_web_${Date.now()}`,
           pumpState: active ? 'ON' : 'OFF',
+          pump_state: active ? 'ON' : 'OFF',
           state: active ? 'ON' : 'OFF',
           status: active ? 'RUNNING' : 'STOPPED',
           parameters: {},
@@ -1414,6 +1412,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mqttClient.publish(`devices/${activeDevId}/command`, payload, { qos: 0 });
         mqttClient.publish('pump/status', payload, { qos: 0 });
         mqttClient.publish('waterpump/esp32/control', payload, { qos: 0 });
+        mqttClient.publish('waterpump/esp32/status', payload, { qos: 0 });
       }
 
       // 2. Backend REST Command
@@ -1423,7 +1422,7 @@ document.addEventListener('DOMContentLoaded', () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${authToken}`
         },
-        body: JSON.stringify({ command: cmd, parameters: {} })
+        body: JSON.stringify({ command: cmd, action: cmd, parameters: {}, deviceId: activeDevId })
       }).catch(() => null);
 
       fetch(`${apiBaseUrl}/pumps/${activeDevId}/command`, {
@@ -1432,7 +1431,7 @@ document.addEventListener('DOMContentLoaded', () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${authToken}`
         },
-        body: JSON.stringify({ command: cmd })
+        body: JSON.stringify({ command: cmd, action: cmd })
       }).catch(() => null);
 
       // Ingest live telemetry update to serverless backend
@@ -1444,9 +1443,15 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         body: JSON.stringify({
           pumpRunning: active,
+          pump_running: active,
+          pumpState: active ? 'ON' : 'OFF',
+          pump_state: active ? 'ON' : 'OFF',
           waterLevelPct: waterLevel,
-          flowRateLpm: active ? 18.5 : 0.0,
-          powerKw: active ? 1.45 : 0.0,
+          water_level_pct: waterLevel,
+          flowRateLpm: active ? (liveFlowRate || 18.5) : 0.0,
+          flow_rate_lpm: active ? (liveFlowRate || 18.5) : 0.0,
+          powerKw: active ? (livePowerKw || 1.45) : 0.0,
+          power_kw: active ? (livePowerKw || 1.45) : 0.0,
           mode: controlMode
         })
       }).catch(() => null);
@@ -1500,17 +1505,17 @@ document.addEventListener('DOMContentLoaded', () => {
           const data = JSON.parse(message.toString());
           updateHardwareStatusBadge(true, 22);
 
-          // 1. Motor Command Sync from Mobile App
+          // 1. Motor Command Sync from Mobile App or Hardware
           const cmd = (data.command || data.action || '').toUpperCase();
           if (cmd === 'START_PUMP' || cmd === 'PUMP_ON' || cmd === 'ON') {
             setMotorRunning(true, false);
-          } else if (cmd === 'STOP_PUMP' || cmd === 'PUMP_OFF' || cmd === 'OFF' || cmd === 'EMERGENCY_STOP') {
+          } else if (cmd === 'STOP_PUMP' || cmd === 'PUMP_OFF' || cmd === 'OFF' || cmd === 'EMERGENCY_STOP' || cmd === 'E_STOP') {
             setMotorRunning(false, false);
           }
 
           // 2. Hardware / Mobile Pump State Sync
-          if (data.pumpState !== undefined || data.state !== undefined || data.status !== undefined || data.isRunning !== undefined) {
-            const raw = String(data.pumpState || data.state || data.status || data.isRunning).toUpperCase();
+          if (data.pumpState !== undefined || data.pump_state !== undefined || data.state !== undefined || data.status !== undefined || data.isRunning !== undefined || data.pump_running !== undefined || data.pumpRunning !== undefined) {
+            const raw = String(data.pumpState || data.pump_state || data.state || data.status || data.isRunning || (data.pump_running !== undefined ? data.pump_running : data.pumpRunning)).toUpperCase();
             if (raw === 'ON' || raw === 'RUNNING' || raw === 'TRUE' || raw === '1') {
               setMotorRunning(true, false);
             } else if (raw === 'OFF' || raw === 'STOPPED' || raw === 'FALSE' || raw === '0' || raw === 'IDLE') {
@@ -1524,45 +1529,70 @@ document.addEventListener('DOMContentLoaded', () => {
           }
 
           // 4. Real-time Telemetry Sync
-          if (data.waterLevelPct !== undefined || data.waterLevel !== undefined || data.level !== undefined) {
-            const parsed = parseFloat(data.waterLevelPct || data.waterLevel || data.level);
+          const lvl = data.waterLevelPct !== undefined ? data.waterLevelPct
+                    : data.water_level_pct !== undefined ? data.water_level_pct
+                    : data.waterLevel !== undefined ? data.waterLevel
+                    : data.water_level !== undefined ? data.water_level
+                    : data.level;
+          if (lvl !== undefined && lvl !== null) {
+            const parsed = parseFloat(lvl);
             if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
               waterLevel = parsed;
               updateMetrics();
             }
           }
 
-          if (data.flowRateLpm !== undefined || data.flowRate !== undefined || data.flow_rate !== undefined) {
-            const parsedFlow = parseFloat(data.flowRateLpm || data.flowRate || data.flow_rate);
+          const flow = data.flowRateLpm !== undefined ? data.flowRateLpm
+                     : data.flow_rate_lpm !== undefined ? data.flow_rate_lpm
+                     : data.flowRate !== undefined ? data.flowRate
+                     : data.flow_rate;
+          if (flow !== undefined && flow !== null) {
+            const parsedFlow = parseFloat(flow);
             if (!isNaN(parsedFlow)) {
               liveFlowRate = parsedFlow;
               if (gridValFlow) gridValFlow.textContent = liveFlowRate.toFixed(1);
             }
           }
 
-          if (data.tdsPpm !== undefined || data.tds !== undefined) {
-            liveTds = parseInt(data.tdsPpm || data.tds);
+          const tds = data.tdsPpm !== undefined ? data.tdsPpm
+                    : data.tds_ppm !== undefined ? data.tds_ppm
+                    : data.tds;
+          if (tds !== undefined && tds !== null) {
+            liveTds = parseInt(tds);
             const el = document.getElementById('grid-val-tds');
-            if (el) el.textContent = liveTds;
+            if (el) el.textContent = liveTds > 0 ? liveTds : '--';
           }
 
-          if (data.temperatureC !== undefined || data.temperature !== undefined || data.temp_c !== undefined) {
-            liveTemp = parseFloat(data.temperatureC || data.temperature || data.temp_c);
+          const temp = data.temperatureC !== undefined ? data.temperatureC
+                     : data.temperature_c !== undefined ? data.temperature_c
+                     : data.temperature !== undefined ? data.temperature
+                     : data.temp_c !== undefined ? data.temp_c
+                     : data.temp;
+          if (temp !== undefined && temp !== null) {
+            liveTemp = parseFloat(temp);
             const el = document.getElementById('grid-val-temp');
-            if (el) el.textContent = liveTemp.toFixed(1);
+            if (el) el.textContent = liveTemp > 0 ? liveTemp.toFixed(1) : '--';
           }
 
-          if (data.powerConsumptionKw !== undefined || data.powerKw !== undefined) {
-            livePowerKw = parseFloat(data.powerConsumptionKw || data.powerKw);
+          const power = data.powerConsumptionKw !== undefined ? data.powerConsumptionKw
+                      : data.power_consumption_kw !== undefined ? data.power_consumption_kw
+                      : data.powerKw !== undefined ? data.powerKw
+                      : data.power_kw;
+          if (power !== undefined && power !== null) {
+            livePowerKw = parseFloat(power);
             if (valPowerKw) valPowerKw.innerHTML = `${livePowerKw.toFixed(2)} <small>kW</small>`;
           }
 
-          if (data.runningDurationSeconds !== undefined) {
-            runSeconds = parseInt(data.runningDurationSeconds);
+          if (data.runningDurationSeconds !== undefined || data.running_duration_seconds !== undefined) {
+            runSeconds = parseInt(data.runningDurationSeconds || data.running_duration_seconds);
           }
 
-          if (data.cycleCount !== undefined || data.pumpCycleCount !== undefined) {
-            dailyCycles = parseInt(data.cycleCount || data.pumpCycleCount);
+          const cycles = data.cycleCount !== undefined ? data.cycleCount
+                       : data.cycle_count !== undefined ? data.cycle_count
+                       : data.pumpCycleCount !== undefined ? data.pumpCycleCount
+                       : data.daily_cycles;
+          if (cycles !== undefined && cycles !== null) {
+            dailyCycles = parseInt(cycles);
             const el = document.getElementById('val-cycles-count');
             if (el) el.textContent = dailyCycles;
           }
@@ -1588,7 +1618,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let restPollInterval = null;
   function initRestSync() {
     if (restPollInterval) return;
-    restPollInterval = setInterval(async () => {
+
+    const fetchLive = async () => {
       try {
         const res = await fetch(`${apiBaseUrl}/telemetry/live`).catch(() => null);
         if (res && res.ok) {
@@ -1603,18 +1634,36 @@ document.addEventListener('DOMContentLoaded', () => {
             if (d.mode && d.mode !== controlMode) {
               setControlMode(d.mode, false);
             }
-            if (d.waterLevelPct !== undefined) {
-              const parsed = parseFloat(d.waterLevelPct);
-              if (!isNaN(parsed) && Math.abs(parsed - waterLevel) > 0.5) {
+            const lvl = d.waterLevelPct !== undefined ? d.waterLevelPct : d.water_level_pct;
+            if (lvl !== undefined && lvl !== null) {
+              const parsed = parseFloat(lvl);
+              if (!isNaN(parsed)) {
                 waterLevel = parsed;
                 updateMetrics();
               }
+            }
+            if (d.tdsPpm !== undefined || d.tds_ppm !== undefined) {
+              liveTds = parseInt(d.tdsPpm || d.tds_ppm);
+              const el = document.getElementById('grid-val-tds');
+              if (el) el.textContent = liveTds > 0 ? liveTds : '--';
+            }
+            if (d.tempC !== undefined || d.temperature_c !== undefined) {
+              liveTemp = parseFloat(d.tempC || d.temperature_c);
+              const el = document.getElementById('grid-val-temp');
+              if (el) el.textContent = liveTemp > 0 ? liveTemp.toFixed(1) : '--';
+            }
+            if (d.flowRateLpm !== undefined || d.flow_rate_lpm !== undefined) {
+              liveFlowRate = parseFloat(d.flowRateLpm || d.flow_rate_lpm);
+              if (gridValFlow) gridValFlow.textContent = liveFlowRate.toFixed(1);
             }
             updateHardwareStatusBadge(true, 24);
           }
         }
       } catch {}
-    }, 2500);
+    };
+
+    fetchLive();
+    restPollInterval = setInterval(fetchLive, 2500);
   }
 
   resizeTankCanvas();
@@ -1628,9 +1677,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!svg) return;
 
     let points = [
-      { x: 0, y: 76 }, { x: 75, y: 72 }, { x: 155, y: 52 }, { x: 235, y: 30 },
-      { x: 310, y: 22 }, { x: 390, y: 94 }, { x: 470, y: 82 }, { x: 545, y: 66 },
-      { x: 620, y: 52 }, { x: 690, y: 72 }, { x: 760, y: waterLevel }
+      { x: 0, y: waterLevel }, { x: 75, y: waterLevel }, { x: 155, y: waterLevel }, { x: 235, y: waterLevel },
+      { x: 310, y: waterLevel }, { x: 390, y: waterLevel }, { x: 470, y: waterLevel }, { x: 545, y: waterLevel },
+      { x: 620, y: waterLevel }, { x: 690, y: waterLevel }, { x: 760, y: waterLevel }
     ];
 
     try {
@@ -1641,7 +1690,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const list = json.data.slice(-12);
           points = list.map((item, idx) => ({
             x: Math.round((idx / (list.length - 1)) * 760),
-            y: item.waterLevelPct || 50
+            y: (item.waterLevelPct !== undefined ? item.waterLevelPct : (item.water_level_pct !== undefined ? item.water_level_pct : 0))
           }));
           if (points.length > 0) points[points.length - 1].y = waterLevel;
         }
