@@ -899,19 +899,19 @@ module.exports = async (req, res) => {
       }
     } catch (_) {}
     return res.status(200).json({
-      version: "2.0.5",
-      build_number: 8,
+      version: "2.0.6",
+      build_number: 9,
       release_date: "2026-09-04",
       min_supported_version: "1.0.0",
       download_url: "https://github.com/karthiknataraj547/Water-pump-controller/raw/main/releases/HydroPulse_WaterPumpController.apk",
       website_url: "https://github.com/karthiknataraj547/Water-pump-controller",
-      title: "HydroPulse v2.0.5 - Multi-Tenant Cloud Hardware Isolation & Zero-Leak Sync",
+      title: "HydroPulse v2.0.6 - Strict Online Detection, Node Removal & Emergency Stop Indicator",
       changelog: [
-        "Strict multi-tenant cloud hardware isolation: hardware strictly belongs to authenticated user account",
-        "Completely eliminated local device caching from mobile storage to prevent cross-account leakage",
-        "Scoped MQTT device synchronization strictly to authenticated user channels",
-        "Instant clean account sign-out with complete in-memory and hardware state reset",
-        "Zero-delay cross-device motor synchronization between Android app and web console"
+        "Nodes Tab: 'Factory Reset' renamed to 'Remove Hardware' with instant node unbinding and clean state reset",
+        "Strict Online/Offline Detection: 6-second heartbeat watchdog immediately marks hardware offline when disconnected",
+        "Fixed multi-tenant device leakage: completely eliminated cross-account flickering between dashboard and add-device screen",
+        "Mode Memory: preserves and restores prior operational mode (Auto/Manual) when clearing emergency stop",
+        "Emergency Stop State: pulsating active alert banner, motor start lockout, and tap-to-reset toggle across mobile app and web console"
       ],
       is_critical: false
     });

@@ -662,7 +662,20 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
 
     // In MANUAL mode, full manual control
     return AnimatedPressable(
-      onTap: widget.onTogglePump,
+      onTap: () {
+        if (hardwareStateService.isEmergencyStopActive) {
+          ScaffoldMessenger.of(context).clearSnackBars();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              backgroundColor: AppTheme.danger,
+              duration: Duration(seconds: 2),
+              content: Text('⚠️ Motor Locked: Emergency Stop is engaged. Tap the red button below to reset.'),
+            ),
+          );
+          return;
+        }
+        widget.onTogglePump();
+      },
       pressedScale: 0.96,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 350),
@@ -749,70 +762,146 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
 
   Widget _buildEmergencyStopButton() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isEstopActive = hardwareStateService.isEmergencyStopActive;
 
-    return AnimatedPressable(
-      onTap: () {
-        if (widget.onEmergencyStop != null) {
-          widget.onEmergencyStop!();
-        } else {
-          hardwareStateService.sendEmergencyStop();
-        }
-        ScaffoldMessenger.of(context).clearSnackBars();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: AppTheme.danger,
-            duration: const Duration(seconds: 3),
-            content: Row(
-              children: const [
-                Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
-                SizedBox(width: 10),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (isEstopActive) ...[
+          Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppTheme.danger.withOpacity(0.18),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppTheme.danger, width: 1.2),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.warning_rounded, color: AppTheme.danger, size: 18),
+                SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '🚨 EMERGENCY STOP: Pump motor halted immediately on hardware.',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                    'EMERGENCY STOP ENGAGED • Motor relay locked out. Tap button below to reset.',
+                    style: TextStyle(
+                      color: AppTheme.danger,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-        );
-      },
-      pressedScale: 0.96,
-      child: Container(
-        height: 46,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF3B1219) : const Color(0xFFFFEBEF),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: AppTheme.danger.withOpacity(0.5),
-            width: 1.0,
+        ],
+        AnimatedPressable(
+          onTap: () {
+            if (isEstopActive) {
+              hardwareStateService.clearEmergencyStop();
+              ScaffoldMessenger.of(context).clearSnackBars();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  backgroundColor: AppTheme.accent,
+                  duration: Duration(seconds: 3),
+                  content: Row(
+                    children: [
+                      Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          '✓ EMERGENCY STOP CLEARED: Pump interlock released. Normal controls restored.',
+                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            } else {
+              if (widget.onEmergencyStop != null) {
+                widget.onEmergencyStop!();
+              } else {
+                hardwareStateService.sendEmergencyStop();
+              }
+              ScaffoldMessenger.of(context).clearSnackBars();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  backgroundColor: AppTheme.danger,
+                  duration: Duration(seconds: 3),
+                  content: Row(
+                    children: [
+                      Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          '🚨 EMERGENCY STOP: Pump motor halted immediately on hardware.',
+                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+          },
+          pressedScale: 0.96,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: isEstopActive
+                  ? AppTheme.danger
+                  : (isDark ? const Color(0xFF3B1219) : const Color(0xFFFFEBEF)),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isEstopActive ? Colors.white : AppTheme.danger.withOpacity(0.5),
+                width: isEstopActive ? 1.8 : 1.0,
+              ),
+              boxShadow: isEstopActive
+                  ? [
+                      BoxShadow(
+                        color: AppTheme.danger.withOpacity(0.4),
+                        blurRadius: 12,
+                        spreadRadius: 2,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: isEstopActive
+                        ? Colors.white.withOpacity(0.25)
+                        : AppTheme.danger.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isEstopActive ? Icons.lock_reset_rounded : Icons.power_settings_new_rounded,
+                    color: isEstopActive ? Colors.white : AppTheme.danger,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  isEstopActive
+                      ? 'EMERGENCY STOP ENGAGED (TAP TO RESET)'
+                      : 'EMERGENCY STOP (AUTO / MANUAL)',
+                  style: TextStyle(
+                    color: isEstopActive ? Colors.white : AppTheme.danger,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: AppTheme.danger.withOpacity(0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.power_settings_new_rounded, color: AppTheme.danger, size: 16),
-            ),
-            const SizedBox(width: 8),
-            const Text(
-              'EMERGENCY STOP (AUTO / MANUAL)',
-              style: TextStyle(
-                color: AppTheme.danger,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.8,
-              ),
-            ),
-          ],
-        ),
-      ),
+      ],
     );
   }
 

@@ -134,6 +134,13 @@ class HardwareStateService extends ChangeNotifier {
   bool notifyHighLevel = true;
   bool notifyAutoMode = true;
 
+  // Previous Mode Memory & Emergency Stop State
+  String? _previousMode;
+  String? get previousMode => _previousMode;
+
+  bool _isEmergencyStopActive = false;
+  bool get isEmergencyStopActive => _isEmergencyStopActive;
+
   // Pump analytics & metrics
   int _pumpCycleCount = 6;
   final List<TelemetryDataPoint> _telemetryHistory = [];
@@ -476,15 +483,15 @@ class HardwareStateService extends ChangeNotifier {
     }
   }
 
-  // 1. Resilient Physical Hardware Connection State — Stable, non-flickering watchdog window
+  // 1. Resilient Physical Hardware Connection State — Strict 6s True Online/Offline Window
   NodeStatus get mainNodeStatus {
     if (_activeDevice == null) return NodeStatus.offline;
     if (!_isMqttConnected) return NodeStatus.offline;
     if (_lastMainNodeHeartbeat == null) return NodeStatus.offline;
 
     final diffMs = DateTime.now().difference(_lastMainNodeHeartbeat!).inMilliseconds;
-    if (diffMs <= 12000) return NodeStatus.online;
-    if (diffMs <= 18000) return NodeStatus.stale;
+    if (diffMs <= 6000) return NodeStatus.online;
+    if (diffMs <= 9000) return NodeStatus.stale;
     return NodeStatus.offline;
   }
 
@@ -693,10 +700,27 @@ class HardwareStateService extends ChangeNotifier {
 
   void _startHardwarePingLoop() {
     _hardwarePingTimer?.cancel();
-    // High-frequency hardware presence probe (every 1000ms / 1s)
+    // High-frequency hardware presence probe & strict 6-second watchdog check (every 1000ms)
     _hardwarePingTimer = Timer.periodic(const Duration(milliseconds: 1000), (_) {
       if (_isMqttConnected && _activeDevice != null) {
         sendHardwarePing();
+      }
+      if (_lastMainNodeHeartbeat != null) {
+        final diffMs = DateTime.now().difference(_lastMainNodeHeartbeat!).inMilliseconds;
+        if (diffMs > 6000 && _activeDevice != null && _activeDevice!.status != 'OFFLINE') {
+          _activeDevice = DeviceModel(
+            id: _activeDevice!.id,
+            name: _activeDevice!.name,
+            macAddress: _activeDevice!.macAddress,
+            status: 'OFFLINE',
+            pumpState: 'STOPPED',
+            mode: _activeDevice!.mode,
+            wifiRssi: _activeDevice!.wifiRssi,
+            firmwareVersion: _activeDevice!.firmwareVersion,
+            lastSeen: _activeDevice!.lastSeen,
+          );
+          notifyListeners();
+        }
       }
     });
   }
@@ -816,45 +840,32 @@ class HardwareStateService extends ChangeNotifier {
   }
 
   void _handleStatusMessage(Map<String, dynamic> data) {
+    if (_activeDevice == null) return;
     final now = DateTime.now();
+    final devId = (data['deviceId'] ?? data['device_id'] ?? '').toString();
+    if (devId.isNotEmpty && devId != _activeDevice!.id) return;
+
+    if (data.containsKey('emergencyStopped')) {
+      _isEmergencyStopActive = data['emergencyStopped'] == true;
+    }
 
     // Explicit LWT Offline
     final statusStr = (data['status'] ?? data['state'] ?? '').toString().toUpperCase();
     if (statusStr == 'OFFLINE') {
       _lastMainNodeHeartbeat = null;
-      if (_activeDevice != null) {
-        _activeDevice = DeviceModel(
-          id: _activeDevice!.id,
-          name: _activeDevice!.name,
-          macAddress: _activeDevice!.macAddress,
-          status: 'OFFLINE',
-          pumpState: 'STOPPED',
-          mode: _activeDevice!.mode,
-          wifiRssi: _activeDevice!.wifiRssi,
-          firmwareVersion: _activeDevice!.firmwareVersion,
-          lastSeen: now,
-        );
-      }
-      notifyListeners();
-      return;
-    }
-
-    final devId = (data['deviceId'] ?? data['device_id'] ?? '').toString();
-
-    // Ensure active device exists
-    _activeDevice ??= _createDefaultDevice();
-    if (devId.isNotEmpty && _activeDevice!.id != devId && _activeDevice!.id == 'esp32_pump_main') {
       _activeDevice = DeviceModel(
-        id: devId,
+        id: _activeDevice!.id,
         name: _activeDevice!.name,
         macAddress: _activeDevice!.macAddress,
-        status: 'ONLINE',
-        pumpState: _activeDevice!.pumpState,
+        status: 'OFFLINE',
+        pumpState: 'STOPPED',
         mode: _activeDevice!.mode,
         wifiRssi: _activeDevice!.wifiRssi,
         firmwareVersion: _activeDevice!.firmwareVersion,
         lastSeen: now,
       );
+      notifyListeners();
+      return;
     }
 
     // Record verified Main Node Heartbeat — INSTANT ONLINE
@@ -936,22 +947,10 @@ class HardwareStateService extends ChangeNotifier {
   }
 
   void _handleSensorMessage(Map<String, dynamic> data) {
+    if (_activeDevice == null) return;
     final now = DateTime.now();
     final incomingDevId = (data['deviceId'] ?? data['device_id'] ?? '').toString();
-    _activeDevice ??= _createDefaultDevice();
-    if (incomingDevId.isNotEmpty && _activeDevice!.id != incomingDevId && _activeDevice!.id == 'esp32_pump_main') {
-      _activeDevice = DeviceModel(
-        id: incomingDevId,
-        name: _activeDevice!.name,
-        macAddress: _activeDevice!.macAddress,
-        status: 'ONLINE',
-        pumpState: _activeDevice!.pumpState,
-        mode: _activeDevice!.mode,
-        wifiRssi: _activeDevice!.wifiRssi,
-        firmwareVersion: _activeDevice!.firmwareVersion,
-        lastSeen: now,
-      );
-    }
+    if (incomingDevId.isNotEmpty && incomingDevId != _activeDevice!.id) return;
 
     _lastSubNodePacket = now;
     _lastMainNodeHeartbeat = now;
@@ -1055,6 +1054,10 @@ class HardwareStateService extends ChangeNotifier {
     final cmdId = data['commandId'] ?? data['command_id'];
     final pumpState = (data['pumpState'] ?? data['pumpStatus'] ?? '').toString().toUpperCase();
     final now = DateTime.now();
+
+    if (data.containsKey('emergencyStopped')) {
+      _isEmergencyStopActive = data['emergencyStopped'] == true;
+    }
 
     _isVerifyingStatus = false;
     _lastMainNodeHeartbeat = now;
@@ -1195,6 +1198,8 @@ class HardwareStateService extends ChangeNotifier {
         debugPrint('[HardwareStateService] Notice unpairing device from cloud: $e');
       }
     }
+    _isEmergencyStopActive = false;
+    _previousMode = null;
     notifyListeners();
   }
 
@@ -1211,6 +1216,8 @@ class HardwareStateService extends ChangeNotifier {
     _lastSubNodePacket = null;
     _liveAlerts.clear();
     _telemetryHistory.clear();
+    _isEmergencyStopActive = false;
+    _previousMode = null;
     notifyListeners();
     debugPrint('[HardwareStateService] User logged out. All hardware state cleared.');
   }
@@ -1302,7 +1309,9 @@ class HardwareStateService extends ChangeNotifier {
   }
 
   void sendEmergencyStop() {
-    _activeDevice ??= _createDefaultDevice();
+    if (_activeDevice == null) return;
+    _isEmergencyStopActive = true;
+    _previousMode = _activeDevice!.mode;
 
     // Strict 5000ms lock to instantly halt motor regardless of mode
     _expectedPumpState = 'OFF';
@@ -1362,13 +1371,49 @@ class HardwareStateService extends ChangeNotifier {
     );
 
     addLiveAlert('Emergency Stop Activated', 'Water pump motor relay halted immediately.', 'critical');
-    _persistActiveDevice();
+    notifyListeners();
+  }
+
+  void clearEmergencyStop() {
+    if (_activeDevice == null) return;
+    _isEmergencyStopActive = false;
+    _pumpCommandLockUntil = null;
+    _expectedPumpState = null;
+
+    final cmdId = 'ces_${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+    _lastCommand = PendingCommand(
+      commandId: cmdId,
+      command: 'CLEAR_EMERGENCY',
+      sentAt: DateTime.now(),
+      state: CommandTransitState.sending,
+    );
+
+    mqttService.publishCommand(
+      'user_app',
+      _activeDevice!.id,
+      'CLEAR_EMERGENCY',
+      {'immediate': true, 'reason': 'USER_CLEAR_EMERGENCY'},
+    );
+
+    final devId = _activeDevice!.id;
+    apiClient.post('/command', data: {
+      'command': 'CLEAR_EMERGENCY',
+      'action': 'CLEAR_EMERGENCY',
+      'deviceId': devId,
+      'parameters': {'immediate': true},
+    }).ignore();
+
+    final restoreMode = _previousMode ?? 'AUTO';
+    setMode(restoreMode);
+
+    addLiveAlert('Emergency Stop Cleared', 'Normal pump operation and controls unlocked.', 'motor');
     notifyListeners();
   }
 
   void setMode(String mode) {
     if (_activeDevice == null) return;
     final normalizedMode = mode.toUpperCase();
+    _previousMode = _activeDevice!.mode;
 
     // Strict 3000ms optimistic mode lock to prevent flapping
     _expectedMode = normalizedMode;

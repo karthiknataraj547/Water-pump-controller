@@ -386,40 +386,6 @@ class _HardwareScreenState extends State<HardwareScreen> {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              AnimatedPressable(
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (_) => ConfirmationDialog(
-                      title: 'Unpair Gateway?',
-                      content: 'This will remove the saved gateway from this phone until re-paired.',
-                      confirmText: 'Unpair',
-                      confirmColor: AppTheme.danger,
-                      onConfirm: () async {
-                        await hardwareStateService.removeDevice();
-                      },
-                    ),
-                  );
-                },
-                pressedScale: 0.95,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
-                  decoration: BoxDecoration(
-                    color: AppTheme.danger.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppTheme.danger.withOpacity(0.2), width: 0.5),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.delete_outline_rounded, size: 16, color: AppTheme.danger),
-                      SizedBox(width: 4),
-                      Text('Unpair', style: TextStyle(fontSize: 12, color: AppTheme.danger, fontWeight: FontWeight.w600)),
-                    ],
-                  ),
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -430,9 +396,9 @@ class _HardwareScreenState extends State<HardwareScreen> {
                 showDialog(
                   context: context,
                   builder: (_) => ConfirmationDialog(
-                    title: 'Factory Reset Hardware?',
-                    content: 'This will erase all saved Wi-Fi credentials from the ESP32 flash memory and restart it into BLE Pairing Mode.',
-                    confirmText: 'Reset Hardware',
+                    title: 'Remove Hardware?',
+                    content: 'This will send a factory reset signal to the ESP32 (erasing saved Wi-Fi), unpair the hardware from your cloud account, and remove it from the application.',
+                    confirmText: 'Remove Hardware',
                     confirmColor: AppTheme.danger,
                     onConfirm: () async {
                       hardwareStateService.sendPumpCommand('FACTORY_RESET');
@@ -440,7 +406,7 @@ class _HardwareScreenState extends State<HardwareScreen> {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Factory Reset signal sent to ESP32. Hardware is wiping Wi-Fi & restarting in BLE mode.'),
+                            content: Text('Hardware removed and factory reset command dispatched.'),
                             behavior: SnackBarBehavior.floating,
                           ),
                         );
@@ -451,16 +417,23 @@ class _HardwareScreenState extends State<HardwareScreen> {
               },
               pressedScale: 0.97,
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 9),
+                padding: const EdgeInsets.symmetric(vertical: 11),
                 decoration: BoxDecoration(
-                  color: isDark ? AppTheme.darkSurface : AppTheme.lightBg,
+                  color: AppTheme.danger.withOpacity(isDark ? 0.12 : 0.07),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: isDark ? AppTheme.darkCardBorder : AppTheme.lightCardBorder, width: 0.5),
+                  border: Border.all(color: AppTheme.danger.withOpacity(0.3), width: 0.8),
                 ),
                 alignment: Alignment.center,
-                child: Text(
-                  'Factory Reset Hardware (Wipe Wi-Fi & BLE)',
-                  style: textTheme.bodySmall?.copyWith(fontSize: 11, fontWeight: FontWeight.w600),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.delete_forever_rounded, size: 16, color: AppTheme.danger),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Remove Hardware',
+                      style: textTheme.bodySmall?.copyWith(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.danger),
+                    ),
+                  ],
                 ),
               ),
             ),

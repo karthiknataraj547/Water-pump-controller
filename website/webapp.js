@@ -300,34 +300,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         if (devRes.ok) {
           const devJson = await devRes.json();
-          if (devJson.data && Array.isArray(devJson.data) && devJson.data.length > 0) {
+          if (devJson.data && Array.isArray(devJson.data)) {
             userDevices = devJson.data;
           }
         }
       } catch (e) {
         console.warn('[Sync] Devices fetch notice:', e);
-      }
-
-      // Pre-seed known hardware for user karthiknataraj547@gmail.com if not already fetched
-      const userCleanEmail = (user.email || '').trim().toLowerCase();
-      if (userCleanEmail === 'karthiknataraj547@gmail.com' || userCleanEmail === 'karthiknataraj547@gamil.com') {
-        const hasCustom = userDevices.some(d => d.id === 'esp32_pump_94B97E' || d.id !== 'esp32_pump_main');
-        if (!hasCustom) {
-          userDevices.unshift({
-            id: 'esp32_pump_94B97E',
-            deviceId: 'esp32_pump_94B97E',
-            nodeId: 'esp32_pump_94B97E',
-            name: 'Agricultural Borewell Pump',
-            macAddress: '24:6F:28:94:B9:7E',
-            userId: userCleanEmail,
-            userEmail: userCleanEmail,
-            isOnline: true,
-            pumpState: 'OFF',
-            pumpRunning: false,
-            mode: 'AUTO',
-            waterLevelPct: 0
-          });
-        }
       }
 
       if (userDevices && userDevices.length > 0) {
@@ -650,8 +628,11 @@ document.addEventListener('DOMContentLoaded', () => {
   function handleSignOut() {
     currentUser = null;
     authToken = null;
+    userDevices = [];
     localStorage.removeItem('hydropulse_auth_token');
     localStorage.removeItem('hydropulse_current_user');
+    localStorage.removeItem('hydropulse_user_devices');
+    localStorage.removeItem('hydropulse_active_device_id');
     sessionStorage.clear();
     if (dashboardView) dashboardView.classList.add('hidden');
     if (authView) authView.classList.remove('hidden');
@@ -806,6 +787,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const txtPumpLabel = document.getElementById('txt-pump-label');
   const txtPumpSub = document.getElementById('txt-pump-sub');
   const btnEmergencyStop = document.getElementById('btn-emergency-stop');
+  const estopBanner = document.getElementById('estop-banner');
   const btnModeAuto = document.getElementById('btn-mode-auto');
   const btnModeManual = document.getElementById('btn-mode-manual');
 
@@ -819,13 +801,109 @@ document.addEventListener('DOMContentLoaded', () => {
   let waterLevel = 0.0;
   let totalCapacityLiters = 5000.0;
   let isPumpRunning = false;
-  let isHardwareOnline = true;
-  let lastHardwareHeartbeat = Date.now();
+  let isHardwareOnline = false;
+  let lastHardwareHeartbeat = 0;
   let lastMqttCommandTimestamp = 0;
   let controlMode = 'AUTO';
+  let previousControlMode = 'AUTO';
+  let isEmergencyStopActive = false;
   let runSeconds = 0;
   let runTimer = null;
   let dailyCycles = 0;
+
+  function updateEmergencyStopUI(active) {
+    isEmergencyStopActive = active;
+    if (btnEmergencyStop) {
+      if (active) {
+        btnEmergencyStop.classList.add('estop-engaged');
+        btnEmergencyStop.innerHTML = '<span>⚠️ EMERGENCY STOP ENGAGED (TAP TO RESET)</span>';
+      } else {
+        btnEmergencyStop.classList.remove('estop-engaged');
+        btnEmergencyStop.innerHTML = '<span>🛑 EMERGENCY STOP (E-STOP)</span>';
+      }
+    }
+    if (estopBanner) {
+      if (active) {
+        estopBanner.classList.remove('hidden');
+      } else {
+        estopBanner.classList.add('hidden');
+      }
+    }
+    if (btnPumpToggle) {
+      if (active) {
+        btnPumpToggle.classList.add('control-disabled');
+        btnPumpToggle.style.opacity = '0.5';
+        btnPumpToggle.style.pointerEvents = 'none';
+      } else if (isHardwareOnline) {
+        btnPumpToggle.classList.remove('control-disabled');
+        btnPumpToggle.style.opacity = '1';
+        btnPumpToggle.style.pointerEvents = 'auto';
+      }
+    }
+  }
+
+  function handleEmergencyStopClick() {
+    const activeDevId = (userDevices && userDevices.length > 0) ? (userDevices[0].id || userDevices[0].nodeId || userDevices[0].deviceId) : 'esp32_pump_main';
+    if (isEmergencyStopActive) {
+      // RESET / CLEAR EMERGENCY STOP
+      updateEmergencyStopUI(false);
+      const restoreMode = previousControlMode || 'AUTO';
+      setControlMode(restoreMode, true);
+
+      if (mqttClient && mqttClient.connected) {
+        const payload = JSON.stringify({
+          action: 'CLEAR_EMERGENCY',
+          command: 'CLEAR_EMERGENCY',
+          commandId: `cmd_clr_${Date.now()}`,
+          deviceId: activeDevId,
+          timestamp: Math.floor(Date.now() / 1000)
+        });
+        mqttClient.publish('pump/command', payload, { qos: 1 });
+        mqttClient.publish(`pump/${activeDevId}/command`, payload, { qos: 1 });
+        mqttClient.publish(`devices/${activeDevId}/command`, payload, { qos: 1 });
+      }
+
+      fetch(`${apiBaseUrl}/command`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ command: 'CLEAR_EMERGENCY', action: 'CLEAR_EMERGENCY', deviceId: activeDevId })
+      }).catch(() => null);
+
+    } else {
+      // ENGAGE EMERGENCY STOP
+      previousControlMode = controlMode;
+      updateEmergencyStopUI(true);
+      setMotorRunning(false, false);
+
+      if (mqttClient && mqttClient.connected) {
+        const payload = JSON.stringify({
+          action: 'EMERGENCY_STOP',
+          command: 'EMERGENCY_STOP',
+          commandId: `cmd_estop_${Date.now()}`,
+          pumpState: 'OFF',
+          state: 'OFF',
+          status: 'STOPPED',
+          deviceId: activeDevId,
+          timestamp: Math.floor(Date.now() / 1000)
+        });
+        mqttClient.publish('pump/command', payload, { qos: 1 });
+        mqttClient.publish(`pump/${activeDevId}/command`, payload, { qos: 1 });
+        mqttClient.publish(`devices/${activeDevId}/command`, payload, { qos: 1 });
+      }
+
+      fetch(`${apiBaseUrl}/command`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ command: 'EMERGENCY_STOP', action: 'EMERGENCY_STOP', deviceId: activeDevId })
+      }).catch(() => null);
+    }
+  }
 
   // Animation phases (matching Flutter SmartWaterSystemCard)
   let wavePhase = 0;
@@ -1489,6 +1567,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function setControlMode(mode, shouldPublish = true) {
+    if (!isEmergencyStopActive && mode !== controlMode) {
+      previousControlMode = controlMode;
+    }
     controlMode = mode === 'MANUAL' ? 'MANUAL' : 'AUTO';
     if (btnModeAuto && btnModeManual) {
       if (controlMode === 'AUTO') {
@@ -1550,10 +1631,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (hwText) hwText.textContent = isOnline ? 'HARDWARE ONLINE' : 'HARDWARE OFFLINE';
     if (hwText) hwText.style.color = isOnline ? 'var(--accent)' : 'var(--danger)';
     if (hwDot) hwDot.style.background = isOnline ? 'var(--accent)' : 'var(--danger)';
-    if (hwPing) hwPing.textContent = `Ping ${rtt}ms`;
+    if (hwPing) hwPing.textContent = isOnline ? `Ping ${rtt}ms` : 'Disconnected';
 
     if (btnPumpToggle) {
-      if (!isOnline) {
+      if (!isOnline || isEmergencyStopActive) {
         btnPumpToggle.classList.add('control-disabled');
         btnPumpToggle.style.opacity = '0.5';
         btnPumpToggle.style.pointerEvents = 'none';
@@ -1582,6 +1663,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function setMotorRunning(active, shouldPublish = true) {
+    if (active && isEmergencyStopActive) {
+      alert('⚠️ Emergency Stop is active. Reset Emergency Stop first before operating pump.');
+      return;
+    }
     if (shouldPublish && !isHardwareOnline) {
       alert('⚠️ Hardware is Offline. Ensure ESP32 is powered on and connected before operating pump.');
       return;
@@ -1651,10 +1736,10 @@ document.addEventListener('DOMContentLoaded', () => {
         mqttClient.publish(`pump/${activeDevId}/command`, payload, { qos: 1 });
         mqttClient.publish(`pump/${currentUser ? currentUser.id : 'user'}/${activeDevId}/command`, payload, { qos: 1 });
         mqttClient.publish(`devices/${activeDevId}/command`, payload, { qos: 1 });
-        mqttClient.publish('pump/status', payload, { qos: 1, retain: true });
-        mqttClient.publish(`pump/${activeDevId}/status`, payload, { qos: 1, retain: true });
+        mqttClient.publish('pump/status', payload, { qos: 1 });
+        mqttClient.publish(`pump/${activeDevId}/status`, payload, { qos: 1 });
         mqttClient.publish('waterpump/esp32/control', payload, { qos: 1 });
-        mqttClient.publish('waterpump/esp32/status', payload, { qos: 1, retain: true });
+        mqttClient.publish('waterpump/esp32/status', payload, { qos: 1 });
       }
 
       // 2. Backend REST Command
@@ -1704,7 +1789,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnPumpToggle.addEventListener('click', () => setMotorRunning(!isPumpRunning, true));
   }
   if (btnEmergencyStop) {
-    btnEmergencyStop.addEventListener('click', () => setMotorRunning(false, true));
+    btnEmergencyStop.addEventListener('click', handleEmergencyStopClick);
   }
 
   function initMqttSync() {
@@ -1732,7 +1817,9 @@ document.addEventListener('DOMContentLoaded', () => {
       mqttClient.on('connect', () => {
         console.log('[MQTT] Connected to EMQX Cloud Broker via WebSocket');
         updateMqttStatusBadge(true);
-        updateHardwareStatusBadge(true, 18);
+        if (userDevices && userDevices.length === 0) {
+          updateHardwareStatusBadge(false, 0);
+        }
 
         // Subscribed to all wildcard topics to cover mobile app and ESP32 hardware
         mqttClient.subscribe([
@@ -1746,7 +1833,32 @@ document.addEventListener('DOMContentLoaded', () => {
       mqttClient.on('message', (topic, message) => {
         try {
           const data = JSON.parse(message.toString());
-          updateHardwareStatusBadge(true, 22);
+
+          // Active device check: filter out packets if user has linked devices and incoming doesn't match
+          const activeDevId = (userDevices && userDevices.length > 0)
+            ? (userDevices[0].id || userDevices[0].nodeId || userDevices[0].deviceId)
+            : null;
+
+          const incomingDevId = data.deviceId || data.nodeId || data.id;
+          if (activeDevId && incomingDevId && incomingDevId !== activeDevId && incomingDevId !== 'esp32_pump_main') {
+            return; // Ignore packets from other user hardware
+          }
+
+          // Strict Offline Detection via LWT or status payload
+          if (data.status === 'OFFLINE' || data.state === 'OFFLINE') {
+            updateHardwareStatusBadge(false);
+            return;
+          }
+
+          if (activeDevId) {
+            lastHardwareHeartbeat = Date.now();
+            updateHardwareStatusBadge(true, 22);
+          }
+
+          // Sync Emergency Stop State from hardware/mobile
+          if (data.emergencyStopped !== undefined) {
+            updateEmergencyStopUI(Boolean(data.emergencyStopped));
+          }
 
           // 0. Live & Retained Hardware Node Synchronization across devices (Strict User-Scoped)
           if (topic.startsWith('devices/sync') || topic.startsWith('hydropulse/devices') || (data && (data.macAddress || (data.deviceId && (data.name || data.userEmail))))) {
@@ -1765,11 +1877,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
           // 1. Motor Command Sync from Mobile App or Hardware
           const cmd = (data.command || data.action || '').toUpperCase();
-          if (cmd === 'START_PUMP' || cmd === 'PUMP_ON' || cmd === 'ON') {
+          if (cmd === 'EMERGENCY_STOP' || cmd === 'E_STOP') {
+            updateEmergencyStopUI(true);
             lastMqttCommandTimestamp = Date.now();
-            setMotorRunning(true, false);
-            syncStateToBackend(true);
-          } else if (cmd === 'STOP_PUMP' || cmd === 'PUMP_OFF' || cmd === 'OFF' || cmd === 'EMERGENCY_STOP' || cmd === 'E_STOP') {
+            setMotorRunning(false, false);
+            syncStateToBackend(false);
+          } else if (cmd === 'CLEAR_EMERGENCY') {
+            updateEmergencyStopUI(false);
+          } else if (cmd === 'START_PUMP' || cmd === 'PUMP_ON' || cmd === 'ON') {
+            if (!isEmergencyStopActive) {
+              lastMqttCommandTimestamp = Date.now();
+              setMotorRunning(true, false);
+              syncStateToBackend(true);
+            }
+          } else if (cmd === 'STOP_PUMP' || cmd === 'PUMP_OFF' || cmd === 'OFF') {
             lastMqttCommandTimestamp = Date.now();
             setMotorRunning(false, false);
             syncStateToBackend(false);
@@ -1943,12 +2064,14 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchLive();
     restPollInterval = setInterval(fetchLive, 2500);
 
-    // Watchdog to detect hardware silence (> 25s)
+    // Strict Hardware Watchdog (6000ms window, checking every 1000ms)
     setInterval(() => {
-      if (Date.now() - lastHardwareHeartbeat > 25000) {
-        updateHardwareStatusBadge(false);
+      if (isHardwareOnline && userDevices && userDevices.length > 0) {
+        if (Date.now() - lastHardwareHeartbeat > 6000) {
+          updateHardwareStatusBadge(false);
+        }
       }
-    }, 4000);
+    }, 1000);
   }
 
   resizeTankCanvas();

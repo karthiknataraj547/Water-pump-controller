@@ -273,25 +273,7 @@ class MqttService {
     _client!.publishMessage('pump/$userId/$deviceId/command', MqttQos.atLeastOnce, builder.payload!);
     _client!.publishMessage('waterpump/esp32/control', MqttQos.atLeastOnce, builder.payload!);
 
-    // Retain pump status update so web console and all clients synchronize immediately with 0 delay
-    final normCmd = command.toUpperCase();
-    final isPumpOn = (normCmd == 'START_PUMP' || normCmd == 'PUMP_ON' || normCmd == 'ON');
-    final statusPayload = jsonEncode({
-      'deviceId': deviceId,
-      'command': command,
-      'action': command,
-      'commandId': cmdId,
-      'status': 'ONLINE',
-      'pumpState': isPumpOn ? 'RUNNING' : 'STOPPED',
-      'pumpStatus': isPumpOn ? 'ON' : 'OFF',
-      'timestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
-    });
-    final statusBuilder = MqttClientPayloadBuilder();
-    statusBuilder.addString(statusPayload);
-    _client!.publishMessage('pump/status', MqttQos.atLeastOnce, statusBuilder.payload!, retain: true);
-    _client!.publishMessage('pump/$deviceId/status', MqttQos.atLeastOnce, statusBuilder.payload!, retain: true);
-
-    debugPrint('[MQTT TX Command] $command to $deviceId (ID: $cmdId) + Retained status broadcast');
+    debugPrint('[MQTT TX Command] $command to $deviceId (ID: $cmdId)');
   }
 
   void publishPing(String userId, String deviceId, String pingId, int timestampMs) {

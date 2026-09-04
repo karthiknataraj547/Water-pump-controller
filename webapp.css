@@ -1173,10 +1173,48 @@ html, body {
   font-weight: 700;
   font-size: 12px;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .btn-estop-action:hover {
   background: rgba(239, 68, 68, 0.2);
+}
+
+.btn-estop-action.estop-engaged {
+  background: #DC2626 !important;
+  color: #FFFFFF !important;
+  border-color: #EF4444 !important;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.7);
+  animation: pulse-estop 1.2s infinite ease-in-out;
+  font-weight: 800;
+}
+
+@keyframes pulse-estop {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+  50% { transform: scale(1.02); box-shadow: 0 0 24px 6px rgba(239, 68, 68, 0.9); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+.estop-warning-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #FCA5A5;
+  font-size: 12px;
+  line-height: 1.4;
+  margin-bottom: 10px;
+}
+
+.estop-warning-banner strong {
+  color: #EF4444;
+}
+
+.estop-warning-banner.hidden {
+  display: none !important;
 }
 
 /* System Card Sub-Metrics Row */

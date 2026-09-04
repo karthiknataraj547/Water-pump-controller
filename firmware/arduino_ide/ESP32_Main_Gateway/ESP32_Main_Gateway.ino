@@ -656,7 +656,7 @@ void TaskNetwork(void *pvParameters) {
         String lwtPayload = "{\"deviceId\":\"" + deviceId + "\",\"status\":\"OFFLINE\",\"subNodeOnline\":false,\"waterLevel\":-1}";
 
         Serial.printf("[MQTT] Connecting to '%s:1883' with LWT...\n", targetBroker);
-        if (mqttClient.connect(clientId.c_str(), "pump/status", 1, true, lwtPayload.c_str())) {
+        if (mqttClient.connect(clientId.c_str(), ("pump/" + deviceId + "/status").c_str(), 1, true, lwtPayload.c_str())) {
           Serial.printf("[MQTT] Connected to Broker: %s!\n", targetBroker);
 
           // Subscriptions - commands and fast ping topics
@@ -673,6 +673,7 @@ void TaskNetwork(void *pvParameters) {
           initDoc["status"] = "ONLINE";
           initDoc["pumpState"] = pumpRunning ? "RUNNING" : "STOPPED";
           initDoc["mode"] = systemMode;
+          initDoc["emergencyStopped"] = emergencyStopped;
           bool subAlive = (lastSensorPacketTime > 0 && (millis() - lastSensorPacketTime) < SUB_NODE_TIMEOUT_MS);
           initDoc["subNodeOnline"] = subAlive;
           initDoc["waterLevel"] = subAlive ? currentLevelPct : -1;
@@ -736,6 +737,7 @@ void TaskNetwork(void *pvParameters) {
         doc["status"] = "ONLINE";
         doc["pumpState"] = pumpRunning ? "RUNNING" : "STOPPED";
         doc["mode"] = systemMode;
+        doc["emergencyStopped"] = emergencyStopped;
         bool subAlive = (lastSensorPacketTime > 0 && (millis() - lastSensorPacketTime) < SUB_NODE_TIMEOUT_MS);
         doc["subNodeOnline"] = subAlive;
         doc["ip"] = WiFi.localIP().toString();
@@ -774,6 +776,7 @@ void TaskNetwork(void *pvParameters) {
         doc["status"] = "ONLINE";
         doc["pumpState"] = pumpRunning ? "RUNNING" : "STOPPED";
         doc["mode"] = systemMode;
+        doc["emergencyStopped"] = emergencyStopped;
         bool subAlive = (lastSensorPacketTime > 0 && (millis() - lastSensorPacketTime) < SUB_NODE_TIMEOUT_MS);
         doc["subNodeOnline"] = subAlive;
         doc["ip"] = WiFi.localIP().toString();
