@@ -389,26 +389,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   if (device != null) ...[
                     Divider(color: isDark ? AppTheme.darkCardBorder : AppTheme.lightCardBorder, height: 1),
                     ListTile(
-                      leading: const Icon(Icons.link_off_rounded, color: AppTheme.accentAmber, size: 20),
-                      title: const Text('Unlink Active Gateway', style: TextStyle(color: AppTheme.accentAmber, fontWeight: FontWeight.w600, fontSize: 14)),
-                      subtitle: Text('Remove paired ESP32 (${device.id}) and test onboarding', style: textTheme.bodySmall?.copyWith(fontSize: 11)),
-                      onTap: () {
-                        showDialog(
-                          context: context,
-                          builder: (_) => ConfirmationDialog(
-                            title: 'Unlink Gateway?',
-                            content: 'This will disconnect ${device.id} from this app and return to the Link Device onboarding screen. You can re-pair anytime.',
-                            confirmText: 'Unlink',
-                            confirmColor: AppTheme.accentAmber,
-                            onConfirm: () async {
-                              await hardwareStateService.removeDevice();
-                              if (mounted) {
-                                context.go('/dashboard');
-                              }
-                            },
-                          ),
-                        );
-                      },
+                      leading: const Icon(Icons.link_off_rounded, color: AppTheme.danger, size: 20),
+                      title: const Text('Remove Active Hardware', style: TextStyle(color: AppTheme.danger, fontWeight: FontWeight.w600, fontSize: 14)),
+                      subtitle: Text('Remove paired ESP32 (${device.id}) and reset dashboard', style: textTheme.bodySmall?.copyWith(fontSize: 11)),
+                      trailing: ElevatedButton(
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (_) => ConfirmationDialog(
+                              title: 'Remove Hardware?',
+                              content: 'This will send a reset signal to the ESP32 (${device.id}), unpair it, and remove it from your dashboard.',
+                              confirmText: 'Remove',
+                              confirmColor: AppTheme.danger,
+                              onConfirm: () async {
+                                await hardwareStateService.removeDevice();
+                                if (mounted) {
+                                  context.go('/dashboard');
+                                }
+                              },
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.danger,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: const Text('Remove', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                      ),
                     ),
                   ],
                 ],

@@ -398,7 +398,7 @@ class _HardwareScreenState extends State<HardwareScreen> {
                   builder: (_) => ConfirmationDialog(
                     title: 'Remove Hardware?',
                     content: 'This will send a factory reset signal to the ESP32 (erasing saved Wi-Fi), unpair the hardware from your cloud account, and remove it from the application.',
-                    confirmText: 'Remove Hardware',
+                    confirmText: 'Remove',
                     confirmColor: AppTheme.danger,
                     onConfirm: () async {
                       hardwareStateService.sendPumpCommand('FACTORY_RESET');
@@ -430,7 +430,7 @@ class _HardwareScreenState extends State<HardwareScreen> {
                     const Icon(Icons.delete_forever_rounded, size: 16, color: AppTheme.danger),
                     const SizedBox(width: 6),
                     Text(
-                      'Remove Hardware',
+                      'Remove',
                       style: textTheme.bodySmall?.copyWith(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.danger),
                     ),
                   ],

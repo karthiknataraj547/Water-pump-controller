@@ -105,6 +105,8 @@ class HardwareStateService extends ChangeNotifier {
   HardwareStateService._internal();
 
   DeviceModel? _activeDevice;
+  bool _isExplicitlyRemoved = false;
+  bool get isExplicitlyRemoved => _isExplicitlyRemoved;
   SensorDataModel? _sensorData;
   PumpStatusModel? _pumpStatus;
 
@@ -163,8 +165,11 @@ class HardwareStateService extends ChangeNotifier {
   DeviceModel? get activeDevice => _activeDevice;
 
   Future<void> clearDevice() async {
+    _isExplicitlyRemoved = true;
     final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('hardware_explicitly_removed', true);
     await prefs.remove('saved_paired_device');
+    await prefs.remove('last_heartbeat_ms');
     _activeDevice = null;
     _sensorData = null;
     _pumpStatus = null;
@@ -242,7 +247,7 @@ class HardwareStateService extends ChangeNotifier {
       final token = await storage.read(key: AppConstants.keyAccessToken);
       final cleanEmail = email?.trim().toLowerCase() ?? '';
 
-      if (cleanEmail.isEmpty) {
+      if (_isExplicitlyRemoved || cleanEmail.isEmpty) {
         _activeDevice = null;
         _sensorData = null;
         _pumpStatus = null;
@@ -567,9 +572,11 @@ class HardwareStateService extends ChangeNotifier {
 
     await _loadTelemetryHistory();
 
+    _isExplicitlyRemoved = prefs.getBool('hardware_explicitly_removed') ?? false;
+
     // Restore locally paired device from persistent storage
     final savedDevStr = prefs.getString('saved_paired_device');
-    if (savedDevStr != null && savedDevStr.isNotEmpty) {
+    if (!_isExplicitlyRemoved && savedDevStr != null && savedDevStr.isNotEmpty) {
       try {
         final map = jsonDecode(savedDevStr) as Map<String, dynamic>;
         _activeDevice = DeviceModel.fromJson(map);
@@ -579,10 +586,13 @@ class HardwareStateService extends ChangeNotifier {
       }
     }
 
-    _activeDevice ??= _createDefaultDevice();
-
-    // Fetch latest hardware synchronized in cloud backend database for this account
-    await fetchUserDevicesFromBackend();
+    if (!_isExplicitlyRemoved) {
+      _activeDevice ??= _createDefaultDevice();
+      // Fetch latest hardware synchronized in cloud backend database for this account
+      await fetchUserDevicesFromBackend();
+    } else {
+      _activeDevice = null;
+    }
 
     // Preserve last known heartbeat if available from storage/session, otherwise verify in background
     _isVerifyingStatus = true;
@@ -670,6 +680,8 @@ class HardwareStateService extends ChangeNotifier {
       final cleanEmail = email?.trim().toLowerCase() ?? '';
       if (cleanEmail.isEmpty) return;
 
+      if (_isExplicitlyRemoved) return;
+
       final msgEmail = (data['userEmail'] ?? data['userId'] ?? '').toString().toLowerCase();
       final isKarthik = cleanEmail == 'karthiknataraj547@gmail.com' || cleanEmail == 'karthiknataraj547@gamil.com' || cleanEmail.contains('karthiknataraj547');
 
@@ -746,6 +758,7 @@ class HardwareStateService extends ChangeNotifier {
     final incomingDevId = (data['deviceId'] ?? data['device_id'] ?? '').toString().trim();
 
     if (_activeDevice == null) {
+      if (_isExplicitlyRemoved) return;
       if (incomingDevId.isNotEmpty) {
         _activeDevice = DeviceModel(
           id: incomingDevId,
@@ -886,6 +899,7 @@ class HardwareStateService extends ChangeNotifier {
     final devId = (data['deviceId'] ?? data['device_id'] ?? '').toString().trim();
 
     if (_activeDevice == null) {
+      if (_isExplicitlyRemoved) return;
       if (devId.isNotEmpty) {
         _activeDevice = DeviceModel(
           id: devId,
@@ -1037,6 +1051,7 @@ class HardwareStateService extends ChangeNotifier {
     final incomingDevId = (data['deviceId'] ?? data['device_id'] ?? '').toString().trim();
 
     if (_activeDevice == null) {
+      if (_isExplicitlyRemoved) return;
       if (incomingDevId.isNotEmpty) {
         _activeDevice = DeviceModel(
           id: incomingDevId,
@@ -1231,6 +1246,9 @@ class HardwareStateService extends ChangeNotifier {
     required String macAddress,
     String? ipAddress,
   }) {
+    _isExplicitlyRemoved = false;
+    SharedPreferences.getInstance().then((p) => p.remove('hardware_explicitly_removed'));
+
     _activeDevice = DeviceModel(
       id: deviceId,
       name: name,
@@ -1283,17 +1301,27 @@ class HardwareStateService extends ChangeNotifier {
 
   Future<void> removeDevice() async {
     final devId = _activeDevice?.id;
+    if (devId != null && devId.isNotEmpty) {
+      // 1. Dispatch reset & remove commands to hardware over MQTT
+      mqttService.publishCommand('app_remove', devId, 'FACTORY_RESET', {'action': 'FACTORY_RESET'});
+      mqttService.publishCommand('app_remove', devId, 'RESET', {'action': 'RESET'});
+      mqttService.publishCommand('app_remove', devId, 'REMOVE', {'action': 'REMOVE'});
+    }
+
+    _isExplicitlyRemoved = true;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('hardware_explicitly_removed', true);
+    await prefs.remove('saved_paired_device');
+    await prefs.remove('last_heartbeat_ms');
+    const storage = FlutterSecureStorage();
+    await storage.delete(key: AppConstants.keySelectedDeviceId);
+
     _activeDevice = null;
     _sensorData = null;
     _pumpStatus = null;
     _lastMainNodeHeartbeat = null;
     _lastSubNodePacket = null;
     _liveAlerts.clear();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('saved_paired_device');
-    await prefs.remove('last_heartbeat_ms');
-    const storage = FlutterSecureStorage();
-    await storage.delete(key: AppConstants.keySelectedDeviceId);
 
     if (devId != null && devId.isNotEmpty) {
       try {

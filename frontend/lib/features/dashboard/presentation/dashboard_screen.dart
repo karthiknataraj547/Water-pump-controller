@@ -193,6 +193,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             tooltip: 'Notifications',
             onPressed: () => context.push('/notifications'),
           ),
+          if (device != null)
+            IconButton(
+              icon: const Icon(Icons.link_off_rounded, color: AppTheme.danger, size: 22),
+              tooltip: 'Remove',
+              onPressed: () => _confirmRemoveHardware(context),
+            ),
           IconButton(
             icon: Icon(Icons.settings_outlined, size: 22, color: isDarkMode ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary),
             tooltip: 'Settings & Config',
@@ -412,6 +418,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _confirmRemoveHardware(context),
+                        icon: const Icon(Icons.link_off_rounded, color: AppTheme.danger, size: 16),
+                        label: const Text('Remove', style: TextStyle(color: AppTheme.danger, fontWeight: FontWeight.w700, fontSize: 13)),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: AppTheme.danger.withValues(alpha: 0.35)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
                     ),
                   ],
                   const SizedBox(height: 24),
@@ -881,6 +901,78 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 ),
               ],
             ),
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _confirmRemoveHardware(context),
+            icon: const Icon(Icons.link_off_rounded, size: 14),
+            label: const Text('Remove'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppTheme.danger,
+              side: BorderSide(color: AppTheme.danger.withValues(alpha: 0.4), width: 0.8),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmRemoveHardware(BuildContext context) {
+    final device = hardwareStateService.activeDevice;
+    if (device == null) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppTheme.danger.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.link_off_rounded, color: AppTheme.danger, size: 22),
+            ),
+            const SizedBox(width: 10),
+            const Text('Remove Hardware?'),
+          ],
+        ),
+        content: Text(
+          'This will send a reset signal to the ESP32 (${device.id}) to wipe Wi-Fi credentials, unpair it from your account, and remove it from your dashboard.',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              await hardwareStateService.removeDevice();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).clearSnackBars();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('✓ Hardware reset signal dispatched and removed from dashboard.'),
+                    behavior: SnackBarBehavior.floating,
+                    backgroundColor: AppTheme.danger,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.danger,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Remove', style: TextStyle(fontWeight: FontWeight.w700)),
           ),
         ],
       ),

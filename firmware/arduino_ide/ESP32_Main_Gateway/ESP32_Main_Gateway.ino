@@ -527,7 +527,8 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     } else if (strcasecmp(action, "GET_STATUS") == 0 || strcasecmp(action, "STATUS") == 0) {
       Serial.println("[MQTT] Immediate Status request received from App. Dispatching live state...");
       notifyMqttStatusUpdate = true;
-    } else if (strcasecmp(action, "FACTORY_RESET") == 0 || strcasecmp(action, "HARD_RESET") == 0) {
+    } else if (strcasecmp(action, "FACTORY_RESET") == 0 || strcasecmp(action, "HARD_RESET") == 0 || strcasecmp(action, "RESET") == 0 || strcasecmp(action, "REMOVE") == 0) {
+      Serial.println("[MQTT] Reset / Remove command received from Mobile App. Executing hardware wipe...");
       executeFactoryReset();
     }
   }
@@ -649,15 +650,15 @@ void TaskNetwork(void *pvParameters) {
     if (!mqttClient.connected()) {
       if (millis() - lastMqttRetry > 3500) {
         lastMqttRetry = millis();
-        const char* targetBroker = CLOUD_BROKERS[currentBrokerIdx];
+        const char* targetBroker = DEFAULT_MQTT_BROKER;
         mqttClient.setServer(targetBroker, DEFAULT_MQTT_PORT);
 
         String clientId = deviceId + "_" + String(random(1000, 9999));
         String lwtPayload = "{\"deviceId\":\"" + deviceId + "\",\"status\":\"OFFLINE\",\"subNodeOnline\":false,\"waterLevel\":-1}";
 
-        Serial.printf("[MQTT] Connecting to '%s:1883' with LWT...\n", targetBroker);
+        Serial.printf("[MQTT] Connecting to EMQX Cloud '%s:1883' with LWT...\n", targetBroker);
         if (mqttClient.connect(clientId.c_str(), ("pump/" + deviceId + "/status").c_str(), 1, true, lwtPayload.c_str())) {
-          Serial.printf("[MQTT] Connected to Broker: %s!\n", targetBroker);
+          Serial.printf("[MQTT] Connected to EMQX Broker: %s!\n", targetBroker);
 
           // Subscriptions - commands, wildcards, and fast ping topics
           String cmdTopic = "pump/" + deviceId + "/command";
@@ -691,8 +692,7 @@ void TaskNetwork(void *pvParameters) {
           mqttClient.publish(("pump/" + deviceId + "/status").c_str(), initOut.c_str(), false);
           Serial.printf("[MQTT] Broadcasted live ONLINE status for %s\n", deviceId.c_str());
         } else {
-          Serial.printf("[MQTT] Connect failed (State: %d). Trying next broker in pool...\n", mqttClient.state());
-          currentBrokerIdx = (currentBrokerIdx + 1) % 3;
+          Serial.printf("[MQTT] EMQX connect failed (State: %d). Retrying in 3.5s...\n", mqttClient.state());
         }
       }
     } else {

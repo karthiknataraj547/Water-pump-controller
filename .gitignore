@@ -27,6 +27,12 @@ mobile_app/.pub-cache/
 .pio/
 firmware/esp32_main_node/.pio/
 firmware/esp8266_sub_node/.pio/
+firmware/arduino_ide/build*/
+*.o
+*.elf
+*.bin
+*.map
+*.d
 
 # Python & Tools
 __pycache__/
