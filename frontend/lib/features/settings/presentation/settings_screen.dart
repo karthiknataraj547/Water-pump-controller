@@ -529,6 +529,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           onConfirm: () async {
                             const storage = FlutterSecureStorage();
                             await storage.deleteAll();
+                            await hardwareStateService.onUserLogout();
                             authStateNotifier.value = null;
                             if (mounted) {
                               context.go('/login');

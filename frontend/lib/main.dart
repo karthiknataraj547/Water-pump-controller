@@ -427,6 +427,8 @@ class _NoGatewayLinkedView extends StatelessWidget {
   Future<void> _handleLogout(BuildContext context) async {
     const storage = FlutterSecureStorage();
     await storage.deleteAll();
+    await hardwareStateService.onUserLogout();
+    authStateNotifier.value = null;
     if (context.mounted) {
       context.go('/login');
     }

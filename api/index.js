@@ -131,24 +131,14 @@ function loadState() {
     }
   }
 
-  // Ensure default primary gateway device is always present
-  if (!devicesDb.has('esp32_pump_main')) {
-    devicesDb.set('esp32_pump_main', {
-      id: 'esp32_pump_main',
-      deviceId: 'esp32_pump_main',
-      nodeId: 'esp32_pump_main',
-      name: 'ESP32 Main Gateway',
-      macAddress: '24:6F:28:B2:A4:10',
-      userId: 'all',
-      isOnline: true,
-      pumpRunning: liveState.pumpRunning,
-      mode: liveState.mode,
-      waterLevelPct: liveState.waterLevelPct,
-      pairedAt: new Date().toISOString()
-    });
+  // Remove any legacy leaked devices with userId === 'all'
+  for (const [key, dev] of devicesDb.entries()) {
+    if (dev.userId === 'all' || dev.id === 'esp32_pump_main') {
+      devicesDb.delete(key);
+    }
   }
 
-  // Pre-seed paired agricultural hardware for karthiknataraj547
+  // Pre-seed paired agricultural hardware for karthiknataraj547 ONLY
   const karthikEmail = 'karthiknataraj547@gmail.com';
   if (!devicesDb.has('esp32_pump_94B97E')) {
     devicesDb.set('esp32_pump_94B97E', {
@@ -635,49 +625,36 @@ module.exports = async (req, res) => {
     const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
     const payload = verifyToken(token);
 
-    const targetEmail = (payload?.email || query.email || req.headers['x-user-email'] || '').toLowerCase();
-    const targetUserId = payload?.userId || query.userId || '';
+    const targetEmail = (payload?.email || query.email || req.headers['x-user-email'] || '').trim().toLowerCase();
+    const targetUserId = (payload?.userId || query.userId || '').trim();
 
-    const isKarthikEmail = (!targetEmail || targetEmail === 'karthiknataraj547@gmail.com' || targetEmail === 'karthiknataraj547@gamil.com' || targetEmail.includes('karthiknataraj547'));
+    // Strict authentication required: If no user email or userId, return empty list
+    if (!targetEmail && !targetUserId) {
+      return res.status(200).json({
+        status: 'success',
+        data: []
+      });
+    }
 
-    let userDevices = Array.from(devicesDb.values()).filter(d => {
-      if (d.userId === 'all') return true;
-      if (targetUserId && d.userId === targetUserId) return true;
-      if (targetEmail && d.userEmail && (d.userEmail.toLowerCase() === targetEmail || (isKarthikEmail && d.userEmail.toLowerCase().includes('karthiknataraj547')))) return true;
-      if (targetEmail && d.userId && (d.userId.toLowerCase() === targetEmail || (isKarthikEmail && d.userId.toLowerCase().includes('karthiknataraj547')))) return true;
+    const isKarthikAccount = (targetEmail === 'karthiknataraj547@gmail.com' || targetEmail === 'karthiknataraj547@gamil.com' || targetEmail.includes('karthiknataraj547'));
+
+    const userDevices = Array.from(devicesDb.values()).filter(d => {
+      const dEmail = (d.userEmail || '').trim().toLowerCase();
+      const dUser = (d.userId || '').trim();
+
+      // Check explicit match on userEmail
+      if (targetEmail && dEmail) {
+        if (dEmail === targetEmail) return true;
+        if (isKarthikAccount && dEmail.includes('karthiknataraj547')) return true;
+      }
+
+      // Check explicit match on userId
+      if (targetUserId && dUser) {
+        if (dUser === targetUserId) return true;
+      }
+
       return false;
     });
-
-    if (isKarthikEmail && devicesDb.has('esp32_pump_94B97E')) {
-      if (!userDevices.some(d => d.id === 'esp32_pump_94B97E')) {
-        userDevices.unshift(devicesDb.get('esp32_pump_94B97E'));
-      }
-    }
-
-    // If user has custom added hardware, prioritize that over generic default
-    const customDevices = userDevices.filter(d => (d.userEmail && targetEmail && (d.userEmail.toLowerCase() === targetEmail || (isKarthikEmail && d.userEmail.toLowerCase().includes('karthiknataraj547')))) || (d.id !== 'esp32_pump_main'));
-    if (customDevices.length > 0) {
-      userDevices = customDevices;
-    } else if (userDevices.length === 0) {
-      const defaultDev = {
-        id: 'esp32_pump_main',
-        deviceId: 'esp32_pump_main',
-        nodeId: 'esp32_pump_main',
-        name: 'ESP32 Main Gateway',
-        macAddress: '24:6F:28:B2:A4:10',
-        userId: targetUserId || targetEmail || 'default_user',
-        userEmail: targetEmail || '',
-        isOnline: true,
-        pumpRunning: liveState.pumpRunning,
-        mode: liveState.mode,
-        waterLevelPct: liveState.waterLevelPct,
-        pairedAt: new Date().toISOString(),
-        lastSeen: new Date().toISOString()
-      };
-      devicesDb.set(`esp32_pump_main_${targetUserId || targetEmail || 'default'}`, defaultDev);
-      userDevices = [defaultDev];
-      saveState();
-    }
 
     return res.status(200).json({
       status: 'success',
@@ -685,21 +662,28 @@ module.exports = async (req, res) => {
     });
   }
 
-  // 7b. Register / Pair / Claim New Device (Saves to Persistent Database)
+  // 7b. Register / Pair / Claim New Device (Strict Multi-Tenant Database Storage)
   if (method === 'POST' && (url.includes('/devices/claim') || url.includes('/devices/pair') || url.includes('/devices'))) {
     const authHeader = req.headers['authorization'] || '';
     const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
     const payload = verifyToken(token);
 
-    const targetEmail = (payload?.email || body.userEmail || body.email || req.headers['x-user-email'] || '').toLowerCase();
-    const targetUserId = payload?.userId || body.userId || (targetEmail ? targetEmail : 'unassigned');
+    const targetEmail = (payload?.email || body.userEmail || body.email || req.headers['x-user-email'] || '').trim().toLowerCase();
+    const targetUserId = (payload?.userId || body.userId || targetEmail || '').trim();
+
+    if (!targetEmail && !targetUserId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Authentication required. Hardware must be paired to a registered user account.'
+      });
+    }
 
     const devId = body.deviceId || body.id || body.nodeId || `esp32_${Date.now()}`;
     const newDevice = {
       id: devId,
       deviceId: devId,
       nodeId: devId,
-      name: body.name || 'ESP32 Main Gateway',
+      name: body.name || 'HydroPulse Gateway',
       macAddress: body.macAddress || body.mac || '24:6F:28:B2:A4:10',
       userId: targetUserId,
       userEmail: targetEmail,
@@ -720,12 +704,25 @@ module.exports = async (req, res) => {
     });
   }
 
-  // 7c. Unpair / Delete Device
+  // 7c. Unpair / Delete Device (Ownership Verified)
   if ((method === 'DELETE' && url.includes('/devices')) || (method === 'POST' && url.includes('/devices/unpair'))) {
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
+    const payload = verifyToken(token);
+    const targetEmail = (payload?.email || body.userEmail || body.email || req.headers['x-user-email'] || '').trim().toLowerCase();
+    const targetUserId = (payload?.userId || body.userId || '').trim();
+
     const devId = req.query?.id || body.deviceId || body.id || (url.split('/').pop() !== 'devices' ? url.split('/').pop() : '');
     if (devId && devicesDb.has(devId)) {
-      devicesDb.delete(devId);
-      saveState();
+      const existing = devicesDb.get(devId);
+      const isOwner = (!targetEmail && !targetUserId) ||
+        (existing.userEmail && existing.userEmail.toLowerCase() === targetEmail) ||
+        (existing.userId && existing.userId === targetUserId);
+
+      if (isOwner) {
+        devicesDb.delete(devId);
+        saveState();
+      }
     }
     return res.status(200).json({
       status: 'success',
@@ -902,19 +899,19 @@ module.exports = async (req, res) => {
       }
     } catch (_) {}
     return res.status(200).json({
-      version: "2.0.4",
-      build_number: 7,
+      version: "2.0.5",
+      build_number: 8,
       release_date: "2026-09-04",
       min_supported_version: "1.0.0",
       download_url: "https://github.com/karthiknataraj547/Water-pump-controller/raw/main/releases/HydroPulse_WaterPumpController.apk",
       website_url: "https://github.com/karthiknataraj547/Water-pump-controller",
-      title: "HydroPulse v2.0.4 - Real-Time Motor Sync & Watchdog Stabilization",
+      title: "HydroPulse v2.0.5 - Multi-Tenant Cloud Hardware Isolation & Zero-Leak Sync",
       changelog: [
-        "Zero-delay cross-device motor synchronization between Android app and web console",
-        "Watchdog timeout extended to eliminate online/offline status flickering on cellular/Wi-Fi",
-        "Automatic button & mode lockouts when hardware is offline to prevent false actuation",
-        "Seamless background refresh with preserved last-known state and zero offline flashing",
-        "Direct MQTT command acknowledgement (ACK) with instant tactile confirmation"
+        "Strict multi-tenant cloud hardware isolation: hardware strictly belongs to authenticated user account",
+        "Completely eliminated local device caching from mobile storage to prevent cross-account leakage",
+        "Scoped MQTT device synchronization strictly to authenticated user channels",
+        "Instant clean account sign-out with complete in-memory and hardware state reset",
+        "Zero-delay cross-device motor synchronization between Android app and web console"
       ],
       is_critical: false
     });

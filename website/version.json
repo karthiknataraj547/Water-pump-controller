@@ -1,17 +1,17 @@
 {
-  "version": "2.0.4",
-  "build_number": 7,
+  "version": "2.0.5",
+  "build_number": 8,
   "release_date": "2026-09-04",
   "min_supported_version": "1.0.0",
   "download_url": "https://github.com/karthiknataraj547/Water-pump-controller/raw/main/releases/HydroPulse_WaterPumpController.apk",
   "website_url": "https://github.com/karthiknataraj547/Water-pump-controller",
-  "title": "HydroPulse v2.0.4 - Real-Time Motor Sync & Watchdog Stabilization",
+  "title": "HydroPulse v2.0.5 - Multi-Tenant Cloud Hardware Isolation & Zero-Leak Sync",
   "changelog": [
-    "Zero-delay cross-device motor synchronization between Android app and web console",
-    "Watchdog timeout extended to eliminate online/offline status flickering on cellular/Wi-Fi",
-    "Automatic button & mode lockouts when hardware is offline to prevent false actuation",
-    "Seamless background refresh with preserved last-known state and zero offline flashing",
-    "Direct MQTT command acknowledgement (ACK) with instant tactile confirmation"
+    "Strict multi-tenant cloud hardware isolation: hardware strictly belongs to authenticated user account",
+    "Completely eliminated local device caching from mobile storage to prevent cross-account leakage",
+    "Scoped MQTT device synchronization strictly to authenticated user channels",
+    "Instant clean account sign-out with complete in-memory and hardware state reset",
+    "Zero-delay cross-device motor synchronization between Android app and web console"
   ],
   "is_critical": false
 }

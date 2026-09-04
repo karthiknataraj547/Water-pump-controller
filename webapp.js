@@ -330,18 +330,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      if (!userDevices || userDevices.length === 0) {
-        userDevices = [{
-          id: 'esp32_pump_main',
-          nodeId: 'esp32_pump_main',
-          deviceId: 'esp32_pump_main',
-          name: 'ESP32 Main Gateway',
-          macAddress: '24:6F:28:B2:A4:10',
-          isOnline: true
-        }];
+      if (userDevices && userDevices.length > 0) {
+        applyActiveDevice(userDevices[0]);
+      } else {
+        console.log('[Sync] Account has no paired hardware yet.');
+        updateHardwareStatusBadge(false, 0);
+        const nodeNameEl = document.getElementById('active-node-name');
+        if (nodeNameEl) nodeNameEl.textContent = 'No Hardware Linked';
+        const nodeMacEl = document.getElementById('active-node-mac');
+        if (nodeMacEl) nodeMacEl.textContent = 'Pair via Mobile App or Link Below';
       }
-
-      applyActiveDevice(userDevices[0]);
 
       // Wire Up Manual and Quick Linking Hardware Buttons
       function linkBorewellPump() {
@@ -356,7 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
           isOnline: true,
           pumpState: 'OFF',
           mode: 'AUTO',
-          firmwareVersion: 'v2.0.4',
+          firmwareVersion: 'v2.0.5',
           wifiRssi: -65
         };
         applyActiveDevice(borewellDev);
@@ -365,7 +363,6 @@ document.addEventListener('DOMContentLoaded', () => {
           const str = JSON.stringify(borewellDev);
           mqttClient.publish(`hydropulse/devices/${email}`, str, { retain: true, qos: 1 });
           mqttClient.publish(`devices/sync/${email}`, str, { retain: true, qos: 1 });
-          mqttClient.publish('devices/sync/all', str, { retain: true, qos: 1 });
         }
         fetch(`${apiBaseUrl}/devices`, {
           method: 'POST',
@@ -400,7 +397,7 @@ document.addEventListener('DOMContentLoaded', () => {
           isOnline: true,
           pumpState: 'OFF',
           mode: 'AUTO',
-          firmwareVersion: 'v2.0.4',
+          firmwareVersion: 'v2.0.5',
           wifiRssi: -65
         };
         applyActiveDevice(customDev);
@@ -409,7 +406,6 @@ document.addEventListener('DOMContentLoaded', () => {
           const str = JSON.stringify(customDev);
           mqttClient.publish(`hydropulse/devices/${email}`, str, { retain: true, qos: 1 });
           mqttClient.publish(`devices/sync/${email}`, str, { retain: true, qos: 1 });
-          mqttClient.publish('devices/sync/all', str, { retain: true, qos: 1 });
         }
         fetch(`${apiBaseUrl}/devices`, {
           method: 'POST',
@@ -1752,13 +1748,18 @@ document.addEventListener('DOMContentLoaded', () => {
           const data = JSON.parse(message.toString());
           updateHardwareStatusBadge(true, 22);
 
-          // 0. Live & Retained Hardware Node Synchronization across devices
+          // 0. Live & Retained Hardware Node Synchronization across devices (Strict User-Scoped)
           if (topic.startsWith('devices/sync') || topic.startsWith('hydropulse/devices') || (data && (data.macAddress || (data.deviceId && (data.name || data.userEmail))))) {
-            const currentEmail = (currentUser?.email || localStorage.getItem('hydropulse_user_email') || '').toLowerCase();
-            const msgEmail = (data.userEmail || data.userId || '').toLowerCase();
-            if (!msgEmail || msgEmail === 'all' || !currentEmail || msgEmail === currentEmail || currentEmail === 'karthiknataraj547@gmail.com' || currentEmail === 'karthiknataraj547@gamil.com') {
-              console.log('[MQTT] Received hardware sync packet from cloud broker:', data);
-              applyActiveDevice(data);
+            const currentEmail = (currentUser?.email || localStorage.getItem('hydropulse_user_email') || '').trim().toLowerCase();
+            const msgEmail = (data.userEmail || data.userId || '').trim().toLowerCase();
+            if (currentEmail && msgEmail) {
+              const isKarthik = currentEmail === 'karthiknataraj547@gmail.com' || currentEmail === 'karthiknataraj547@gamil.com' || currentEmail.includes('karthiknataraj547');
+              const isMatch = (msgEmail === currentEmail) ||
+                (isKarthik && (msgEmail === 'karthiknataraj547@gmail.com' || msgEmail === 'karthiknataraj547@gamil.com' || msgEmail.includes('karthiknataraj547')));
+              if (isMatch) {
+                console.log('[MQTT] Received hardware sync packet from cloud broker for', currentEmail, data);
+                applyActiveDevice(data);
+              }
             }
           }
 

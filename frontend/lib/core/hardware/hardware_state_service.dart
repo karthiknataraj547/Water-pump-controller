@@ -158,10 +158,10 @@ class HardwareStateService extends ChangeNotifier {
   Future<void> clearDevice() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('saved_paired_device');
-    _activeDevice = _createDefaultDevice();
+    _activeDevice = null;
     _sensorData = null;
     _pumpStatus = null;
-    _lastMainNodeHeartbeat = DateTime.now();
+    _lastMainNodeHeartbeat = null;
     _lastSubNodePacket = null;
     notifyListeners();
   }
@@ -190,15 +190,14 @@ class HardwareStateService extends ChangeNotifier {
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       };
 
-      // 1. Publish retained MQTT synchronization packet to Cloud EMQX Broker
+      // 1. Publish retained MQTT synchronization packet to Cloud Broker (Scoped strictly to user)
       try {
         final syncJson = jsonEncode(payload);
         if (cleanEmail.isNotEmpty) {
           mqttService.publishRetained('hydropulse/devices/$cleanEmail', syncJson);
           mqttService.publishRetained('devices/sync/$cleanEmail', syncJson);
         }
-        mqttService.publishRetained('devices/sync/all', syncJson);
-        debugPrint('[HardwareStateService] Retained sync published to MQTT broker for $cleanEmail');
+        debugPrint('[HardwareStateService] Retained user-scoped sync published to MQTT broker for $cleanEmail');
       } catch (mqttErr) {
         debugPrint('[HardwareStateService] MQTT retained sync notice: $mqttErr');
       }
@@ -236,36 +235,24 @@ class HardwareStateService extends ChangeNotifier {
       final token = await storage.read(key: AppConstants.keyAccessToken);
       final cleanEmail = email?.trim().toLowerCase() ?? '';
 
-      // Direct instant fallback for user account karthiknataraj547@gmail.com / gamil.com
-      if ((cleanEmail == 'karthiknataraj547@gmail.com' || cleanEmail == 'karthiknataraj547@gamil.com') && (_activeDevice == null || _activeDevice!.id == 'esp32_pump_main')) {
-        _activeDevice = DeviceModel(
-          id: 'esp32_pump_94B97E',
-          name: 'Agricultural Borewell Pump',
-          macAddress: '24:6F:28:94:B9:7E',
-          status: 'ONLINE',
-          pumpState: 'OFF',
-          mode: 'AUTO',
-          wifiRssi: -65,
-          firmwareVersion: 'v2.0.2',
-          lastSeen: DateTime.now(),
-        );
-        await _persistActiveDevice();
-        await storage.write(key: AppConstants.keySelectedDeviceId, value: 'esp32_pump_94B97E');
+      if (cleanEmail.isEmpty) {
+        _activeDevice = null;
+        _sensorData = null;
+        _pumpStatus = null;
         notifyListeners();
-        debugPrint('[HardwareStateService] Pre-activated Agricultural Borewell Pump for $cleanEmail');
+        return;
       }
 
-      final Map<String, dynamic> queryParams = {};
-      if (cleanEmail.isNotEmpty) {
-        queryParams['email'] = cleanEmail;
-      }
+      final Map<String, dynamic> queryParams = {
+        'email': cleanEmail,
+      };
 
       final res = await apiClient.get(
         '/devices',
-        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+        queryParameters: queryParams,
         options: Options(
           headers: {
-            if (cleanEmail.isNotEmpty) 'x-user-email': cleanEmail,
+            'x-user-email': cleanEmail,
             if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
           },
         ),
@@ -273,11 +260,36 @@ class HardwareStateService extends ChangeNotifier {
 
       if (res.statusCode == 200 && res.data != null && res.data['status'] == 'success') {
         final rawList = res.data['data'];
-        if (rawList is List && rawList.isNotEmpty) {
-          // Look for any custom paired device first, or first device in list
-          final customDevices = rawList.where((d) => d is Map && (d['id'] != 'esp32_pump_main' || (cleanEmail.isNotEmpty && d['userEmail'] == cleanEmail))).toList();
-          final target = (customDevices.isNotEmpty ? customDevices.first : rawList.first) as Map<String, dynamic>;
+        if (rawList is List) {
+          if (rawList.isEmpty) {
+            // User has no registered hardware on cloud account
+            _activeDevice = null;
+            _sensorData = null;
+            _pumpStatus = null;
+            notifyListeners();
+            debugPrint('[HardwareStateService] User $cleanEmail has 0 cloud-registered devices.');
+            return;
+          }
 
+          // Filter for devices explicitly owned by this user
+          final isKarthik = cleanEmail == 'karthiknataraj547@gmail.com' || cleanEmail == 'karthiknataraj547@gamil.com' || cleanEmail.contains('karthiknataraj547');
+          final userOwned = rawList.where((d) {
+            if (d is! Map) return false;
+            final dEmail = (d['userEmail'] ?? d['userId'] ?? '').toString().toLowerCase();
+            if (dEmail == cleanEmail) return true;
+            if (isKarthik && dEmail.contains('karthiknataraj547')) return true;
+            return false;
+          }).toList();
+
+          if (userOwned.isEmpty) {
+            _activeDevice = null;
+            _sensorData = null;
+            _pumpStatus = null;
+            notifyListeners();
+            return;
+          }
+
+          final target = userOwned.first as Map<String, dynamic>;
           final devId = (target['deviceId'] ?? target['id'] ?? target['nodeId'] ?? '').toString();
           if (devId.isNotEmpty) {
             final devName = (target['name'] ?? 'HydroPulse Gateway').toString();
@@ -300,10 +312,9 @@ class HardwareStateService extends ChangeNotifier {
               lastSeen: DateTime.now(),
             );
 
-            await _persistActiveDevice();
             await storage.write(key: AppConstants.keySelectedDeviceId, value: devId);
             notifyListeners();
-            debugPrint('[HardwareStateService] Fetched and activated device $devId ($devName) from cloud backend for $cleanEmail');
+            debugPrint('[HardwareStateService] Activated cloud device $devId ($devName) for $cleanEmail');
           }
         }
       }
@@ -551,38 +562,12 @@ class HardwareStateService extends ChangeNotifier {
 
     await _loadTelemetryHistory();
 
-    // Load paired device if saved or default to primary gateway
-    final savedDeviceJson = prefs.getString('saved_paired_device');
-    if (savedDeviceJson != null && savedDeviceJson.isNotEmpty) {
-      try {
-        final data = jsonDecode(savedDeviceJson) as Map<String, dynamic>;
-        final loaded = DeviceModel.fromJson(data);
-        _activeDevice = DeviceModel(
-          id: loaded.id.isNotEmpty ? loaded.id : 'esp32_pump_main',
-          name: loaded.name.isNotEmpty ? loaded.name : 'ESP32 Main Gateway',
-          macAddress: loaded.macAddress.isNotEmpty ? loaded.macAddress : '24:6F:28:B2:A4:10',
-          status: 'ONLINE',
-          pumpState: 'STOPPED',
-          mode: loaded.mode.isNotEmpty ? loaded.mode : 'AUTO',
-          wifiRssi: loaded.wifiRssi,
-          firmwareVersion: loaded.firmwareVersion.isNotEmpty ? loaded.firmwareVersion : 'v2.0.2',
-          lastSeen: loaded.lastSeen,
-        );
-      } catch (e) {
-        debugPrint('[HardwareState] Error parsing saved device: $e');
-        _activeDevice = _createDefaultDevice();
-      }
-    } else {
-      _activeDevice = _createDefaultDevice();
-    }
+    // Purge any legacy device from local mobile storage (Zero-Local-Device Architecture)
+    await prefs.remove('saved_paired_device');
+    _activeDevice = null;
 
-    // If a saved custom device exists locally, sync to backend to ensure cloud persistence
-    if (_activeDevice != null && _activeDevice!.id != 'esp32_pump_main') {
-      syncDeviceToBackend(_activeDevice!);
-    }
-
-    // Always fetch latest hardware synchronized in cloud backend database for this account
-    fetchUserDevicesFromBackend();
+    // Fetch latest hardware synchronized in cloud backend database for this account
+    await fetchUserDevicesFromBackend();
 
     // Preserve last known heartbeat if available from storage/session, otherwise verify in background
     _isVerifyingStatus = true;
@@ -668,11 +653,13 @@ class HardwareStateService extends ChangeNotifier {
       const storage = FlutterSecureStorage();
       final email = await storage.read(key: AppConstants.keyUserEmail);
       final cleanEmail = email?.trim().toLowerCase() ?? '';
-      final msgEmail = (data['userEmail'] ?? data['userId'] ?? '').toString().toLowerCase();
+      if (cleanEmail.isEmpty) return;
 
-      final isMatch = msgEmail.isEmpty ||
-          msgEmail == 'all' ||
-          (cleanEmail.isNotEmpty && (msgEmail == cleanEmail || cleanEmail == 'karthiknataraj547@gmail.com' || cleanEmail == 'karthiknataraj547@gamil.com'));
+      final msgEmail = (data['userEmail'] ?? data['userId'] ?? '').toString().toLowerCase();
+      final isKarthik = cleanEmail == 'karthiknataraj547@gmail.com' || cleanEmail == 'karthiknataraj547@gamil.com' || cleanEmail.contains('karthiknataraj547');
+
+      final isMatch = (msgEmail == cleanEmail) ||
+          (isKarthik && (msgEmail == 'karthiknataraj547@gmail.com' || msgEmail == 'karthiknataraj547@gamil.com' || msgEmail.contains('karthiknataraj547')));
 
       if (!isMatch) return;
 
@@ -696,7 +683,6 @@ class HardwareStateService extends ChangeNotifier {
         lastSeen: DateTime.now(),
       );
 
-      await _persistActiveDevice();
       await storage.write(key: AppConstants.keySelectedDeviceId, value: devId);
       notifyListeners();
       debugPrint('[HardwareStateService] Synchronized & activated device $devId ($devName) via Cloud MQTT');
@@ -1134,26 +1120,13 @@ class HardwareStateService extends ChangeNotifier {
       lastSeen: DateTime.now(),
     );
 
-    _persistActiveDevice();
+    // No local storage persistence - directly sync to cloud backend
     syncDeviceToBackend(_activeDevice!);
     notifyListeners();
   }
 
   Future<void> _persistActiveDevice() async {
-    if (_activeDevice == null) return;
-    final prefs = await SharedPreferences.getInstance();
-    final jsonMap = {
-      'id': _activeDevice!.id,
-      'name': _activeDevice!.name,
-      'macAddress': _activeDevice!.macAddress,
-      'status': _activeDevice!.status,
-      'pumpState': _activeDevice!.pumpState,
-      'mode': _activeDevice!.mode,
-      'wifiRssi': _activeDevice!.wifiRssi,
-      'firmwareVersion': _activeDevice!.firmwareVersion,
-      'lastSeen': _activeDevice!.lastSeen.toIso8601String(),
-    };
-    await prefs.setString('saved_paired_device', jsonEncode(jsonMap));
+    // Zero-Local-Device Policy: Hardware is strictly authenticated & retrieved from cloud backend
   }
 
   Future<void> _persistTelemetryHistory() async {
@@ -1225,8 +1198,28 @@ class HardwareStateService extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> onUserLogout() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('saved_paired_device');
+      await prefs.remove('last_heartbeat_ms');
+    } catch (_) {}
+    _activeDevice = null;
+    _sensorData = null;
+    _pumpStatus = null;
+    _lastMainNodeHeartbeat = null;
+    _lastSubNodePacket = null;
+    _liveAlerts.clear();
+    _telemetryHistory.clear();
+    notifyListeners();
+    debugPrint('[HardwareStateService] User logged out. All hardware state cleared.');
+  }
+
   void sendPumpCommand(String command, {Map<String, dynamic>? params}) {
-    _activeDevice ??= _createDefaultDevice();
+    if (_activeDevice == null) {
+      debugPrint('[HardwareStateService] Cannot send command: No hardware paired to this account.');
+      return;
+    }
 
     final normCmd = command.toUpperCase();
     final isTurningOn = (normCmd == 'START_PUMP' || normCmd == 'PUMP_ON' || normCmd == 'ON');

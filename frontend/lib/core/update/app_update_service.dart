@@ -61,9 +61,9 @@ class AppUpdateService {
     receiveTimeout: const Duration(seconds: 8),
   ));
 
-  // Dynamic installed version (defaults to active release v2.0.4 Build 7)
-  String _currentVersion = '2.0.4';
-  int _currentBuildNumber = 7;
+  // Dynamic installed version (defaults to active release v2.0.5 Build 8)
+  String _currentVersion = '2.0.5';
+  int _currentBuildNumber = 8;
   static String get currentVersion => _instance._currentVersion;
   static int get currentBuildNumber => _instance._currentBuildNumber;
   bool _initialized = false;
