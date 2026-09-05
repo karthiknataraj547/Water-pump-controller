@@ -8,7 +8,7 @@ module.exports = {
     {
       name: 'hydropulse-webapp',
       script: 'api/server.js',
-      instances: 1,
+      exec_mode: 'fork',
       autorestart: true,
       watch: false,
       max_memory_restart: '300M',
@@ -21,7 +21,7 @@ module.exports = {
       name: 'hydropulse-backend',
       cwd: './backend',
       script: 'dist/server.js',
-      instances: 1,
+      exec_mode: 'fork',
       autorestart: true,
       watch: false,
       max_memory_restart: '500M',
@@ -29,7 +29,8 @@ module.exports = {
         NODE_ENV: 'production',
         PORT: 4000,
         MQTT_BROKER_URL: 'mqtt://broker.emqx.io:1883',
-        CLOUD_API_URL: 'https://water-pump-controller.vercel.app/api/v1'
+        CLOUD_API_URL: 'https://water-pump-controller.vercel.app/api/v1',
+        DATABASE_URL: 'postgresql://iot_user:iot_password@localhost:5432/water_pump_db?schema=public'
       }
     }
   ]

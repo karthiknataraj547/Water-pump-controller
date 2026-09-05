@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const themeIconDash = document.getElementById('theme-icon-dash');
   const themeLabelDash = document.getElementById('theme-label-dash');
 
-  let currentTheme = localStorage.getItem('hydropulse_theme') || 'dark';
+  let currentTheme = localStorage.getItem('hydropulse_theme') || 'light';
 
   function applyTheme(theme) {
     currentTheme = theme;
@@ -524,7 +524,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Auth Tabs Switching (Sign In vs Create Account)
+  // Auth Tabs Switching (Sign In vs Create Account) with Sliding Pill Physics
+  const tabsWrap = document.getElementById('auth-tabs-wrap');
   const tabSignin = document.getElementById('tab-auth-signin');
   const tabSignup = document.getElementById('tab-auth-signup');
   const formSignin = document.getElementById('auth-form-signin');
@@ -536,6 +537,7 @@ document.addEventListener('DOMContentLoaded', () => {
     tabSignin.addEventListener('click', () => {
       tabSignin.classList.add('active');
       tabSignup.classList.remove('active');
+      if (tabsWrap) tabsWrap.classList.remove('signup-active');
       if (formSignin) formSignin.classList.remove('hidden');
       if (formSignup) formSignup.classList.add('hidden');
       if (authTitle) authTitle.textContent = 'System Console Sign In';
@@ -546,12 +548,86 @@ document.addEventListener('DOMContentLoaded', () => {
     tabSignup.addEventListener('click', () => {
       tabSignup.classList.add('active');
       tabSignin.classList.remove('active');
+      if (tabsWrap) tabsWrap.classList.add('signup-active');
       if (formSignin) formSignin.classList.add('hidden');
       if (formSignup) formSignup.classList.remove('hidden');
       if (authTitle) authTitle.textContent = 'Create HydroPulse Account';
       if (authDesc) authDesc.textContent = 'Register an enterprise client profile to manage water pump controllers.';
       hideAlert();
     });
+  }
+
+  // Real-Time Password Strength & Match Validation Engine
+  const signupPwdInput = document.getElementById('signup-password');
+  const signupConfirmPwdInput = document.getElementById('signup-confirmpassword');
+  const pwdStrengthFill = document.getElementById('pwd-strength-fill');
+  const pwdStrengthText = document.getElementById('pwd-strength-text');
+  const pwdMatchIndicator = document.getElementById('pwd-match-indicator');
+
+  function evaluatePasswordStrength(password) {
+    if (!password) {
+      if (pwdStrengthFill) {
+        pwdStrengthFill.style.width = '0%';
+        pwdStrengthFill.style.backgroundColor = 'transparent';
+      }
+      if (pwdStrengthText) pwdStrengthText.textContent = 'Password strength: Enter password';
+      return;
+    }
+
+    let score = 0;
+    if (password.length >= 6) score += 20;
+    if (password.length >= 8) score += 20;
+    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score += 20;
+    if (/\d/.test(password)) score += 20;
+    if (/[^a-zA-Z0-9]/.test(password)) score += 20;
+
+    if (pwdStrengthFill) {
+      pwdStrengthFill.style.width = `${score}%`;
+      if (score <= 40) {
+        pwdStrengthFill.style.backgroundColor = '#E11D48';
+        if (pwdStrengthText) pwdStrengthText.textContent = 'Password strength: Weak';
+      } else if (score <= 60) {
+        pwdStrengthFill.style.backgroundColor = '#F59E0B';
+        if (pwdStrengthText) pwdStrengthText.textContent = 'Password strength: Fair';
+      } else if (score <= 80) {
+        pwdStrengthFill.style.backgroundColor = '#0284C7';
+        if (pwdStrengthText) pwdStrengthText.textContent = 'Password strength: Good';
+      } else {
+        pwdStrengthFill.style.backgroundColor = '#10B981';
+        if (pwdStrengthText) pwdStrengthText.textContent = 'Password strength: Strong (Optimal)';
+      }
+    }
+  }
+
+  function checkPasswordMatch() {
+    if (!signupConfirmPwdInput || !signupPwdInput) return;
+    const pwd = signupPwdInput.value;
+    const confirm = signupConfirmPwdInput.value;
+    if (!confirm) {
+      if (pwdMatchIndicator) pwdMatchIndicator.textContent = '';
+      return;
+    }
+    if (pwd === confirm) {
+      if (pwdMatchIndicator) {
+        pwdMatchIndicator.textContent = '✓ Passwords match';
+        pwdMatchIndicator.className = 'pwd-match-indicator matched';
+      }
+    } else {
+      if (pwdMatchIndicator) {
+        pwdMatchIndicator.textContent = '✗ Passwords do not match';
+        pwdMatchIndicator.className = 'pwd-match-indicator mismatch';
+      }
+    }
+  }
+
+  if (signupPwdInput) {
+    signupPwdInput.addEventListener('input', () => {
+      evaluatePasswordStrength(signupPwdInput.value);
+      checkPasswordMatch();
+    });
+  }
+  if (signupConfirmPwdInput) {
+    signupConfirmPwdInput.addEventListener('input', checkPasswordMatch);
   }
 
   // Password peek toggle for signup

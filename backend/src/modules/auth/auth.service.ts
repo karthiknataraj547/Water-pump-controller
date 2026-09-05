@@ -26,7 +26,8 @@ export const googleAuthSchema = z.object({
 
 export class AuthService {
   async register(data: z.infer<typeof registerSchema>) {
-    const existing = await prisma.user.findUnique({ where: { email: data.email } });
+    const email = data.email.trim().toLowerCase();
+    const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
       throw new Error('An account with this email address already exists');
     }
@@ -36,10 +37,10 @@ export class AuthService {
 
     const user = await prisma.user.create({
       data: {
-        email: data.email,
+        email,
         passwordHash,
-        firstName: data.firstName,
-        lastName: data.lastName,
+        firstName: data.firstName.trim(),
+        lastName: data.lastName.trim(),
         role: data.role || 'USER',
       },
       select: { id: true, email: true, firstName: true, lastName: true, role: true, createdAt: true },
@@ -52,16 +53,17 @@ export class AuthService {
   }
 
   async googleLogin(data: z.infer<typeof googleAuthSchema>) {
-    let user = await prisma.user.findUnique({ where: { email: data.email } });
+    const email = data.email.trim().toLowerCase();
+    let user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       const salt = await bcrypt.genSalt(10);
       const passwordHash = await bcrypt.hash(`google_oauth_${Date.now()}`, salt);
       user = await prisma.user.create({
         data: {
-          email: data.email,
+          email,
           passwordHash,
-          firstName: data.firstName || 'Google',
-          lastName: data.lastName || 'User',
+          firstName: (data.firstName || 'Google').trim(),
+          lastName: (data.lastName || 'User').trim(),
           role: 'USER',
         },
       });
@@ -83,7 +85,8 @@ export class AuthService {
   }
 
   async login(data: z.infer<typeof loginSchema>) {
-    const user = await prisma.user.findUnique({ where: { email: data.email } });
+    const email = data.email.trim().toLowerCase();
+    const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       throw new Error('Invalid email or password');
     }

@@ -62,19 +62,19 @@ function getVersionManifest() {
     }
   }
   return {
-    version: '2.1.2',
-    build_number: 15,
+    version: '2.1.3',
+    build_number: 16,
     release_date: '2026-09-05',
     min_supported_version: '1.0.0',
     download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk',
     website_url: 'https://water-pump-controller.vercel.app',
-    sha256: '0a0972d29df304c28b24df87a256006aecfb7d52ba8bfcb2ad64790ff136b542',
-    title: 'HydroPulse v2.1.2 - Ultra-Low Latency & Instant Hardware Actuation Fix',
+    sha256: '95424d04200c61aa0d4905fa9b6cac148d247785603d0dee417bbd8ac70fed63',
+    title: 'HydroPulse v2.1.3 - Liquid Glassmorphism Light Theme & Interactive Auth Overhaul',
     changelog: [
-      'Instant Zero-Latency MQTT: Switched hardware command delivery to direct QoS 0 fire-and-forget, eliminating broker round-trip ACK delays.',
-      'Non-Blocking App UI: Optimistic state switching with asynchronous HTTP sync prevents UI freezing and lockouts.',
-      'Eliminated Connection Probes: Removed blocking external HTTP network verification probes to guarantee instantaneous broker connection.',
-      'Anti-Flapping Responsive Window: Reduced safety debounce timer to 800ms for rapid responsive multi-state switching.'
+      'Liquid Glassmorphism Light Theme: Modern frosted glass aesthetics with fluid light refractions, specular highlights, and crisp slate typography.',
+      'Animated Interactive Auth: Sliding pill tab switcher with cubic-bezier spring physics, dynamic form morphing, and real-time password strength meter.',
+      'Zero-Failure Auth Engine: Enforced strict case-insensitive email normalization and multi-tier database persistence across all auth endpoints.',
+      'Instant Actuation: Maintained ultra-low latency direct MQTT QoS 0 actuation pipeline.'
     ],
     is_critical: false,
     file_size: 58325423

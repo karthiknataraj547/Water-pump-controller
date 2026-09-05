@@ -49,6 +49,16 @@
       "lastName": "Test",
       "role": "USER",
       "createdAt": "2026-09-05T02:51:01.563Z"
+    },
+    {
+      "id": "usr_1788622912549_657",
+      "email": "liquidglass_1788622912446@example.com",
+      "passwordHash": "104a4211504d090ffe9df3fc436e072a56795a76c44fe89918a0e589a6d9ac652025a1810a3d7b4ec524b914906f181ad5a9ac07d8a0c52329e3d016ad27c0c0",
+      "salt": "4e424bbaa4b00f4a4902ef023f8876d6",
+      "firstName": "Liquid",
+      "lastName": "Glass",
+      "role": "USER",
+      "createdAt": "2026-09-05T15:41:52.549Z"
     }
   ],
   "devices": [

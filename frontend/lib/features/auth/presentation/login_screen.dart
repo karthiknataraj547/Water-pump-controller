@@ -683,17 +683,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         child: Container(
                           padding: const EdgeInsets.all(24.0),
                           decoration: BoxDecoration(
-                            color: (isDark ? const Color(0xFF121827) : Colors.white).withOpacity(isDark ? 0.75 : 0.85),
+                            color: (isDark ? const Color(0xFF121827) : Colors.white).withOpacity(isDark ? 0.75 : 0.88),
                             borderRadius: BorderRadius.circular(24),
                             border: Border.all(
-                              color: isDark ? Colors.white.withOpacity(0.12) : const Color(0xFF00E5FF).withOpacity(0.2),
-                              width: 1.2,
+                              color: isDark ? Colors.white.withOpacity(0.14) : Colors.white.withOpacity(0.95),
+                              width: 1.5,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: (isDark ? Colors.black : const Color(0xFF00B4D8)).withOpacity(isDark ? 0.4 : 0.15),
-                                blurRadius: 32,
-                                offset: const Offset(0, 8),
+                                color: (isDark ? Colors.black : const Color(0xFF00B4D8)).withOpacity(isDark ? 0.4 : 0.16),
+                                blurRadius: 36,
+                                offset: const Offset(0, 10),
                               ),
                             ],
                           ),

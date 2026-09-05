@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -61,7 +61,9 @@
             </span>
           </div>
 
-          <div class="auth-tabs" id="auth-tabs">
+          <!-- Interactive Animated Sliding Pill Tabs -->
+          <div class="auth-tabs-pill-wrap" id="auth-tabs-wrap">
+            <div class="auth-tab-pill-indicator" id="auth-tab-indicator"></div>
             <button type="button" class="auth-tab active" id="tab-auth-signin">Sign In</button>
             <button type="button" class="auth-tab" id="tab-auth-signup">Create Account</button>
           </div>
@@ -149,6 +151,17 @@
               </div>
             </div>
 
+            <!-- Real-Time Password Strength Meter -->
+            <div class="pwd-strength-container" id="pwd-strength-container">
+              <div class="pwd-strength-bar">
+                <div class="pwd-strength-fill" id="pwd-strength-fill"></div>
+              </div>
+              <div class="pwd-strength-meta">
+                <span class="pwd-strength-text" id="pwd-strength-text">Password strength: Enter password</span>
+                <span class="pwd-match-indicator" id="pwd-match-indicator"></span>
+              </div>
+            </div>
+
             <div class="input-field-group">
               <label for="signup-confirmpassword">Confirm Password</label>
               <div class="input-box">
@@ -179,19 +192,15 @@
             <span>Continue with Google</span>
           </button>
 
-          <!-- Customer Notice: Mobile App Only Account Creation -->
-          <div class="mobile-registration-banner">
-            <div class="banner-icon">📱</div>
-            <div class="banner-body">
-              <h3 class="banner-heading">Need a New Account?</h3>
-              <p class="banner-text">Customer registration is exclusively supported via the HydroPulse mobile app.</p>
-              <a href="releases/HydroPulse_WaterPumpController.apk?v=2.1.2" class="btn-mobile-download" download>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="dl-svg">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                  <polyline points="7 10 12 15 17 10"/>
-                  <line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
-                <span>Download Android Mobile App</span>
+          <!-- Companion App Liquid Glass Chip -->
+          <div class="app-companion-chip">
+            <div class="companion-icon">📱</div>
+            <div class="companion-text">
+              <span class="companion-title">Mobile App Companion</span>
+              <span class="companion-desc">Pair hardware over BLE and receive push alerts.</span>
+              <a href="releases/HydroPulse_WaterPumpController.apk?v=2.1.3" class="btn-companion-link" download>
+                <span>Download Android APK v2.1.3</span>
+                <span class="arrow-sym">→</span>
               </a>
             </div>
           </div>

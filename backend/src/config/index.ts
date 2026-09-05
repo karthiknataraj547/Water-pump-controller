@@ -1,5 +1,12 @@
 import dotenv from 'dotenv';
+import path from 'path';
+
 dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = 'postgresql://iot_user:iot_password@localhost:5432/water_pump_db?schema=public';
+}
 
 export const config = {
   port: parseInt(process.env.PORT || '4000', 10),

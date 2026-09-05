@@ -220,13 +220,13 @@ function saveState() {
   const candidatePaths = [
     BUNDLED_DB_PATH,
     path.join(process.cwd(), 'api', 'database.json'),
-    path.join(process.cwd(), 'database.json')
+    path.join(process.cwd(), 'database.json'),
+    path.join(__dirname, '..', 'database.json')
   ];
   for (const p of candidatePaths) {
     try {
       if (fs.existsSync(p)) {
         fs.writeFileSync(p, jsonStr, 'utf8');
-        break;
       }
     } catch {}
   }
@@ -328,7 +328,7 @@ module.exports = async (req, res) => {
   }
 
   // 2. In-App Version & OTA Manifest
-  if (url.includes('/api/v1/app/version') || url.includes('/app/version') || url.endsWith('/version.json')) {
+  if (url.includes('/api/v1/app/version') || url.includes('/app/version') || url.includes('/api/version') || url === '/version' || url.endsWith('/version.json')) {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
     let manifest;
     try {
@@ -355,19 +355,19 @@ module.exports = async (req, res) => {
 
     if (!manifest) {
       manifest = {
-        version: '2.1.1',
-        build_number: 14,
+        version: '2.1.3',
+        build_number: 16,
         release_date: '2026-09-05',
         min_supported_version: '1.0.0',
         download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk',
         website_url: 'https://water-pump-controller.vercel.app',
-        sha256: 'c16469c7c953b8e0766e3e788496baf59e3b8944335dd73d1a31047163cae1fa',
-        title: 'HydroPulse v2.1.1 - Hardware Connection & EMQX MQTT Synchronization Fix',
+        sha256: '95424d04200c61aa0d4905fa9b6cac148d247785603d0dee417bbd8ac70fed63',
+        title: 'HydroPulse v2.1.3 - Liquid Glassmorphism Light Theme & Interactive Auth Overhaul',
         changelog: [
-          'EMQX Cloud Cluster Synchronization: Locked MQTT client transport exclusively to the EMQX Cloud cluster (TCP, WSS, WS, TLS) to eliminate broker mismatch with hardware.',
-          'Resilient Device ID Matching: Added case-insensitive and prefix-tolerant device identifier normalization, preventing dropped heartbeat, status, and telemetry packets.',
-          'Multi-Level Backend Ingestion: Subscribed backend to wildcard topic hierarchies (pump/#, devices/#) and upgraded parser to accept 2, 3, and 4-tier device topics.',
-          'Auto-Adopt Hardware: Automatically recognizes and links detected active hardware even if not explicitly bound in database.'
+          'Liquid Glassmorphism Light Theme: Translucent frosted glass styling, multi-layer refractive borders, specular highlights, and fluid oceanic gradients.',
+          'Animated Interactive Auth Engine: Smooth sliding pill tab switcher, morphing form layouts, glowing watery focus rings, and live password validation.',
+          'Zero-Breakage Authentication: Case-insensitive email normalization (.toLowerCase().trim()), asynchronous await database guarantees, and multi-tier persistent storage.',
+          'Hardware Fast-Action Link: Sub-second MQTT command delivery directly synchronized with mobile app and physical ESP32 controller.'
         ],
         is_critical: false,
         file_size: 58325423
