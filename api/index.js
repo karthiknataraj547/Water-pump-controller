@@ -355,21 +355,24 @@ module.exports = async (req, res) => {
 
     if (!manifest) {
       manifest = {
-        version: '2.1.3',
-        build_number: 16,
+        version: '2.1.4',
+        build_number: 17,
         release_date: '2026-09-05',
         min_supported_version: '1.0.0',
         download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk',
         website_url: 'https://water-pump-controller.vercel.app',
         sha256: '95424d04200c61aa0d4905fa9b6cac148d247785603d0dee417bbd8ac70fed63',
-        title: 'HydroPulse v2.1.3 - Liquid Glassmorphism Light Theme & Interactive Auth Overhaul',
+        title: 'HydroPulse v2.1.4 - Zero-Latency Control & Push Notifications',
         changelog: [
-          'Liquid Glassmorphism Light Theme: Translucent frosted glass styling, multi-layer refractive borders, specular highlights, and fluid oceanic gradients.',
-          'Animated Interactive Auth Engine: Smooth sliding pill tab switcher, morphing form layouts, glowing watery focus rings, and live password validation.',
-          'Zero-Breakage Authentication: Case-insensitive email normalization (.toLowerCase().trim()), asynchronous await database guarantees, and multi-tier persistent storage.',
-          'Hardware Fast-Action Link: Sub-second MQTT command delivery directly synchronized with mobile app and physical ESP32 controller.'
+          'Zero-Delay Actuation: Eliminated 3-second mode-switch lag by reducing command lock from 3000ms to 400ms.',
+          'Smart Offline Detection: Widened heartbeat watchdog to 15s/25s window — eliminates false \'offline\' flashes during brief WiFi hiccups.',
+          'Instant Mode Switching: AUTO/MANUAL toggle now responds immediately; commands dispatch even during stale states.',
+          'Push Notifications: System-level Android notifications for motor start/stop, tank overflow, and emergency alerts via flutter_local_notifications.',
+          'Emergency Stop Always Active: E-Stop button dispatches MQTT command regardless of connection state — safety first.',
+          'Reconnect Grace Window: 2-second grace period after MQTT reconnect prevents false offline flash while retained messages load.',
+          'UI Polish: Mode switcher and action buttons smoothed with 250ms easing instead of 300ms — snappier feel.'
         ],
-        is_critical: false,
+        is_critical: true,
         file_size: 58325423
       };
     }
