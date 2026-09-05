@@ -11,9 +11,9 @@ Validates:
 import sys
 import time
 import json
-import requests
+import os
 
-BASE_URL = "http://localhost:4000/api/v1"
+BASE_URL = os.environ.get("BACKEND_API_URL", "https://water-pump-controller.vercel.app/api/v1")
 TEST_EMAIL = "admin@waterpump.io"
 TEST_PASS = "AdminPassword123!"
 DEVICE_ID = "esp32_pump_94B97E"
@@ -27,9 +27,9 @@ def run_tests():
     print("  HydroPulse IoT - Automated Integration Test Runner")
     print("=" * 60)
 
-    # 1. Health Check
     try:
-        res = requests.get("http://localhost:4000/health", timeout=3)
+        health_url = BASE_URL.replace("/api/v1", "") + "/health"
+        res = requests.get(health_url, timeout=5)
         if res.status_code == 200:
             log(f"Backend Server Health OK: {res.json()}")
         else:

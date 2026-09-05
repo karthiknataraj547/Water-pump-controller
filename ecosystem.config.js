@@ -27,7 +27,9 @@ module.exports = {
       max_memory_restart: '500M',
       env: {
         NODE_ENV: 'production',
-        PORT: 4000
+        PORT: 4000,
+        MQTT_BROKER_URL: 'mqtt://broker.emqx.io:1883',
+        CLOUD_API_URL: 'https://water-pump-controller.vercel.app/api/v1'
       }
     }
   ]

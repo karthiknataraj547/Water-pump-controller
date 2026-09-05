@@ -70,7 +70,7 @@
 #define STATUS_REPORT_INTERVAL 1000     // 1 second dedicated Main Node heartbeat
 #define SUB_NODE_TIMEOUT_MS    2000     // 2s timeout for 150ms ESP8266 Sub Node streaming (fast failover)
 #define MAX_RUN_TIME_LIMIT_MS  1800000  // 30 minutes continuous max runtime safety limit
-#define BACKEND_API_URL        "http://localhost:4000/api/v1/telemetry" // Configurable API endpoint
+#define BACKEND_API_URL        "https://water-pump-controller.vercel.app/api/v1/telemetry" // Centralized Cloud API endpoint
 
 // BLE Provisioning UUIDs (Matching Flutter App)
 #define SERVICE_UUID_PROV      "19B10000-E8F2-537E-4F6C-D104768A1214"

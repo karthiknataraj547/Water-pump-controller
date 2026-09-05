@@ -21,8 +21,20 @@ class ApiClient {
         onRequest: (options, handler) async {
           // Check for custom backend URL from storage if not already loaded
           final customUrl = await storage.read(key: AppConstants.keyCustomApiBaseUrl);
-          if (customUrl != null && customUrl.isNotEmpty) {
+          if (customUrl != null &&
+              customUrl.isNotEmpty &&
+              !customUrl.contains('localhost') &&
+              !customUrl.contains('127.0.0.1') &&
+              !customUrl.contains('10.0.2.2')) {
             AppConstants.activeApiBaseUrl = customUrl;
+          } else {
+            AppConstants.activeApiBaseUrl = AppConstants.cloudApiBaseUrl;
+            if (customUrl != null &&
+                (customUrl.contains('localhost') ||
+                 customUrl.contains('127.0.0.1') ||
+                 customUrl.contains('10.0.2.2'))) {
+              await storage.delete(key: AppConstants.keyCustomApiBaseUrl);
+            }
           }
           options.baseUrl = AppConstants.activeApiBaseUrl;
 

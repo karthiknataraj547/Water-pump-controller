@@ -68,7 +68,7 @@ function getVersionManifest() {
     min_supported_version: '1.0.0',
     download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk',
     website_url: 'https://water-pump-controller.vercel.app',
-    sha256: '6f75ab3ff58aafe2ebf0fc2cfd4165cab5de581401c440c08a6a8e61bc75ea1d',
+    sha256: '0a0972d29df304c28b24df87a256006aecfb7d52ba8bfcb2ad64790ff136b542',
     title: 'HydroPulse v2.1.2 - Ultra-Low Latency & Instant Hardware Actuation Fix',
     changelog: [
       'Instant Zero-Latency MQTT: Switched hardware command delivery to direct QoS 0 fire-and-forget, eliminating broker round-trip ACK delays.',
