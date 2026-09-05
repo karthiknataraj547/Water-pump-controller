@@ -357,7 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
           status: 'OFFLINE',
           pumpState: 'OFF',
           mode: 'AUTO',
-          firmwareVersion: 'v2.1.1',
+          firmwareVersion: 'v2.1.2',
           wifiRssi: -65
         };
         applyActiveDevice(customDev);
@@ -440,7 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             alert(`HydroPulse Update Engine:\nLatest Release: v${data.version} (Build ${data.build_number || 12})\nRelease Date: ${data.release_date}\nTitle: ${data.title}\nStatus: System is synchronized with the latest release.`);
           } catch (_) {
-            alert('HydroPulse Update Engine:\nInstalled Client: v2.1.1 (Build 14)\nStatus: Running latest official release with in-app OTA and direct package installer support.');
+            alert('HydroPulse Update Engine:\nInstalled Client: v2.1.2 (Build 15)\nStatus: Running latest official release with in-app OTA and direct package installer support.');
           }
         };
       }
@@ -892,9 +892,9 @@ document.addEventListener('DOMContentLoaded', () => {
           deviceId: activeDevId,
           timestamp: Math.floor(Date.now() / 1000)
         });
-        mqttClient.publish('pump/command', payload, { qos: 1 });
-        mqttClient.publish(`pump/${activeDevId}/command`, payload, { qos: 1 });
-        mqttClient.publish(`devices/${activeDevId}/command`, payload, { qos: 1 });
+        mqttClient.publish('pump/command', payload, { qos: 0 });
+        mqttClient.publish(`pump/${activeDevId}/command`, payload, { qos: 0 });
+        mqttClient.publish(`devices/${activeDevId}/command`, payload, { qos: 0 });
       }
 
       fetch(`${apiBaseUrl}/command`, {
@@ -923,9 +923,9 @@ document.addEventListener('DOMContentLoaded', () => {
           deviceId: activeDevId,
           timestamp: Math.floor(Date.now() / 1000)
         });
-        mqttClient.publish('pump/command', payload, { qos: 1 });
-        mqttClient.publish(`pump/${activeDevId}/command`, payload, { qos: 1 });
-        mqttClient.publish(`devices/${activeDevId}/command`, payload, { qos: 1 });
+        mqttClient.publish('pump/command', payload, { qos: 0 });
+        mqttClient.publish(`pump/${activeDevId}/command`, payload, { qos: 0 });
+        mqttClient.publish(`devices/${activeDevId}/command`, payload, { qos: 0 });
       }
 
       fetch(`${apiBaseUrl}/command`, {
@@ -1778,11 +1778,11 @@ document.addEventListener('DOMContentLoaded', () => {
           timestamp: Math.floor(Date.now() / 1000)
         });
 
-        mqttClient.publish('pump/command', payload, { qos: 1 });
-        mqttClient.publish(`pump/${activeDevId}/command`, payload, { qos: 1 });
-        mqttClient.publish(`pump/${currentUser ? currentUser.id : 'user'}/${activeDevId}/command`, payload, { qos: 1 });
-        mqttClient.publish(`devices/${activeDevId}/command`, payload, { qos: 1 });
-        mqttClient.publish('waterpump/esp32/control', payload, { qos: 1 });
+        mqttClient.publish('pump/command', payload, { qos: 0 });
+        mqttClient.publish(`pump/${activeDevId}/command`, payload, { qos: 0 });
+        mqttClient.publish(`pump/${currentUser ? currentUser.id : 'user'}/${activeDevId}/command`, payload, { qos: 0 });
+        mqttClient.publish(`devices/${activeDevId}/command`, payload, { qos: 0 });
+        mqttClient.publish('waterpump/esp32/control', payload, { qos: 0 });
       }
 
       // 2. Backend REST Command

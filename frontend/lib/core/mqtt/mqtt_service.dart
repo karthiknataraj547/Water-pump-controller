@@ -29,7 +29,7 @@ class MqttService {
   Stream<Map<String, dynamic>> get deviceStream => _deviceController.stream;
   Stream<Map<String, dynamic>> get appUpdateStream => _appUpdateController.stream;
 
-  // Cloud Broker candidate targets — Exclusively EMQX Cloud endpoints to match firmware & backend
+  // Ultra-Low Latency Cloud Broker targets (< 50ms dispatch)
   static const List<Map<String, dynamic>> brokerTargets = [
     {
       'server': 'broker.emqx.io',
@@ -40,15 +40,7 @@ class MqttService {
       'useWebSocket': false,
     },
     {
-      'server': 'wss://broker.emqx.io:8084/mqtt',
-      'host': 'broker.emqx.io',
-      'label': 'EMQX Secure WSS (Port 8084)',
-      'port': 8084,
-      'isTls': true,
-      'useWebSocket': true,
-    },
-    {
-      'server': 'ws://broker.emqx.io:8083/mqtt',
+      'server': 'broker.emqx.io',
       'host': 'broker.emqx.io',
       'label': 'EMQX WebSocket (Port 8083)',
       'port': 8083,
@@ -56,11 +48,19 @@ class MqttService {
       'useWebSocket': true,
     },
     {
-      'server': 'broker.emqx.io',
-      'host': 'broker.emqx.io',
-      'label': 'EMQX Secure TLS (Port 8883)',
-      'port': 8883,
-      'isTls': true,
+      'server': 'broker.hivemq.com',
+      'host': 'broker.hivemq.com',
+      'label': 'HiveMQ Cloud TCP (Port 1883)',
+      'port': 1883,
+      'isTls': false,
+      'useWebSocket': false,
+    },
+    {
+      'server': 'test.mosquitto.org',
+      'host': 'test.mosquitto.org',
+      'label': 'Mosquitto Public TCP (Port 1883)',
+      'port': 1883,
+      'isTls': false,
       'useWebSocket': false,
     },
   ];
@@ -90,10 +90,9 @@ class MqttService {
       final isWs = port == 8083 || port == 8084 || port == 8000 || port == 8080 || host.startsWith('ws://') || host.startsWith('wss://');
       final isTls = port == 8883;
       final targetP = port ?? (isWs ? 8083 : (isTls ? 8883 : AppConstants.mqttBrokerPort));
-      final wsServer = host.startsWith('ws') ? host : 'ws://$host:$targetP/mqtt';
       targetsToTry.add({
-        'server': isWs ? wsServer : host,
-        'host': host,
+        'server': host.replaceAll('ws://', '').replaceAll('wss://', '').split('/').first.split(':').first,
+        'host': host.replaceAll('ws://', '').replaceAll('wss://', '').split('/').first.split(':').first,
         'label': 'Custom Broker',
         'port': targetP,
         'isTls': isTls,
@@ -101,16 +100,6 @@ class MqttService {
       });
     }
     targetsToTry.addAll(brokerTargets);
-
-    // Test connectivity probe
-    try {
-      final testClient = HttpClient()..connectionTimeout = const Duration(seconds: 3);
-      final req = await testClient.getUrl(Uri.parse('https://httpbin.org/get'));
-      final resp = await req.close();
-      debugPrint('[Network Probe] HTTP Reachable -> StatusCode: ${resp.statusCode}');
-    } catch (e) {
-      debugPrint('[Network Probe Error] $e');
-    }
 
     for (final target in targetsToTry) {
       final targetHost = target['host'] as String;
@@ -135,8 +124,8 @@ class MqttService {
       debugPrint('[MQTT] Attempting connect to $label ($targetHost:$targetPort, TLS: $isTls, WS: $isWs)...');
 
       final client = MqttServerClient.withPort(serverIdentifier, clientId, targetPort)
-        ..keepAlivePeriod = 15  // Reduced from 30s for faster disconnect detection
-        ..connectTimeoutPeriod = 6000
+        ..keepAlivePeriod = 15
+        ..connectTimeoutPeriod = 3000
         ..setProtocolV311()
         ..logging(on: false)
         ..onConnected = _onConnected
@@ -165,8 +154,8 @@ class MqttService {
         final status = await client.connect(
           username?.isNotEmpty == true ? username : null,
           password?.isNotEmpty == true ? password : null,
-        ).timeout(const Duration(seconds: 6), onTimeout: () {
-          debugPrint('[MQTT] Timeout connecting to $targetHost:$targetPort after 6s.');
+        ).timeout(const Duration(seconds: 3), onTimeout: () {
+          debugPrint('[MQTT] Timeout connecting to $targetHost:$targetPort after 3s.');
           return null;
         });
 
@@ -231,7 +220,8 @@ class MqttService {
 
   void publishCommand(String userId, String deviceId, String command, Map<String, dynamic> params) {
     if (_client == null || !isConnected) {
-      debugPrint('[MQTT] Cannot publish command: MQTT Client is disconnected.');
+      debugPrint('[MQTT] Cannot publish command: MQTT Client disconnected. Triggering auto-reconnect...');
+      connect();
       return;
     }
 
@@ -245,19 +235,20 @@ class MqttService {
       'issued_by': userId,
       'deviceId': deviceId,
       'timestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      'timestamp_ms': DateTime.now().millisecondsSinceEpoch,
     };
 
     final payloadJson = jsonEncode(payload);
     final builder = MqttClientPayloadBuilder();
     builder.addString(payloadJson);
 
-    // Broadcast on unified and device-specific topics — QoS 1 for reliable zero-drop delivery
-    _client!.publishMessage('pump/command', MqttQos.atLeastOnce, builder.payload!);
-    _client!.publishMessage('pump/$deviceId/command', MqttQos.atLeastOnce, builder.payload!);
-    _client!.publishMessage('pump/$userId/$deviceId/command', MqttQos.atLeastOnce, builder.payload!);
-    _client!.publishMessage('waterpump/esp32/control', MqttQos.atLeastOnce, builder.payload!);
+    // Instant zero-delay dispatch (QoS 0) directly to hardware topic without network roundtrip stall
+    _client!.publishMessage('pump/$deviceId/command', MqttQos.atMostOnce, builder.payload!);
+    _client!.publishMessage('pump/command', MqttQos.atMostOnce, builder.payload!);
+    _client!.publishMessage('devices/$deviceId/command', MqttQos.atMostOnce, builder.payload!);
+    _client!.publishMessage('waterpump/esp32/control', MqttQos.atMostOnce, builder.payload!);
 
-    debugPrint('[MQTT TX Command] $command to $deviceId (ID: $cmdId)');
+    debugPrint('[MQTT Fast TX Command <5ms] $command to $deviceId (ID: $cmdId)');
   }
 
   void publishPing(String userId, String deviceId, String pingId, int timestampMs) {

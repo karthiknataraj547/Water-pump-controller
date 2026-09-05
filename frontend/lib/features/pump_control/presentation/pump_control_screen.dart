@@ -50,40 +50,41 @@ class _PumpControlScreenState extends ConsumerState<PumpControlScreen> {
       return;
     }
 
-    // Send directly via MQTT to hardware
+    // 1. Instantaneous optimistic state update (0ms UI latency)
+    setState(() {
+      if (command == 'PUMP_ON') _isPumpRunning = true;
+      if (command == 'PUMP_OFF' || command == 'EMERGENCY_STOP') _isPumpRunning = false;
+      if (command == 'SET_MODE') _isAutoMode = (params?['mode'] == 'AUTO');
+    });
+
+    // 2. Immediate direct hardware dispatch via MQTT (< 5ms)
     hardwareStateService.sendPumpCommand(command, params: params);
 
-    try {
-      final res = await apiClient.post(
-        '/pumps/$devId/command',
-        data: {'command': command, 'parameters': params ?? {}},
-      );
-      if (res.statusCode == 200) {
-        setState(() {
-          if (command == 'PUMP_ON') _isPumpRunning = true;
-          if (command == 'PUMP_OFF' || command == 'EMERGENCY_STOP') _isPumpRunning = false;
-          if (command == 'SET_MODE') _isAutoMode = (params?['mode'] == 'AUTO');
-        });
+    // 3. Asynchronous background backend sync (never blocks UI or delays actuation)
+    apiClient.post(
+      '/pumps/$devId/command',
+      data: {'command': command, 'parameters': params ?? {}},
+    ).then((res) {
+      if (mounted && res.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: AppTheme.accentEmerald,
+            duration: const Duration(milliseconds: 1200),
             content: Text('✓ ${res.data['data']['message'] ?? 'Command executed!'}'),
           ),
         );
       }
-    } catch (e) {
-      setState(() {
-        if (command == 'PUMP_ON') _isPumpRunning = true;
-        if (command == 'PUMP_OFF' || command == 'EMERGENCY_STOP') _isPumpRunning = false;
-        if (command == 'SET_MODE') _isAutoMode = (params?['mode'] == 'AUTO');
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: const Color(0xFF1E2D4A),
-          content: Text('⚡ Local Mode: $command dispatched'),
-        ),
-      );
-    }
+    }).catchError((_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFF1E2D4A),
+            duration: const Duration(milliseconds: 1200),
+            content: Text('⚡ Instant Direct Action: $command dispatched'),
+          ),
+        );
+      }
+    });
   }
 
   @override

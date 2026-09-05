@@ -1405,9 +1405,9 @@ class HardwareStateService extends ChangeNotifier {
     final isTurningOn = (normCmd == 'START_PUMP' || normCmd == 'PUMP_ON' || normCmd == 'ON');
     final newState = isTurningOn ? 'ON' : 'OFF';
 
-    // Strict 4000ms anti-flapping lock window to guarantee smooth non-bouncing state
+    // Fast 800ms debounce lock window to prevent bounce while keeping live telemetry immediate
     _expectedPumpState = newState;
-    _pumpCommandLockUntil = DateTime.now().add(const Duration(milliseconds: 4000));
+    _pumpCommandLockUntil = DateTime.now().add(const Duration(milliseconds: 800));
 
     final cmdId = 'cmd_${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
     _lastCommand = PendingCommand(
@@ -1486,9 +1486,9 @@ class HardwareStateService extends ChangeNotifier {
     _isEmergencyStopActive = true;
     _previousMode = _activeDevice!.mode;
 
-    // Strict 5000ms lock to instantly halt motor regardless of mode
+    // 800ms lock window to prevent bounce while keeping status immediate
     _expectedPumpState = 'OFF';
-    _pumpCommandLockUntil = DateTime.now().add(const Duration(milliseconds: 5000));
+    _pumpCommandLockUntil = DateTime.now().add(const Duration(milliseconds: 800));
 
     final cmdId = 'es_${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
     _lastCommand = PendingCommand(

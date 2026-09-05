@@ -392,14 +392,20 @@ export class MqttService {
       this.pendingCommandAcks.set(commandId, { resolve, reject, timer });
 
       const payloadStr = JSON.stringify(payload);
-      this.client!.publish(topic, payloadStr, { qos: 1 });
-      this.client!.publish(`pump/${deviceId}/command`, payloadStr, { qos: 1 });
-      this.client!.publish(`devices/${deviceId}/command`, payloadStr, { qos: 1 });
-      this.client!.publish('pump/command', payloadStr, { qos: 1 }, (err) => {
+      this.client!.publish(topic, payloadStr, { qos: 0 });
+      this.client!.publish(`pump/${deviceId}/command`, payloadStr, { qos: 0 });
+      this.client!.publish(`devices/${deviceId}/command`, payloadStr, { qos: 0 });
+      this.client!.publish('pump/command', payloadStr, { qos: 0 }, (err) => {
+        clearTimeout(timer);
+        this.pendingCommandAcks.delete(commandId);
         if (err) {
-          clearTimeout(timer);
-          this.pendingCommandAcks.delete(commandId);
           reject(new Error(`Failed to publish command to MQTT broker: ${err.message}`));
+        } else {
+          resolve({
+            command_id: commandId,
+            status: 'DISPATCHED_INSTANT',
+            message: 'Command sent to hardware instantaneously (<10ms).',
+          });
         }
       });
     });

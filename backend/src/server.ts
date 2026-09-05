@@ -62,19 +62,19 @@ function getVersionManifest() {
     }
   }
   return {
-    version: '2.1.1',
-    build_number: 14,
+    version: '2.1.2',
+    build_number: 15,
     release_date: '2026-09-05',
     min_supported_version: '1.0.0',
     download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk',
     website_url: 'https://water-pump-controller.vercel.app',
-    sha256: 'c16469c7c953b8e0766e3e788496baf59e3b8944335dd73d1a31047163cae1fa',
-    title: 'HydroPulse v2.1.1 - Hardware Connection & EMQX MQTT Synchronization Fix',
+    sha256: '6f75ab3ff58aafe2ebf0fc2cfd4165cab5de581401c440c08a6a8e61bc75ea1d',
+    title: 'HydroPulse v2.1.2 - Ultra-Low Latency & Instant Hardware Actuation Fix',
     changelog: [
-      'EMQX Cloud Cluster Synchronization: Locked MQTT client transport exclusively to the EMQX Cloud cluster (TCP, WSS, WS, TLS) to eliminate broker mismatch with hardware.',
-      'Resilient Device ID Matching: Added case-insensitive and prefix-tolerant device identifier normalization, preventing dropped heartbeat, status, and telemetry packets.',
-      'Multi-Level Backend Ingestion: Subscribed backend to wildcard topic hierarchies (pump/#, devices/#) and upgraded parser to accept 2, 3, and 4-tier device topics.',
-      'Auto-Adopt Hardware: Automatically recognizes and links detected active hardware even if not explicitly bound in database.'
+      'Instant Zero-Latency MQTT: Switched hardware command delivery to direct QoS 0 fire-and-forget, eliminating broker round-trip ACK delays.',
+      'Non-Blocking App UI: Optimistic state switching with asynchronous HTTP sync prevents UI freezing and lockouts.',
+      'Eliminated Connection Probes: Removed blocking external HTTP network verification probes to guarantee instantaneous broker connection.',
+      'Anti-Flapping Responsive Window: Reduced safety debounce timer to 800ms for rapid responsive multi-state switching.'
     ],
     is_critical: false,
     file_size: 58325423

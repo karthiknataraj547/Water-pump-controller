@@ -81,26 +81,5 @@
     "lastHeartbeat": 0,
     "lastSeen": 1788515786098
   },
-  "telemetryHistory": [
-    {
-      "timestamp": "2026-09-04T09:55:20.014Z",
-      "waterLevelPct": 82.5,
-      "volumeLiters": 4125,
-      "flowRateLpm": 0,
-      "powerKw": 0,
-      "tdsPpm": 0,
-      "tempC": 0,
-      "pumpRunning": true
-    },
-    {
-      "timestamp": "2026-09-04T09:56:26.098Z",
-      "waterLevelPct": 82.5,
-      "volumeLiters": 4125,
-      "flowRateLpm": 0,
-      "powerKw": 0,
-      "tdsPpm": 0,
-      "tempC": 0,
-      "pumpRunning": true
-    }
-  ]
+  "telemetryHistory": []
 }
