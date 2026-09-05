@@ -357,7 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
           status: 'OFFLINE',
           pumpState: 'OFF',
           mode: 'AUTO',
-          firmwareVersion: 'v2.1.0',
+          firmwareVersion: 'v2.1.1',
           wifiRssi: -65
         };
         applyActiveDevice(customDev);
@@ -440,7 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             alert(`HydroPulse Update Engine:\nLatest Release: v${data.version} (Build ${data.build_number || 12})\nRelease Date: ${data.release_date}\nTitle: ${data.title}\nStatus: System is synchronized with the latest release.`);
           } catch (_) {
-            alert('HydroPulse Update Engine:\nInstalled Client: v2.1.0 (Build 13)\nStatus: Running latest official release with in-app OTA and direct package installer support.');
+            alert('HydroPulse Update Engine:\nInstalled Client: v2.1.1 (Build 14)\nStatus: Running latest official release with in-app OTA and direct package installer support.');
           }
         };
       }

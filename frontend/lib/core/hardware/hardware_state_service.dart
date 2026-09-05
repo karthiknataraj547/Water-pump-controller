@@ -550,10 +550,43 @@ class HardwareStateService extends ChangeNotifier {
     );
   }
 
+  bool _isMatchingDevice(String? incomingId) {
+    if (incomingId == null || incomingId.trim().isEmpty) return false;
+    final incoming = incomingId.trim().toLowerCase();
+
+    if (_activeDevice != null) {
+      final activeId = _activeDevice!.id.trim().toLowerCase();
+      if (incoming == activeId) return true;
+
+      final cleanActive = activeId.replaceAll('esp32_pump_', '').replaceAll('esp32_', '');
+      final cleanIncoming = incoming.replaceAll('esp32_pump_', '').replaceAll('esp32_', '');
+      if (cleanActive.isNotEmpty && cleanIncoming.isNotEmpty && cleanActive == cleanIncoming) return true;
+
+      if (_activeDevice!.macAddress.isNotEmpty) {
+        final cleanMac = _activeDevice!.macAddress.toLowerCase().replaceAll(':', '');
+        if (cleanIncoming.contains(cleanMac) || cleanMac.contains(cleanIncoming)) return true;
+      }
+    }
+
+    if (_activeDevice == null && !_isExplicitlyRemoved) {
+      if (incoming.contains('94b97e') || incoming.contains('esp32_pump') || incoming.contains('borewell')) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
     final savedHost = prefs.getString('mqtt_broker_host');
-    if (savedHost == null || savedHost.isEmpty || savedHost == 'localhost' || savedHost == '192.168.1.100' || savedHost == '10.0.2.2') {
+    if (savedHost == null ||
+        savedHost.isEmpty ||
+        savedHost == 'localhost' ||
+        savedHost == '192.168.1.100' ||
+        savedHost == '10.0.2.2' ||
+        savedHost == 'test.mosquitto.org' ||
+        savedHost == 'broker.hivemq.com') {
       _brokerHost = AppConstants.mqttBrokerHost;
       await prefs.setString('mqtt_broker_host', _brokerHost);
     } else {
@@ -771,14 +804,38 @@ class HardwareStateService extends ChangeNotifier {
     mqttService.publishPing(userId, devId, pingId, nowMs);
   }
 
+  Future<void> _persistPairedDevice() async {
+    if (_activeDevice == null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('saved_paired_device', jsonEncode(_activeDevice!.toJson()));
+    } catch (_) {}
+  }
+
   void _handlePongMessage(Map<String, dynamic> data) {
     final incomingDevId = (data['deviceId'] ?? data['device_id'] ?? '').toString().trim();
 
-    if (_activeDevice == null || incomingDevId.isEmpty || incomingDevId != _activeDevice!.id) {
-      return; // Strict match
+    if (!_isMatchingDevice(incomingDevId)) {
+      return;
     }
 
     final now = DateTime.now();
+    if (_activeDevice == null) {
+      final devName = (data['name'] ?? 'Agricultural Borewell Pump').toString();
+      final devMac = (data['macAddress'] ?? data['mac'] ?? '24:6F:28:94:B9:7E').toString();
+      _activeDevice = DeviceModel(
+        id: incomingDevId.isNotEmpty ? incomingDevId : 'esp32_pump_94B97E',
+        name: devName,
+        macAddress: devMac,
+        status: 'ONLINE',
+        pumpState: 'STOPPED',
+        mode: 'AUTO',
+        wifiRssi: -65,
+        firmwareVersion: 'v2.1.0',
+        lastSeen: now,
+      );
+      _persistPairedDevice();
+    }
     _lastMainNodeHeartbeat = now;
     _totalPacketsReceived++;
 
@@ -891,8 +948,25 @@ class HardwareStateService extends ChangeNotifier {
     final now = DateTime.now();
     final devId = (data['deviceId'] ?? data['device_id'] ?? '').toString().trim();
 
-    if (_activeDevice == null || devId.isEmpty || devId != _activeDevice!.id) {
-      return; // Strict match
+    if (!_isMatchingDevice(devId)) {
+      return;
+    }
+
+    if (_activeDevice == null) {
+      final devName = (data['name'] ?? 'Agricultural Borewell Pump').toString();
+      final devMac = (data['macAddress'] ?? data['mac'] ?? '24:6F:28:94:B9:7E').toString();
+      _activeDevice = DeviceModel(
+        id: devId.isNotEmpty ? devId : 'esp32_pump_94B97E',
+        name: devName,
+        macAddress: devMac,
+        status: 'ONLINE',
+        pumpState: 'STOPPED',
+        mode: 'AUTO',
+        wifiRssi: -65,
+        firmwareVersion: 'v2.1.0',
+        lastSeen: now,
+      );
+      _persistPairedDevice();
     }
 
     // Automatically parse embedded sensor readings if present in status/heartbeat
@@ -1018,7 +1092,7 @@ class HardwareStateService extends ChangeNotifier {
     final now = DateTime.now();
     final incomingDevId = (data['deviceId'] ?? data['device_id'] ?? '').toString().trim();
 
-    if (_activeDevice == null || incomingDevId.isEmpty || incomingDevId != _activeDevice!.id) {
+    if (!_isMatchingDevice(incomingDevId)) {
       return;
     }
 

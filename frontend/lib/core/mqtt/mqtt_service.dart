@@ -29,7 +29,7 @@ class MqttService {
   Stream<Map<String, dynamic>> get deviceStream => _deviceController.stream;
   Stream<Map<String, dynamic>> get appUpdateStream => _appUpdateController.stream;
 
-  // Cloud Broker candidate targets (Prioritizing EMQX Cloud MQTT broker for synchronized IoT communication)
+  // Cloud Broker candidate targets — Exclusively EMQX Cloud endpoints to match firmware & backend
   static const List<Map<String, dynamic>> brokerTargets = [
     {
       'server': 'broker.emqx.io',
@@ -40,30 +40,6 @@ class MqttService {
       'useWebSocket': false,
     },
     {
-      'server': 'test.mosquitto.org',
-      'host': 'test.mosquitto.org',
-      'label': 'Mosquitto Public TCP (Port 1883)',
-      'port': 1883,
-      'isTls': false,
-      'useWebSocket': false,
-    },
-    {
-      'server': 'broker.hivemq.com',
-      'host': 'broker.hivemq.com',
-      'label': 'HiveMQ Cloud TCP (Port 1883)',
-      'port': 1883,
-      'isTls': false,
-      'useWebSocket': false,
-    },
-    {
-      'server': 'ws://test.mosquitto.org:8080/mqtt',
-      'host': 'test.mosquitto.org',
-      'label': 'Mosquitto WebSocket (Port 8080)',
-      'port': 8080,
-      'isTls': false,
-      'useWebSocket': true,
-    },
-    {
       'server': 'wss://broker.emqx.io:8084/mqtt',
       'host': 'broker.emqx.io',
       'label': 'EMQX Secure WSS (Port 8084)',
@@ -72,12 +48,20 @@ class MqttService {
       'useWebSocket': true,
     },
     {
-      'server': 'wss://broker.hivemq.com:8884/mqtt',
-      'host': 'broker.hivemq.com',
-      'label': 'HiveMQ Secure WSS (Port 8884)',
-      'port': 8884,
-      'isTls': true,
+      'server': 'ws://broker.emqx.io:8083/mqtt',
+      'host': 'broker.emqx.io',
+      'label': 'EMQX WebSocket (Port 8083)',
+      'port': 8083,
+      'isTls': false,
       'useWebSocket': true,
+    },
+    {
+      'server': 'broker.emqx.io',
+      'host': 'broker.emqx.io',
+      'label': 'EMQX Secure TLS (Port 8883)',
+      'port': 8883,
+      'isTls': true,
+      'useWebSocket': false,
     },
   ];
 

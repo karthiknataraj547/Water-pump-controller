@@ -39,12 +39,12 @@ export class MqttService {
       // Start proactive active presence monitoring sweeper (5s cadence)
       this.startPresenceSweeper();
 
-      // Subscribe to all pump telemetry, status, sensor, ack, and alert topics
-      this.client?.subscribe('pump/+/+/+', { qos: 1 }, (err) => {
+      // Subscribe to all pump telemetry, status, sensor, ack, and alert topics across single and multi-level hierarchies
+      this.client?.subscribe(['pump/#', 'devices/#', 'hydropulse/#', 'waterpump/#'], { qos: 1 }, (err) => {
         if (err) {
           logger.error('Failed to subscribe to pump topics:', err);
         } else {
-          logger.info('📡 Subscribed to MQTT topic pattern: pump/+/+/+');
+          logger.info('📡 Subscribed to MQTT topic patterns: pump/#, devices/#, hydropulse/#, waterpump/#');
         }
       });
     });
@@ -109,14 +109,6 @@ export class MqttService {
   }
 
   private async handleIncomingMessage(topic: string, message: string): Promise<void> {
-    const parts = topic.split('/');
-    // topic format: pump/{userId}/{deviceId}/{action}
-    if (parts.length < 4 || parts[0] !== 'pump') return;
-
-    const userId = parts[1];
-    const deviceId = parts[2];
-    const action = parts[3];
-
     let data: any;
     try {
       data = JSON.parse(message);
@@ -124,6 +116,31 @@ export class MqttService {
       logger.warn(`Non-JSON payload received on topic ${topic}: ${message}`);
       return;
     }
+
+    const parts = topic.split('/');
+    let deviceId = data.deviceId || data.device_id || data.id || '';
+    let action = '';
+
+    if (parts.length >= 4 && parts[0] === 'pump') {
+      // pump/{userId}/{deviceId}/{action}
+      deviceId = deviceId || parts[2];
+      action = parts[3];
+    } else if (parts.length === 3 && (parts[0] === 'pump' || parts[0] === 'devices')) {
+      // pump/{deviceId}/{action} or devices/{deviceId}/{action}
+      deviceId = deviceId || parts[1];
+      action = parts[2];
+    } else if (parts.length === 2 && parts[0] === 'pump') {
+      // pump/{action} (e.g. pump/status, pump/telemetry, pump/pong)
+      action = parts[1];
+    }
+
+    if (action === 'telemetry' || action === 'heartbeat') {
+      if (action === 'telemetry') action = 'sensor';
+      if (action === 'heartbeat') action = 'status';
+    }
+
+    if (!deviceId && data.deviceId) deviceId = data.deviceId;
+    if (!deviceId) return;
 
     // Cache latest raw payload in Redis for instant live reads
     await redis.set(`device:${deviceId}:${action}`, JSON.stringify(data), 300);
@@ -374,7 +391,11 @@ export class MqttService {
 
       this.pendingCommandAcks.set(commandId, { resolve, reject, timer });
 
-      this.client!.publish(topic, JSON.stringify(payload), { qos: 1 }, (err) => {
+      const payloadStr = JSON.stringify(payload);
+      this.client!.publish(topic, payloadStr, { qos: 1 });
+      this.client!.publish(`pump/${deviceId}/command`, payloadStr, { qos: 1 });
+      this.client!.publish(`devices/${deviceId}/command`, payloadStr, { qos: 1 });
+      this.client!.publish('pump/command', payloadStr, { qos: 1 }, (err) => {
         if (err) {
           clearTimeout(timer);
           this.pendingCommandAcks.delete(commandId);
