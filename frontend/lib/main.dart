@@ -21,6 +21,7 @@ import 'features/provisioning/presentation/provisioning_wizard_screen.dart';
 import 'features/notifications/presentation/notifications_screen.dart';
 import 'shared/widgets/animated_pressable.dart';
 import 'core/update/app_update_service.dart';
+import 'core/notifications/push_notification_service.dart';
 
 final authStateNotifier = ValueNotifier<String?>(null);
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -170,6 +171,7 @@ void main() async {
     hardwareStateService.initialize();
     overflowAlertService.initialize();
     appUpdateService.initialize(navigatorKey: rootNavigatorKey);
+    pushNotificationService.initialize();
   });
 }
 

@@ -162,8 +162,8 @@ class MqttService {
         if (status?.state == MqttConnectionState.connected) {
           isConnected = true;
           connectionNotifier.value = true;
-          _subscribeToAllHardwareTopics();
           _listenToMessages();
+          _subscribeToAllHardwareTopics();
           _isConnecting = false;
           debugPrint('[MQTT] >>> CONNECTED SUCCESSFULLY to $label ($targetHost:$targetPort) <<<');
           return true;

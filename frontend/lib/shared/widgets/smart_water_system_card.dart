@@ -401,6 +401,8 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
   Widget _buildModeSelector(bool isOnline) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
+    // Allow mode commands even when stale — MQTT still routes them
+    final canCommand = widget.mainNodeStatus != NodeStatus.offline;
 
     return Container(
       height: 44,
@@ -414,25 +416,25 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
           Expanded(
             child: AnimatedPressable(
               onTap: () {
-                if (!isOnline) {
+                if (!canCommand) {
+                  // Show brief toast but still dispatch — hardware may still receive via MQTT
                   ScaffoldMessenger.of(context).hideCurrentSnackBar();
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       duration: Duration(seconds: 2),
-                      backgroundColor: Color(0xFFE11D48),
+                      backgroundColor: Color(0xFFD97706),
                       content: Text(
-                        '⚠️ Hardware Offline • Mode selection locked until ESP32 reconnects.',
+                        '⚠️ Hardware offline — command queued, will execute on reconnect.',
                         style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                       ),
                     ),
                   );
-                  return;
                 }
                 widget.onModeChanged('AUTO');
               },
               pressedScale: 0.97,
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
+                duration: const Duration(milliseconds: 250),
                 curve: Curves.easeInOutCubic,
                 decoration: BoxDecoration(
                   color: widget.mode == 'AUTO'
@@ -453,7 +455,7 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
                     ),
                     const SizedBox(width: 6),
                     AnimatedDefaultTextStyle(
-                      duration: const Duration(milliseconds: 250),
+                      duration: const Duration(milliseconds: 200),
                       style: TextStyle(
                         color: widget.mode == 'AUTO'
                             ? Colors.white
@@ -472,25 +474,24 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
           Expanded(
             child: AnimatedPressable(
               onTap: () {
-                if (!isOnline) {
+                if (!canCommand) {
                   ScaffoldMessenger.of(context).hideCurrentSnackBar();
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       duration: Duration(seconds: 2),
-                      backgroundColor: Color(0xFFE11D48),
+                      backgroundColor: Color(0xFFD97706),
                       content: Text(
-                        '⚠️ Hardware Offline • Mode selection locked until ESP32 reconnects.',
+                        '⚠️ Hardware offline — command queued, will execute on reconnect.',
                         style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                       ),
                     ),
                   );
-                  return;
                 }
                 widget.onModeChanged('MANUAL');
               },
               pressedScale: 0.97,
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
+                duration: const Duration(milliseconds: 250),
                 curve: Curves.easeInOutCubic,
                 decoration: BoxDecoration(
                   color: widget.mode == 'MANUAL'
@@ -511,7 +512,7 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
                     ),
                     const SizedBox(width: 6),
                     AnimatedDefaultTextStyle(
-                      duration: const Duration(milliseconds: 250),
+                      duration: const Duration(milliseconds: 200),
                       style: TextStyle(
                         color: widget.mode == 'MANUAL'
                             ? Colors.white
@@ -535,8 +536,10 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isAuto = widget.mode == 'AUTO';
+    // Only hard-lock UI when truly offline (not stale)
+    final isTrulyOffline = widget.mainNodeStatus == NodeStatus.offline;
 
-    if (!isOnline) {
+    if (isTrulyOffline) {
       return AnimatedPressable(
         onTap: () {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();

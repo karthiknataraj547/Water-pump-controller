@@ -499,15 +499,24 @@ class HardwareStateService extends ChangeNotifier {
     }
   }
 
-  // 1. Resilient Physical Hardware Connection State — Strict 6s True Online/Offline Window
+  // 1. Resilient Physical Hardware Connection State — 15s/25s Watchdog Window
+  // The ESP32 publishes heartbeats every ~1s. A 15s window gives 15 missed
+  // packets before going online→stale, and 25s before going stale→offline.
+  // This eliminates false-offline flashes caused by brief WiFi hiccups.
   NodeStatus get mainNodeStatus {
     if (_activeDevice == null) return NodeStatus.offline;
     if (!_isMqttConnected) return NodeStatus.offline;
     if (_lastMainNodeHeartbeat == null) return NodeStatus.offline;
 
+    // 2-second grace period after MQTT reconnect — retained messages need time
+    if (_mqttConnectedAt != null &&
+        DateTime.now().difference(_mqttConnectedAt!).inMilliseconds < 2000) {
+      return NodeStatus.stale; // Treat as stale (not offline) during grace window
+    }
+
     final diffMs = DateTime.now().difference(_lastMainNodeHeartbeat!).inMilliseconds;
-    if (diffMs <= 6000) return NodeStatus.online;
-    if (diffMs <= 9000) return NodeStatus.stale;
+    if (diffMs <= 15000) return NodeStatus.online;
+    if (diffMs <= 25000) return NodeStatus.stale;
     return NodeStatus.offline;
   }
 
@@ -770,27 +779,12 @@ class HardwareStateService extends ChangeNotifier {
 
   void _startHardwarePingLoop() {
     _hardwarePingTimer?.cancel();
-    // High-frequency hardware presence probe & strict 6-second watchdog check (every 1000ms)
+    // Ping loop: sends hardware presence probe every 1000ms.
+    // Offline detection is handled exclusively by the state evaluation timer
+    // (via mainNodeStatus getter with 15s/25s watchdog) to avoid race conditions.
     _hardwarePingTimer = Timer.periodic(const Duration(milliseconds: 1000), (_) {
       if (_isMqttConnected && _activeDevice != null) {
         sendHardwarePing();
-      }
-      if (_lastMainNodeHeartbeat != null) {
-        final diffMs = DateTime.now().difference(_lastMainNodeHeartbeat!).inMilliseconds;
-        if (diffMs > 6000 && _activeDevice != null && _activeDevice!.status != 'OFFLINE') {
-          _activeDevice = DeviceModel(
-            id: _activeDevice!.id,
-            name: _activeDevice!.name,
-            macAddress: _activeDevice!.macAddress,
-            status: 'OFFLINE',
-            pumpState: 'STOPPED',
-            mode: _activeDevice!.mode,
-            wifiRssi: _activeDevice!.wifiRssi,
-            firmwareVersion: _activeDevice!.firmwareVersion,
-            lastSeen: _activeDevice!.lastSeen,
-          );
-          notifyListeners();
-        }
       }
     });
   }
@@ -1588,9 +1582,10 @@ class HardwareStateService extends ChangeNotifier {
     final normalizedMode = mode.toUpperCase();
     _previousMode = _activeDevice!.mode;
 
-    // Strict 3000ms optimistic mode lock to prevent flapping
+    // 400ms optimistic mode lock — just enough to prevent a single stale
+    // retained MQTT message from flipping mode back before hardware ACKs.
     _expectedMode = normalizedMode;
-    _modeCommandLockUntil = DateTime.now().add(const Duration(milliseconds: 3000));
+    _modeCommandLockUntil = DateTime.now().add(const Duration(milliseconds: 400));
 
     _activeDevice = DeviceModel(
       id: _activeDevice!.id,
