@@ -3,22 +3,32 @@
     {
       "id": "usr_karthik_primary",
       "email": "karthiknataraj547@gmail.com",
-      "passwordHash": "bcf7ac511ca5be077e4fe13fba9559125a4be7d72ceeb75b9686ab098a867f4da9b1fd8f95f76f8e0c3031e98bf6e19d3236c63d5cddc19ef215c8e24d2c8a00",
-      "salt": "a31b4722641b5e5b3f521f0fc0d9ecb7",
+      "passwordHash": "c47d15f5cbd7f6a84e54f57c684e8ad414df57b0b61845d682f7ae8f5273fc40a1e94d2f5821418407a680fa8cde39cd98ce57cb54c34df5f15124f93b91aabe",
+      "salt": "hydropulse_salt_karthik_2026",
       "firstName": "Karthik",
       "lastName": "Nataraj",
       "role": "ADMIN",
-      "createdAt": "2026-09-05T00:00:00.000Z"
+      "createdAt": "2026-09-01T00:00:00.000Z"
+    },
+    {
+      "id": "usr_karthik_typo_alias",
+      "email": "karthiknataraj547@gamil.com",
+      "passwordHash": "c47d15f5cbd7f6a84e54f57c684e8ad414df57b0b61845d682f7ae8f5273fc40a1e94d2f5821418407a680fa8cde39cd98ce57cb54c34df5f15124f93b91aabe",
+      "salt": "hydropulse_salt_karthik_2026",
+      "firstName": "Karthik",
+      "lastName": "Nataraj",
+      "role": "ADMIN",
+      "createdAt": "2026-09-01T00:00:00.000Z"
     },
     {
       "id": "usr_demo",
       "email": "demo@hydropulse.io",
-      "passwordHash": "bcf7ac511ca5be077e4fe13fba9559125a4be7d72ceeb75b9686ab098a867f4da9b1fd8f95f76f8e0c3031e98bf6e19d3236c63d5cddc19ef215c8e24d2c8a00",
-      "salt": "a31b4722641b5e5b3f521f0fc0d9ecb7",
+      "passwordHash": "c47d15f5cbd7f6a84e54f57c684e8ad414df57b0b61845d682f7ae8f5273fc40a1e94d2f5821418407a680fa8cde39cd98ce57cb54c34df5f15124f93b91aabe",
+      "salt": "hydropulse_salt_karthik_2026",
       "firstName": "Demo",
       "lastName": "User",
       "role": "USER",
-      "createdAt": "2026-09-05T00:00:00.000Z"
+      "createdAt": "2026-09-01T00:00:00.000Z"
     }
   ],
   "devices": [
@@ -37,7 +47,7 @@
       "mode": "AUTO",
       "wifiRssi": -65,
       "firmwareVersion": "v2.0.9",
-      "pairedAt": "2026-09-05T00:00:00.000Z"
+      "pairedAt": "2026-09-01T00:00:00.000Z"
     }
   ],
   "liveState": {
