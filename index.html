@@ -88,7 +88,7 @@
             </div>
           </a>
 
-          <a href="releases/HydroPulse_WaterPumpController.apk?v=2.1.0" class="btn btn-secondary btn-large download-trigger" download="HydroPulse_WaterPumpController.apk">
+          <a href="releases/HydroPulse_WaterPumpController.apk?v=2.1.1" class="btn btn-secondary btn-large download-trigger" download="HydroPulse_WaterPumpController.apk">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
               <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
             </svg>
@@ -433,18 +433,18 @@
           <div class="release-notes-banner" style="margin-top: 18px; margin-bottom: 22px; padding: 16px 18px; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.25); border-radius: 14px;">
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
               <span style="background: #10b981; color: #000; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px;">NEW IN v2.1.1</span>
-              <strong style="font-size: 14px; color: #fff;">Tank Disconnect Masking, AUTO Mode Interlock & Low-Latency (&lt;300ms) Telemetry</strong>
+              <strong style="font-size: 14px; color: #fff;">Hardware Connection & EMQX MQTT Synchronization Fix</strong>
             </div>
             <ul style="margin: 0; padding-left: 18px; font-size: 13px; color: rgba(255,255,255,0.75); line-height: 1.6;">
-              <li><strong>Tank Disconnect Level Masking:</strong> Tank display shows '--' and 'Sensor Disconnected' instead of misleading 0% or 0L when sub-node sensor is offline.</li>
-              <li><strong>Auto Mode Motor Safety Interlock:</strong> Automatically prohibits motor start and halts active pumping if tank sensor is disconnected while in AUTO mode.</li>
-              <li><strong>Dashboard Offline UI Cleanup:</strong> Removed intrusive hardware offline banner popup and remove buttons from the main dashboard screen.</li>
-              <li><strong>Sub-300ms Communication Latency:</strong> Optimized ultrasonic echo sampling (15ms timeout), non-blocking temperature reads, and ultra-fast 100-150ms telemetry transmission.</li>
+              <li><strong>EMQX Cloud Cluster Synchronization:</strong> Locked MQTT client transport exclusively to the EMQX Cloud cluster (TCP, WSS, WS, TLS) to eliminate broker mismatch with hardware.</li>
+              <li><strong>Resilient Device ID Matching:</strong> Added case-insensitive and prefix-tolerant device identifier normalization, preventing dropped heartbeat, status, and telemetry packets.</li>
+              <li><strong>Multi-Level Backend Ingestion:</strong> Subscribed backend to wildcard topic hierarchies (pump/#, devices/#) and upgraded parser to accept 2, 3, and 4-tier device topics.</li>
+              <li><strong>Auto-Adopt Hardware:</strong> Automatically recognizes and links detected active hardware even if not explicitly bound in database.</li>
             </ul>
           </div>
 
           <div class="download-btn-row">
-            <a href="releases/HydroPulse_WaterPumpController.apk?v=2.1.0" class="btn btn-primary btn-large download-trigger" download="HydroPulse_WaterPumpController.apk">
+            <a href="releases/HydroPulse_WaterPumpController.apk?v=2.1.1" class="btn btn-primary btn-large download-trigger" download="HydroPulse_WaterPumpController.apk">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
                 <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
               </svg>

@@ -62,20 +62,22 @@ function getVersionManifest() {
     }
   }
   return {
-    version: '2.0.9',
-    build_number: 12,
+    version: '2.1.1',
+    build_number: 14,
     release_date: '2026-09-05',
     min_supported_version: '1.0.0',
     download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk',
     website_url: 'https://water-pump-controller.vercel.app',
-    title: 'HydroPulse v2.0.9 - Backend Double Verification of Online Status & Clean Pump Control Card',
+    sha256: 'c16469c7c953b8e0766e3e788496baf59e3b8944335dd73d1a31047163cae1fa',
+    title: 'HydroPulse v2.1.1 - Hardware Connection & EMQX MQTT Synchronization Fix',
     changelog: [
-      'Backend Double-Verification: Device status verified strictly against authentic hardware heartbeats (<15s window). Offline by default until physical connection is confirmed.',
-      'Zero False Online: Fixed bug where reading live telemetry or arbitrary MQTT broadcasts marked hardware as online.',
-      'Pump Control Card Cleanup: Removed redundant status pills from the pump control card, returning to a clean, minimal interface.',
-      'Web & Mobile Consistency: Both app and webapp enforce double-verified hardware presence and start in offline state when unpowered.'
+      'EMQX Cloud Cluster Synchronization: Locked MQTT client transport exclusively to the EMQX Cloud cluster (TCP, WSS, WS, TLS) to eliminate broker mismatch with hardware.',
+      'Resilient Device ID Matching: Added case-insensitive and prefix-tolerant device identifier normalization, preventing dropped heartbeat, status, and telemetry packets.',
+      'Multi-Level Backend Ingestion: Subscribed backend to wildcard topic hierarchies (pump/#, devices/#) and upgraded parser to accept 2, 3, and 4-tier device topics.',
+      'Auto-Adopt Hardware: Automatically recognizes and links detected active hardware even if not explicitly bound in database.'
     ],
     is_critical: false,
+    file_size: 58325423
   };
 }
 
