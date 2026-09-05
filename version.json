@@ -5,7 +5,7 @@
   "min_supported_version": "1.0.0",
   "download_url": "https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk",
   "website_url": "https://water-pump-controller.vercel.app",
-  "sha256": "e5fc4011fa893f0b86aeb269f0789a8bae140456f9dc607ec0d06873f07b9bc6",
+  "sha256": "c16469c7c953b8e0766e3e788496baf59e3b8944335dd73d1a31047163cae1fa",
   "title": "HydroPulse v2.1.1 - Hardware Connection & EMQX MQTT Synchronization Fix",
   "changelog": [
     "EMQX Cloud Cluster Synchronization: Locked MQTT client transport exclusively to the EMQX Cloud cluster (TCP, WSS, WS, TLS) to eliminate broker mismatch with hardware.",
@@ -14,6 +14,6 @@
     "Auto-Adopt Hardware: Automatically recognizes and links detected active hardware even if not explicitly bound in database."
   ],
   "is_critical": false,
-  "updatedAt": "2026-09-05T13:43:07.160Z",
-  "file_size": 58325427
+  "updatedAt": "2026-09-05T14:02:28.284Z",
+  "file_size": 58325423
 }
