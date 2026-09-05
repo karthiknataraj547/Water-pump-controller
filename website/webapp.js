@@ -357,7 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
           status: 'OFFLINE',
           pumpState: 'OFF',
           mode: 'AUTO',
-          firmwareVersion: 'v2.0.9',
+          firmwareVersion: 'v2.1.0',
           wifiRssi: -65
         };
         applyActiveDevice(customDev);
@@ -440,7 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             alert(`HydroPulse Update Engine:\nLatest Release: v${data.version} (Build ${data.build_number || 12})\nRelease Date: ${data.release_date}\nTitle: ${data.title}\nStatus: System is synchronized with the latest release.`);
           } catch (_) {
-            alert('HydroPulse Update Engine:\nInstalled Client: v2.0.9 (Build 12)\nStatus: Running latest official release with in-app OTA and direct package installer support.');
+            alert('HydroPulse Update Engine:\nInstalled Client: v2.1.0 (Build 13)\nStatus: Running latest official release with in-app OTA and direct package installer support.');
           }
         };
       }
@@ -835,6 +835,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let totalCapacityLiters = 5000.0;
   let isPumpRunning = false;
   let isHardwareOnline = false;
+  let isSubNodeOnline = false;
   let lastHardwareHeartbeat = 0;
   let lastMqttCommandTimestamp = 0;
   let controlMode = 'AUTO';
@@ -1110,7 +1111,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ------------------------------------------------------------------------
     // 3. SOLID VOLUMETRIC FLUID MASS
     // ------------------------------------------------------------------------
-    const clampedLevel = Math.max(0, Math.min(100, waterLevel)) / 100.0;
+    const clampedLevel = isSubNodeOnline ? (Math.max(0, Math.min(100, waterLevel)) / 100.0) : 0.0;
     const fluidH = h_tank * clampedLevel;
     const fluidTop = bottom - fluidH;
 
@@ -1568,12 +1569,20 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function updateMetrics() {
-    if (tankPctText) tankPctText.textContent = `${waterLevel.toFixed(1)}%`;
+    if (tankPctText) {
+      tankPctText.textContent = isSubNodeOnline ? `${waterLevel.toFixed(1)}%` : '--';
+      tankPctText.style.color = isSubNodeOnline ? '#0284C7' : '#F59E0B';
+    }
     const vol = Math.round((waterLevel / 100) * totalCapacityLiters);
-    if (tankVolText) tankVolText.textContent = `${vol.toLocaleString()} / ${totalCapacityLiters.toLocaleString()} L`;
+    if (tankVolText) {
+      tankVolText.textContent = isSubNodeOnline
+        ? `${vol.toLocaleString()} / ${totalCapacityLiters.toLocaleString()} L`
+        : 'Sensor Disconnected';
+      tankVolText.style.color = isSubNodeOnline ? '' : '#F59E0B';
+    }
 
-    if (gridValVol) gridValVol.textContent = vol.toLocaleString();
-    if (gridSubVol) gridSubVol.textContent = `Level: ${waterLevel.toFixed(0)}%`;
+    if (gridValVol) gridValVol.textContent = isSubNodeOnline ? vol.toLocaleString() : '--';
+    if (gridSubVol) gridSubVol.textContent = isSubNodeOnline ? `Level: ${waterLevel.toFixed(0)}%` : 'Sensor Offline';
 
     if (isPumpRunning) {
       if (liveFlowRate <= 0.0) liveFlowRate = 18.2;
@@ -1702,6 +1711,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (shouldPublish && !isHardwareOnline) {
       alert('⚠️ Hardware is Offline. Ensure ESP32 is powered on and connected before operating pump.');
+      return;
+    }
+    if (shouldPublish && active && controlMode === 'AUTO' && !isSubNodeOnline) {
+      alert('⚠️ Tank sensor (sub-node) is disconnected! In AUTO mode the motor cannot run for safety.');
       return;
     }
     if (isPumpRunning === active && !shouldPublish) return;
@@ -1951,6 +1964,13 @@ document.addEventListener('DOMContentLoaded', () => {
             setControlMode(data.mode, false);
           }
 
+          // 3b. Sub-Node Status Sync
+          if (data.subNodeOnline !== undefined) {
+            isSubNodeOnline = Boolean(data.subNodeOnline);
+          } else if (data.nodeType === 'SUB_NODE') {
+            isSubNodeOnline = true;
+          }
+
           // 4. Real-time Telemetry Sync
           const lvl = data.waterLevelPct !== undefined ? data.waterLevelPct
                     : data.water_level_pct !== undefined ? data.water_level_pct
@@ -1959,8 +1979,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     : data.level;
           if (lvl !== undefined && lvl !== null) {
             const parsed = parseFloat(lvl);
-            if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
-              waterLevel = parsed;
+            if (!isNaN(parsed)) {
+              if (parsed < 0) {
+                isSubNodeOnline = false;
+              } else if (parsed >= 0 && parsed <= 100) {
+                waterLevel = parsed;
+                if (data.subNodeOnline === undefined) {
+                  isSubNodeOnline = true;
+                }
+              }
               updateMetrics();
             }
           }
@@ -2059,10 +2086,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (d.mode && d.mode !== controlMode) {
               setControlMode(d.mode, false);
             }
+            if (d.subNodeOnline !== undefined) {
+              isSubNodeOnline = Boolean(d.subNodeOnline);
+            }
             const lvl = d.waterLevelPct !== undefined ? d.waterLevelPct : d.water_level_pct;
             if (lvl !== undefined && lvl !== null) {
               const parsed = parseFloat(lvl);
               if (!isNaN(parsed)) {
+                if (parsed < 0) {
+                  isSubNodeOnline = false;
+                } else if (d.subNodeOnline === undefined) {
+                  isSubNodeOnline = true;
+                }
                 waterLevel = parsed;
                 updateMetrics();
               }

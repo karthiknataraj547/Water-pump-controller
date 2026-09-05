@@ -31,6 +31,7 @@ class _TankControlScreenState extends ConsumerState<TankControlScreen> {
         final isOnline = hardwareStateService.isHardwareOnline;
         final isPumpRunning = pump?.isRunning ?? (device?.pumpState == 'ON' || device?.pumpState == 'RUNNING');
         final mode = device?.mode ?? 'AUTO';
+        final isSubOnline = hardwareStateService.subNodeStatus != NodeStatus.offline;
 
         final waterLevelPct = sensor?.waterLevelPct ?? 0.0;
         final totalWaterLiters = sensor?.totalWaterLiters ?? (waterLevelPct / 100.0 * 5000.0);
@@ -132,6 +133,17 @@ class _TankControlScreenState extends ConsumerState<TankControlScreen> {
                         return;
                       }
                       if (mode == 'AUTO') {
+                        if (hardwareStateService.subNodeStatus == NodeStatus.offline) {
+                          ScaffoldMessenger.of(context).clearSnackBars();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              duration: Duration(seconds: 3),
+                              backgroundColor: Color(0xFFD97706),
+                              content: Text('⚠️ Tank sensor disconnected • Motor locked in AUTO mode for safety.'),
+                            ),
+                          );
+                          return;
+                        }
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             duration: Duration(seconds: 2),
@@ -231,7 +243,7 @@ class _TankControlScreenState extends ConsumerState<TankControlScreen> {
                                   textBaseline: TextBaseline.alphabetic,
                                   children: [
                                     Text(
-                                      totalWaterLiters.toStringAsFixed(0),
+                                      isSubOnline ? totalWaterLiters.toStringAsFixed(0) : '--',
                                       style: TextStyle(
                                         fontSize: 26,
                                         fontWeight: FontWeight.w800,
@@ -240,7 +252,7 @@ class _TankControlScreenState extends ConsumerState<TankControlScreen> {
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      '/ 5,000 Liters',
+                                      isSubOnline ? '/ 5,000 Liters' : 'Sensor Offline',
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w500,
@@ -254,13 +266,13 @@ class _TankControlScreenState extends ConsumerState<TankControlScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                               decoration: BoxDecoration(
-                                color: colorScheme.primary.withOpacity(0.12),
+                                color: (isSubOnline ? colorScheme.primary : const Color(0xFFF59E0B)).withOpacity(0.12),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Text(
-                                '${waterLevelPct.toStringAsFixed(1)}%',
+                                isSubOnline ? '${waterLevelPct.toStringAsFixed(1)}%' : '--',
                                 style: TextStyle(
-                                  color: colorScheme.primary,
+                                  color: isSubOnline ? colorScheme.primary : const Color(0xFFF59E0B),
                                   fontSize: 16,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -272,13 +284,15 @@ class _TankControlScreenState extends ConsumerState<TankControlScreen> {
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: LinearProgressIndicator(
-                            value: (waterLevelPct / 100.0).clamp(0.0, 1.0),
+                            value: isSubOnline ? (waterLevelPct / 100.0).clamp(0.0, 1.0) : 0.0,
                             minHeight: 10,
                             backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              waterLevelPct > 80
-                                  ? AppTheme.accentEmerald
-                                  : (waterLevelPct < 25 ? AppTheme.danger : colorScheme.primary),
+                              isSubOnline
+                                  ? (waterLevelPct > 80
+                                      ? AppTheme.accentEmerald
+                                      : (waterLevelPct < 25 ? AppTheme.danger : colorScheme.primary))
+                                  : Colors.grey.withOpacity(0.4),
                             ),
                           ),
                         ),

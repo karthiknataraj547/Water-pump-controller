@@ -1,24 +1,54 @@
 {
   "users": [
     {
-      "id": "usr_karthik_primary",
+      "id": "usr_karthik_547",
       "email": "karthiknataraj547@gmail.com",
-      "passwordHash": "bcf7ac511ca5be077e4fe13fba9559125a4be7d72ceeb75b9686ab098a867f4da9b1fd8f95f76f8e0c3031e98bf6e19d3236c63d5cddc19ef215c8e24d2c8a00",
-      "salt": "a31b4722641b5e5b3f521f0fc0d9ecb7",
+      "passwordHash": "53c241cabd995882f2f5b72db045bbb673afbe625293b6aa2cd73ee1ec8fb4884270ef4a6f4e43d87e1f020b1f5364e288123d89999e672ab448bc60a8626c27",
+      "salt": "264f79d4771783df4c813cf7280cb7c6",
       "firstName": "Karthik",
       "lastName": "Nataraj",
       "role": "ADMIN",
       "createdAt": "2026-09-01T00:00:00.000Z"
     },
     {
-      "id": "usr_demo",
+      "id": "usr_demo_001",
       "email": "demo@hydropulse.io",
-      "passwordHash": "bcf7ac511ca5be077e4fe13fba9559125a4be7d72ceeb75b9686ab098a867f4da9b1fd8f95f76f8e0c3031e98bf6e19d3236c63d5cddc19ef215c8e24d2c8a00",
-      "salt": "a31b4722641b5e5b3f521f0fc0d9ecb7",
+      "passwordHash": "a548969256e5fa06885be0ceead36d0a1838d3e37e2a9337b8a5300512159da5e755994a5f4f95fab65bc1dac6c02a7db5dd9921ecb4b1a4042b56ebabb82f45",
+      "salt": "7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c",
       "firstName": "Demo",
-      "lastName": "User",
+      "lastName": "Demo",
+      "role": "ADMIN",
+      "createdAt": "2026-09-04T01:59:09.315Z"
+    },
+    {
+      "id": "usr_1788524453070_628",
+      "email": "karthikwzatco@gmail.com",
+      "passwordHash": "dcf231d3cb4ea24f1f11e976eba71f641364d41280e3cbf427fcd6894398f75ca172ebf6881a04ce4abc0a08bf26f006014f70d2588fe165bb2fe1677933c402",
+      "salt": "71f5aaea0e514e85c7f7420c1d5e876a",
+      "firstName": "Karthik",
+      "lastName": "Wzatco",
       "role": "USER",
-      "createdAt": "2026-09-01T00:00:00.000Z"
+      "createdAt": "2026-09-04T12:20:53.070Z"
+    },
+    {
+      "id": "usr_1788576060810_351",
+      "email": "newfarmer@hydropulse.io",
+      "passwordHash": "2cad7fa32ecd6dda66aed1cfefe10d999beb7d476eadfe5179f7cea5c8bf6b53b32b702ef80ab6c6443575729251ab198915ccb07e38ee5b56b296a540fe7d2e",
+      "salt": "4643ff39ab0f716948248c76ec411402",
+      "firstName": "Ramesh",
+      "lastName": "Patel",
+      "role": "USER",
+      "createdAt": "2026-09-05T02:41:00.810Z"
+    },
+    {
+      "id": "usr_1788576661563_581",
+      "email": "test@test.com",
+      "passwordHash": "d0fb9663225a7ed26454d0465383b0c95e7b1da139b5435488aaeb068c572542a6147cadb6e9a1b62c6e36b0091a1e5f9a60821f6c2458613fd13e8aded2ae27",
+      "salt": "c6c5b2ee49640b7ac8b3ff0416867cdd",
+      "firstName": "Test",
+      "lastName": "Test",
+      "role": "USER",
+      "createdAt": "2026-09-05T02:51:01.563Z"
     }
   ],
   "devices": [
@@ -27,37 +57,50 @@
       "deviceId": "esp32_pump_94B97E",
       "nodeId": "esp32_pump_94B97E",
       "name": "Agricultural Borewell Pump",
-      "type": "ESP32_WIFI_BLE",
-      "status": "ONLINE",
-      "ownerEmail": "karthiknataraj547@gmail.com",
+      "macAddress": "24:6F:28:94:B9:7E",
+      "userId": "karthiknataraj547@gmail.com",
       "userEmail": "karthiknataraj547@gmail.com",
       "isOnline": true,
-      "tankHeightCm": 200,
-      "sensorOffsetCm": 20,
-      "totalCapacityLiters": 5000,
-      "waterLevelPct": 78.5,
       "pumpRunning": false,
       "mode": "AUTO",
-      "wifiRssi": -65,
-      "firmwareVersion": "v2.0.9",
-      "lastSeen": 1788575000000,
-      "lastHeartbeat": 1788575000000,
-      "createdAt": "2026-09-01T00:00:00.000Z",
-      "pairedAt": "2026-09-01T00:00:00.000Z"
+      "waterLevelPct": 0,
+      "pairedAt": "2026-09-04T01:59:17.936Z",
+      "lastSeen": "2026-09-04T09:56:26.093Z"
     }
   ],
   "liveState": {
-    "pumpRunning": false,
+    "pumpRunning": true,
     "mode": "AUTO",
-    "waterLevelPct": 78.5,
-    "volumeLiters": 3925.0,
-    "totalCapacityLiters": 5000.0,
-    "flowRateLpm": 0.0,
-    "powerKw": 0.0,
-    "tdsPpm": 185,
-    "tempC": 26.4,
+    "waterLevelPct": 82.5,
+    "volumeLiters": 4125,
+    "totalCapacityLiters": 5000,
+    "flowRateLpm": 0,
+    "powerKw": 0,
+    "tdsPpm": 0,
+    "tempC": 0,
     "lastHeartbeat": 0,
-    "lastSeen": 0
+    "lastSeen": 1788515786098
   },
-  "telemetryHistory": []
+  "telemetryHistory": [
+    {
+      "timestamp": "2026-09-04T09:55:20.014Z",
+      "waterLevelPct": 82.5,
+      "volumeLiters": 4125,
+      "flowRateLpm": 0,
+      "powerKw": 0,
+      "tdsPpm": 0,
+      "tempC": 0,
+      "pumpRunning": true
+    },
+    {
+      "timestamp": "2026-09-04T09:56:26.098Z",
+      "waterLevelPct": 82.5,
+      "volumeLiters": 4125,
+      "flowRateLpm": 0,
+      "powerKw": 0,
+      "tdsPpm": 0,
+      "tempC": 0,
+      "pumpRunning": true
+    }
+  ]
 }

@@ -102,7 +102,7 @@ float readUltrasonicRawSampleCm() {
   delayMicroseconds(10);
   digitalWrite(PIN_ULTRASONIC_TRIG, LOW);
 
-  long duration = pulseIn(PIN_ULTRASONIC_ECHO, HIGH, 25000); // 25ms timeout (~4.2 meters max)
+  long duration = pulseIn(PIN_ULTRASONIC_ECHO, HIGH, 15000); // 15ms fast timeout (~2.6 meters max)
   if (duration <= 0) return -1.0f;
 
   // Speed of sound in air at 25C = 346 m/s = 0.0346 cm/us

@@ -193,12 +193,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             tooltip: 'Notifications',
             onPressed: () => context.push('/notifications'),
           ),
-          if (device != null)
-            IconButton(
-              icon: const Icon(Icons.link_off_rounded, color: AppTheme.danger, size: 22),
-              tooltip: 'Remove',
-              onPressed: () => _confirmRemoveHardware(context),
-            ),
+
           IconButton(
             icon: Icon(Icons.settings_outlined, size: 22, color: isDarkMode ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary),
             tooltip: 'Settings & Config',
@@ -419,20 +414,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () => _confirmRemoveHardware(context),
-                        icon: const Icon(Icons.link_off_rounded, color: AppTheme.danger, size: 16),
-                        label: const Text('Remove', style: TextStyle(color: AppTheme.danger, fontWeight: FontWeight.w700, fontSize: 13)),
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: AppTheme.danger.withValues(alpha: 0.35)),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                      ),
-                    ),
+
                   ],
                   const SizedBox(height: 24),
                 ],
@@ -966,33 +948,5 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     );
   }
 
-  Future<void> _confirmRemoveHardware(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Unlink Hardware Node'),
-        content: const Text('Are you sure you want to unlink and remove this ESP32 controller from your account?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
-            child: const Text('Remove', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true) {
-      hardwareStateService.clearDevice();
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Hardware controller removed.')),
-        );
-      }
-    }
-  }
 }
 

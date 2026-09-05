@@ -9,6 +9,7 @@ const os = require('os');
 const path = require('path');
 
 const STORE_PATH = process.env.STORE_PATH || path.join(os.tmpdir(), 'hydropulse_store.json');
+const BUNDLED_DB_PATH = path.join(__dirname, 'database.json');
 
 // Persistent Database Registries (Persisted across requests / restarts)
 const usersDb = new Map();
@@ -152,7 +153,7 @@ function loadState() {
 
   // 1. Load permanent baseline database from bundled file
   const candidatePaths = [
-    path.join(__dirname, 'database.json'),
+    BUNDLED_DB_PATH,
     path.join(process.cwd(), 'api', 'database.json'),
     path.join(process.cwd(), 'database.json')
   ];
@@ -217,7 +218,7 @@ function saveState() {
   }
 
   const candidatePaths = [
-    path.join(__dirname, 'database.json'),
+    BUNDLED_DB_PATH,
     path.join(process.cwd(), 'api', 'database.json'),
     path.join(process.cwd(), 'database.json')
   ];
@@ -354,18 +355,19 @@ module.exports = async (req, res) => {
 
     if (!manifest) {
       manifest = {
-        version: '2.0.9',
-        build_number: 12,
+        version: '2.1.0',
+        build_number: 13,
         release_date: '2026-09-05',
         min_supported_version: '1.0.0',
         download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk',
         website_url: 'https://water-pump-controller.vercel.app',
-        title: 'HydroPulse v2.0.9 - Backend Double Verification of Online Status & Clean Pump Control Card',
+        title: 'HydroPulse v2.1.0 - Tank Disconnect Level Masking, Auto Mode Safety Interlock & Low Latency Telemetry',
         changelog: [
-          'Backend Double-Verification: Device status verified strictly against authentic hardware heartbeats (<15s window). Offline by default until physical connection is confirmed.',
-          'Zero False Online: Fixed bug where reading live telemetry or arbitrary MQTT broadcasts marked hardware as online.',
-          'Pump Control Card Cleanup: Removed redundant status pills from the pump control card, returning to a clean, minimal interface.',
-          'Web & Mobile Consistency: Both app and webapp enforce double-verified hardware presence and start in offline state when unpowered.'
+          'Tank Disconnect Level Masking: Tank display shows "--" and "Sensor Disconnected" instead of misleading 0% or 0L when sub-node sensor is offline.',
+          'Auto Mode Motor Safety Interlock: Automatically prohibits motor start and halts active pumping if tank sensor is disconnected while in AUTO mode.',
+          'Dashboard Offline UI Cleanup: Removed intrusive hardware offline banner popup and remove buttons from the main dashboard screen.',
+          'Sub-300ms Communication Latency: Optimized ultrasonic echo sampling (15ms timeout), non-blocking temperature reads, and ultra-fast 100-150ms telemetry transmission.',
+          'Database Persistence: Centrally verified user authentication and hardware bindings across serverless cold starts.'
         ],
         is_critical: false
       };
@@ -806,7 +808,7 @@ module.exports = async (req, res) => {
   }
 
   // 8b. Live Authoritative Telemetry Endpoint (Double-Verified)
-  if (method === 'GET' && url.includes('/api/v1/telemetry/live')) {
+  if (method === 'GET' && (url.includes('/api/v1/telemetry/live') || url.includes('/telemetry/live'))) {
     const isOnline = verifyHardwareOnline(liveState);
     return res.status(200).json({
       status: 'success',
