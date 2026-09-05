@@ -325,10 +325,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         const storage = FlutterSecureStorage();
         final savedPwd = await storage.read(key: 'auth_pwd_$email');
         final savedName = await storage.read(key: 'auth_name_$email');
-        final isPrimaryAdmin = (email == 'karthiknataraj547@gmail.com' || email == 'karthiknataraj547@gamil.com') && password == 'Password123!';
-
-        if (isPrimaryAdmin || (savedPwd != null && savedPwd == password)) {
-          final recoveryName = savedName ?? (isPrimaryAdmin ? 'Karthik Nataraj' : 'HydroPulse User');
+        if (savedPwd != null && savedPwd == password) {
+          final recoveryName = savedName ?? 'HydroPulse User';
           final parts = recoveryName.split(' ');
           final fName = parts.isNotEmpty ? parts.first : 'User';
           final lName = parts.length > 1 ? parts.sublist(1).join(' ') : 'Client';

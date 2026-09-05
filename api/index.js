@@ -146,69 +146,11 @@ function flushDatabaseState() {
   console.log('[Store] Full database flush complete. All user accounts and devices cleared.');
 }
 
-// Guaranteed database seeds - survives ANY container cold starts or filesystem differences
-const HARDCODED_SEEDED_USERS = [
-  {
-    id: 'usr_karthik_primary',
-    email: 'karthiknataraj547@gmail.com',
-    passwordHash: 'c47d15f5cbd7f6a84e54f57c684e8ad414df57b0b61845d682f7ae8f5273fc40a1e94d2f5821418407a680fa8cde39cd98ce57cb54c34df5f15124f93b91aabe',
-    salt: 'hydropulse_salt_karthik_2026',
-    firstName: 'Karthik',
-    lastName: 'Nataraj',
-    role: 'ADMIN',
-    createdAt: '2026-09-01T00:00:00.000Z'
-  },
-  {
-    id: 'usr_karthik_typo_alias',
-    email: 'karthiknataraj547@gamil.com',
-    passwordHash: 'c47d15f5cbd7f6a84e54f57c684e8ad414df57b0b61845d682f7ae8f5273fc40a1e94d2f5821418407a680fa8cde39cd98ce57cb54c34df5f15124f93b91aabe',
-    salt: 'hydropulse_salt_karthik_2026',
-    firstName: 'Karthik',
-    lastName: 'Nataraj',
-    role: 'ADMIN',
-    createdAt: '2026-09-01T00:00:00.000Z'
-  },
-  {
-    id: 'usr_demo_account',
-    email: 'demo@hydropulse.io',
-    passwordHash: 'c47d15f5cbd7f6a84e54f57c684e8ad414df57b0b61845d682f7ae8f5273fc40a1e94d2f5821418407a680fa8cde39cd98ce57cb54c34df5f15124f93b91aabe',
-    salt: 'hydropulse_salt_karthik_2026',
-    firstName: 'Demo',
-    lastName: 'User',
-    role: 'USER',
-    createdAt: '2026-09-01T00:00:00.000Z'
-  }
-];
-
-const HARDCODED_SEEDED_DEVICES = [
-  {
-    id: 'esp32_pump_94B97E',
-    deviceId: 'esp32_pump_94B97E',
-    nodeId: 'esp32_pump_94B97E',
-    name: 'Agricultural Borewell Pump',
-    macAddress: '24:6F:28:94:B9:7E',
-    userEmail: 'karthiknataraj547@gmail.com',
-    userId: 'usr_karthik_primary',
-    isOnline: false,
-    status: 'OFFLINE',
-    pumpState: 'OFF',
-    mode: 'AUTO',
-    firmwareVersion: 'v2.0.9',
-    wifiRssi: -65,
-    lastSeen: 0
-  }
-];
-
 function loadState() {
-  // 1. Initialize with guaranteed built-in seeds
-  for (const u of HARDCODED_SEEDED_USERS) {
-    usersDb.set(u.email, u);
-  }
-  for (const d of HARDCODED_SEEDED_DEVICES) {
-    devicesDb.set(d.id || d.deviceId, d);
-  }
+  usersDb.clear();
+  devicesDb.clear();
 
-  // 2. Load permanent baseline database from bundled file
+  // 1. Load permanent baseline database from bundled file
   const candidatePaths = [
     path.join(__dirname, 'database.json'),
     path.join(process.cwd(), 'api', 'database.json'),
@@ -580,14 +522,7 @@ module.exports = async (req, res) => {
     }
 
     const cleanEmail = email.trim().toLowerCase();
-    let user = usersDb.get(cleanEmail);
-    if (!user) {
-      if (cleanEmail.endsWith('@gamil.com')) {
-        user = usersDb.get(cleanEmail.replace('@gamil.com', '@gmail.com'));
-      } else if (cleanEmail.endsWith('@gmail.com')) {
-        user = usersDb.get(cleanEmail.replace('@gmail.com', '@gamil.com'));
-      }
-    }
+    const user = usersDb.get(cleanEmail);
 
     if (!user) {
       return res.status(401).json({ status: 'error', message: 'Account not found. Please create an account via the registration page first.' });

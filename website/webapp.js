@@ -318,27 +318,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch {}
       }
 
-      // Fallback for primary admin account
-      if ((!userDevices || userDevices.length === 0) && (user.email === 'karthiknataraj547@gmail.com' || user.email === 'karthiknataraj547@gamil.com')) {
-        const defaultBorewell = {
-          id: 'esp32_pump_94B97E',
-          deviceId: 'esp32_pump_94B97E',
-          nodeId: 'esp32_pump_94B97E',
-          name: 'Agricultural Borewell Pump',
-          macAddress: '24:6F:28:94:B9:7E',
-          userEmail: user.email.toLowerCase(),
-          userId: user.email.toLowerCase(),
-          isOnline: false,
-          status: 'OFFLINE',
-          pumpState: 'OFF',
-          mode: 'AUTO',
-          firmwareVersion: 'v2.0.9',
-          wifiRssi: -65
-        };
-        userDevices = [defaultBorewell];
-        localStorage.setItem('hydropulse_user_devices', JSON.stringify(userDevices));
-      }
-
       if (userDevices && userDevices.length > 0) {
         applyActiveDevice(userDevices[0]);
         // Re-sync local device to backend so container retains it
@@ -360,60 +339,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (nodeMacEl) nodeMacEl.textContent = 'Pair via Mobile App or Link Below';
       }
 
-      // Wire Up Manual and Quick Linking Hardware Buttons
-      function linkBorewellPump() {
-        const borewellDev = {
-          id: 'esp32_pump_94B97E',
-          deviceId: 'esp32_pump_94B97E',
-          nodeId: 'esp32_pump_94B97E',
-          name: 'Agricultural Borewell Pump',
-          macAddress: '24:6F:28:94:B9:7E',
-          userEmail: (currentUser?.email || 'karthiknataraj547@gmail.com').toLowerCase(),
-          userId: (currentUser?.email || 'karthiknataraj547@gmail.com').toLowerCase(),
-          isOnline: false,
-          status: 'OFFLINE',
-          pumpState: 'OFF',
-          mode: 'AUTO',
-          firmwareVersion: 'v2.0.9',
-          wifiRssi: -65
-        };
-        applyActiveDevice(borewellDev);
-        if (mqttClient && mqttClient.connected) {
-          const email = (currentUser?.email || 'karthiknataraj547@gmail.com').toLowerCase();
-          const str = JSON.stringify(borewellDev);
-          mqttClient.publish(`hydropulse/devices/${email}`, str, { retain: true, qos: 1 });
-          mqttClient.publish(`devices/sync/${email}`, str, { retain: true, qos: 1 });
-        }
-        fetch(`${apiBaseUrl}/devices`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`,
-            'x-user-email': currentUser?.email || ''
-          },
-          body: JSON.stringify(borewellDev)
-        }).catch(() => {});
-        alert('✓ Agricultural Borewell Pump (esp32_pump_94B97E) linked successfully across all your devices!');
-      }
-
-      const btnLinkBorewell = document.getElementById('btn-quick-link-borewell');
-      if (btnLinkBorewell) btnLinkBorewell.onclick = linkBorewellPump;
-      const btnGuideBorewell = document.getElementById('btn-guide-link-borewell');
-      if (btnGuideBorewell) btnGuideBorewell.onclick = linkBorewellPump;
-
       function promptManualPair() {
-        const devId = prompt('Enter ESP32 Hardware ID (e.g. esp32_pump_94B97E):', 'esp32_pump_94B97E');
+        const devId = prompt('Enter ESP32 Hardware ID (e.g. esp32_pump_01):');
         if (!devId || !devId.trim()) return;
-        const devName = prompt('Enter Hardware Display Name:', 'Agricultural Borewell Pump') || 'ESP32 Gateway';
-        const mac = prompt('Enter Hardware MAC Address:', '24:6F:28:94:B9:7E') || '24:6F:28:B2:A4:10';
+        const devName = prompt('Enter Hardware Display Name (e.g. Farm Water Pump):') || 'HydroPulse Controller';
+        const mac = prompt('Enter Hardware MAC Address (optional):') || '';
+        const userEmail = (currentUser?.email || localStorage.getItem('hydropulse_user_email') || '').toLowerCase();
         const customDev = {
           id: devId.trim(),
           deviceId: devId.trim(),
           nodeId: devId.trim(),
           name: devName.trim(),
           macAddress: mac.trim(),
-          userEmail: (currentUser?.email || 'karthiknataraj547@gmail.com').toLowerCase(),
-          userId: (currentUser?.email || 'karthiknataraj547@gmail.com').toLowerCase(),
+          userEmail: userEmail,
+          userId: userEmail,
           isOnline: false,
           status: 'OFFLINE',
           pumpState: 'OFF',
@@ -422,18 +361,17 @@ document.addEventListener('DOMContentLoaded', () => {
           wifiRssi: -65
         };
         applyActiveDevice(customDev);
-        if (mqttClient && mqttClient.connected) {
-          const email = (currentUser?.email || 'karthiknataraj547@gmail.com').toLowerCase();
+        if (mqttClient && mqttClient.connected && userEmail) {
           const str = JSON.stringify(customDev);
-          mqttClient.publish(`hydropulse/devices/${email}`, str, { retain: true, qos: 1 });
-          mqttClient.publish(`devices/sync/${email}`, str, { retain: true, qos: 1 });
+          mqttClient.publish(`hydropulse/devices/${userEmail}`, str, { retain: true, qos: 1 });
+          mqttClient.publish(`devices/sync/${userEmail}`, str, { retain: true, qos: 1 });
         }
         fetch(`${apiBaseUrl}/devices`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${authToken}`,
-            'x-user-email': currentUser?.email || ''
+            'x-user-email': userEmail
           },
           body: JSON.stringify(customDev)
         }).catch(() => {});
@@ -548,18 +486,14 @@ document.addEventListener('DOMContentLoaded', () => {
             clientAcc = rawAccs[email];
           } catch {}
 
-          if (!clientAcc && (email === 'karthiknataraj547@gmail.com' || email === 'karthiknataraj547@gamil.com') && password === 'Password123!') {
-            clientAcc = { email, firstName: 'Karthik', lastName: 'Nataraj', password };
-          }
-
           if (clientAcc && clientAcc.password === password) {
             // Transparently re-register with the backend container
             const reRegRes = await fetch(`${apiBaseUrl}/auth/register`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                firstName: clientAcc.firstName || 'Karthik',
-                lastName: clientAcc.lastName || 'Nataraj',
+                firstName: clientAcc.firstName || 'HydroPulse',
+                lastName: clientAcc.lastName || 'User',
                 email: email,
                 password: password
               })
@@ -1959,9 +1893,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const currentEmail = (currentUser?.email || localStorage.getItem('hydropulse_user_email') || '').trim().toLowerCase();
             const msgEmail = (data.userEmail || data.userId || '').trim().toLowerCase();
             if (currentEmail && msgEmail) {
-              const isKarthik = currentEmail === 'karthiknataraj547@gmail.com' || currentEmail === 'karthiknataraj547@gamil.com' || currentEmail.includes('karthiknataraj547');
-              const isMatch = (msgEmail === currentEmail) ||
-                (isKarthik && (msgEmail === 'karthiknataraj547@gmail.com' || msgEmail === 'karthiknataraj547@gamil.com' || msgEmail.includes('karthiknataraj547')));
+              const isMatch = (msgEmail === currentEmail);
               if (isMatch) {
                 console.log('[MQTT] Received hardware sync packet from cloud broker for', currentEmail, data);
                 applyActiveDevice(data);

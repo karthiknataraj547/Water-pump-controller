@@ -5,7 +5,7 @@
   "min_supported_version": "1.0.0",
   "download_url": "https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk",
   "website_url": "https://water-pump-controller.vercel.app",
-  "sha256": "FC826D2BA6784AA47F593ACA523648D88E77DF56A39C417DB424EC8E798A20B6",
+  "sha256": "d675900be01dc39a3aeec628b6a7ac0394e65c6e1d8942064561ada1a4a9c603",
   "title": "HydroPulse v2.0.9 - Resilient Database Persistence & Paired Hardware Retention",
   "changelog": [
     "Database Persistence & Auto Upsert: Resolved user account registration and login across serverless cold starts. Seeded baseline database and implemented self-healing auto-recovery.",
@@ -13,5 +13,6 @@
     "Backend Double-Verification: Device status verified strictly against authentic hardware heartbeats (<15s window).",
     "Web & Mobile Consistency: Both app and webapp enforce double-verified hardware presence and start in offline state when unpowered."
   ],
-  "is_critical": false
+  "is_critical": false,
+  "updatedAt": "2026-09-05T01:57:08.377Z"
 }

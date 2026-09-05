@@ -129,7 +129,7 @@ class _ProvisioningWizardScreenState extends State<ProvisioningWizardScreen>
       try {
         await apiClient.post('/devices/claim', data: {
           'deviceId': _selectedDevice!.name.replaceFirst('PumpController-', 'esp32_pump_'),
-          'name': 'Main Agricultural Pump',
+          'name': _selectedDevice!.name,
           'macAddress': _selectedDevice!.id,
         });
       } catch (_) {}
@@ -735,9 +735,9 @@ class _ProvisioningWizardScreenState extends State<ProvisioningWizardScreen>
   }
 
   void _showManualPairDialog() {
-    final nameCtrl = TextEditingController(text: 'Agricultural Borewell Pump');
-    final idCtrl = TextEditingController(text: 'esp32_pump_94B97E');
-    final macCtrl = TextEditingController(text: '24:6F:28:94:B9:7E');
+    final nameCtrl = TextEditingController();
+    final idCtrl = TextEditingController();
+    final macCtrl = TextEditingController();
 
     showDialog(
       context: context,
@@ -764,7 +764,7 @@ class _ProvisioningWizardScreenState extends State<ProvisioningWizardScreen>
                 controller: nameCtrl,
                 decoration: InputDecoration(
                   labelText: 'Hardware Name',
-                  hintText: 'e.g. Agricultural Borewell Pump',
+                  hintText: 'e.g. Borewell Pump 1',
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
@@ -773,7 +773,7 @@ class _ProvisioningWizardScreenState extends State<ProvisioningWizardScreen>
                 controller: idCtrl,
                 decoration: InputDecoration(
                   labelText: 'Device / Node ID',
-                  hintText: 'e.g. esp32_pump_94B97E',
+                  hintText: 'e.g. esp32_pump_01',
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
@@ -781,8 +781,8 @@ class _ProvisioningWizardScreenState extends State<ProvisioningWizardScreen>
               TextField(
                 controller: macCtrl,
                 decoration: InputDecoration(
-                  labelText: 'MAC Address',
-                  hintText: 'e.g. 24:6F:28:94:B9:7E',
+                  labelText: 'MAC Address (Optional)',
+                  hintText: 'e.g. 24:6F:28:XX:XX:XX',
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),

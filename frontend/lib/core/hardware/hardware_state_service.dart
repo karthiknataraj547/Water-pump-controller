@@ -277,8 +277,7 @@ class HardwareStateService extends ChangeNotifier {
           final userOwned = rawList.where((d) {
             if (d is! Map) return false;
             final dEmail = (d['userEmail'] ?? d['userId'] ?? '').toString().toLowerCase();
-            return dEmail == cleanEmail ||
-                dEmail.replaceAll('@gamil.com', '@gmail.com') == cleanEmail.replaceAll('@gamil.com', '@gmail.com');
+            return dEmail == cleanEmail;
           }).toList();
 
           if (userOwned.isEmpty) {
@@ -299,24 +298,6 @@ class HardwareStateService extends ChangeNotifier {
                 notifyListeners();
                 return;
               } catch (_) {}
-            }
-            // If primary admin account, seed the default Agricultural Borewell Pump
-            if (cleanEmail == 'karthiknataraj547@gmail.com' || cleanEmail == 'karthiknataraj547@gamil.com') {
-              _activeDevice = DeviceModel(
-                id: 'esp32_pump_94B97E',
-                name: 'Agricultural Borewell Pump',
-                macAddress: '24:6F:28:94:B9:7E',
-                status: 'OFFLINE',
-                pumpState: 'OFF',
-                mode: 'AUTO',
-                wifiRssi: -65,
-                firmwareVersion: 'v2.0.9',
-                lastSeen: DateTime.now(),
-              );
-              await prefs.setString('saved_paired_device', jsonEncode(_activeDevice!.toJson()));
-              unawaited(syncDeviceToBackend(_activeDevice!));
-              notifyListeners();
-              return;
             }
             return;
           }
