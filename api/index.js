@@ -593,6 +593,13 @@ module.exports = async (req, res) => {
     return res.status(200).json({
       status: 'success',
       data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role
+        },
         id: user.id,
         email: user.email,
         firstName: user.firstName,
