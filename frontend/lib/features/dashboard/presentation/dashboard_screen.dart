@@ -228,7 +228,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                       position: Tween<Offset>(begin: const Offset(0, -0.3), end: Offset.zero).animate(anim),
                       child: FadeTransition(opacity: anim, child: child),
                     ),
-                    child: overflowAlertService.isOverflowing
+                    child: (overflowAlertService.isOverflowing && hardwareStateService.subNodeStatus != NodeStatus.offline)
                         ? Padding(
                             key: const ValueKey('overflow-banner'),
                             padding: const EdgeInsets.only(bottom: 16),
@@ -246,20 +246,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                     // =========================================================
                     // ACTIVE DEVICE DASHBOARD
                     // =========================================================
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 400),
-                      transitionBuilder: (child, anim) => FadeTransition(
-                        opacity: anim,
-                        child: SizeTransition(sizeFactor: anim, child: child),
-                      ),
-                      child: !isOnline
-                          ? Padding(
-                              key: const ValueKey('hw-offline'),
-                              padding: const EdgeInsets.only(bottom: 20),
-                              child: _buildHardwareOfflineBanner(device.id),
-                            )
-                          : const SizedBox.shrink(key: ValueKey('hw-online')),
-                    ),
 
                     // 3D Rotatable SMART WATER SYSTEM
                     SmartWaterSystemCard(
@@ -303,6 +289,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                           );
                           return;
                         }
+                        if (device.mode.toUpperCase() == 'AUTO' && hardwareStateService.subNodeStatus == NodeStatus.offline) {
+                          ScaffoldMessenger.of(context).clearSnackBars();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('⚠️ Tank sensor disconnected • Motor locked in AUTO mode for safety.'),
+                              backgroundColor: AppTheme.warning,
+                            ),
+                          );
+                          return;
+                        }
                         if (isPumpOn) {
                           _sendPumpCommand('STOP_PUMP');
                         } else {
@@ -331,11 +327,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                         ),
                         MetricCard(
                           title: 'Volume',
-                          value: sensorData != null ? Formatters.formatVolume(sensorData.totalWaterLiters) : '—',
+                          value: (hardwareStateService.subNodeStatus != NodeStatus.offline && sensorData != null)
+                              ? Formatters.formatVolume(sensorData.totalWaterLiters)
+                              : '—',
                           unit: '',
                           icon: Icons.water_drop_outlined,
                           accentColor: AppTheme.waterBlueDark,
-                          subtitle: sensorData != null ? 'Level: ${waterLevel.toStringAsFixed(0)}%' : 'Offline',
+                          subtitle: (hardwareStateService.subNodeStatus != NodeStatus.offline && sensorData != null)
+                              ? 'Level: ${waterLevel.toStringAsFixed(0)}%'
+                              : 'Sensor Offline',
                         ),
                         MetricCard(
                           title: 'TDS',
@@ -872,112 +872,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       ),
     );
   }
-  Widget _buildHardwareOfflineBanner(String deviceId) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppTheme.danger.withOpacity(isDarkMode ? 0.08 : 0.06),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppTheme.danger.withOpacity(0.2), width: 0.5),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.cloud_off_outlined, color: AppTheme.danger, size: 22),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Hardware Offline',
-                  style: textTheme.labelLarge?.copyWith(color: AppTheme.danger, fontSize: 13),
-                ),
-                Text(
-                  'Waiting for ESP32 ($deviceId) heartbeat...',
-                  style: textTheme.bodySmall?.copyWith(fontSize: 11),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          OutlinedButton.icon(
-            onPressed: () => _confirmRemoveHardware(context),
-            icon: const Icon(Icons.link_off_rounded, size: 14),
-            label: const Text('Remove'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppTheme.danger,
-              side: BorderSide(color: AppTheme.danger.withValues(alpha: 0.4), width: 0.8),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _confirmRemoveHardware(BuildContext context) {
-    final device = hardwareStateService.activeDevice;
-    if (device == null) return;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.danger.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(Icons.link_off_rounded, color: AppTheme.danger, size: 22),
-            ),
-            const SizedBox(width: 10),
-            const Text('Remove Hardware?'),
-          ],
-        ),
-        content: Text(
-          'This will send a reset signal to the ESP32 (${device.id}) to wipe Wi-Fi credentials, unpair it from your account, and remove it from your dashboard.',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.5),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.of(ctx).pop();
-              await hardwareStateService.removeDevice();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).clearSnackBars();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('✓ Hardware reset signal dispatched and removed from dashboard.'),
-                    behavior: SnackBarBehavior.floating,
-                    backgroundColor: AppTheme.danger,
-                  ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.danger,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            child: const Text('Remove', style: TextStyle(fontWeight: FontWeight.w700)),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildOverflowAlertBanner(double levelPct) {
     final textTheme = Theme.of(context).textTheme;
@@ -1071,4 +965,34 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       ),
     );
   }
+
+  Future<void> _confirmRemoveHardware(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Unlink Hardware Node'),
+        content: const Text('Are you sure you want to unlink and remove this ESP32 controller from your account?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
+            child: const Text('Remove', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      hardwareStateService.clearDevice();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Hardware controller removed.')),
+        );
+      }
+    }
+  }
 }
+

@@ -59,7 +59,7 @@
 #define PIN_LED_PUMP           4    // Green pump running LED
 #define PIN_BUZZER             5    // Piezo alert buzzer
 
-#define FIRMWARE_VERSION       "2.0.0"
+#define FIRMWARE_VERSION       "2.0.9"
 #define DEFAULT_DEVICE_PREFIX  "esp32_pump_"
 #define BLE_DEVICE_PREFIX      "PumpController-"
 #define NVS_NAMESPACE          "pump_config"
@@ -67,8 +67,8 @@
 // Networking & Cloud Defaults
 #define DEFAULT_MQTT_BROKER    "broker.emqx.io"
 #define DEFAULT_MQTT_PORT      1883
-#define STATUS_REPORT_INTERVAL 2000     // 2 seconds dedicated Main Node heartbeat
-#define SUB_NODE_TIMEOUT_MS    4000     // 4s timeout for 300ms ESP8266 Sub Node streaming
+#define STATUS_REPORT_INTERVAL 1000     // 1 second dedicated Main Node heartbeat
+#define SUB_NODE_TIMEOUT_MS    2000     // 2s timeout for 150ms ESP8266 Sub Node streaming (fast failover)
 #define MAX_RUN_TIME_LIMIT_MS  1800000  // 30 minutes continuous max runtime safety limit
 #define BACKEND_API_URL        "http://localhost:4000/api/v1/telemetry" // Configurable API endpoint
 
@@ -382,6 +382,12 @@ void setPumpState(bool state, const String &reason) {
     Serial.println("[Safety Interlock] Blocked: Emergency stop active! Reset emergency switch to run.");
     return;
   }
+  // SAFETY INTERLOCK: In AUTO mode, if sub-node is not connected with main node, motor must NOT work!
+  bool subAlive = (lastSensorPacketTime > 0 && (millis() - lastSensorPacketTime) < SUB_NODE_TIMEOUT_MS);
+  if (state && systemMode == "AUTO" && !subAlive) {
+    Serial.println("[Safety Interlock] 🔒 BLOCKED: Sub-node (tank sensor) is disconnected! In AUTO mode the motor must not work.");
+    return;
+  }
   if (pumpRunning == state) return; // Prevent redundant relay cycling
 
   pumpRunning = state;
@@ -461,6 +467,12 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     Serial.printf("[MQTT Command RX] Action parsed: '%s' | CmdId: '%s'\n", action, cmdId);
 
     if (strcasecmp(action, "START_PUMP") == 0 || strcasecmp(action, "PUMP_ON") == 0 || strcasecmp(action, "START") == 0 || strcasecmp(action, "ON") == 0) {
+      bool subAlive = (lastSensorPacketTime > 0 && (millis() - lastSensorPacketTime) < SUB_NODE_TIMEOUT_MS);
+      if (systemMode == "AUTO" && !subAlive) {
+        Serial.println("[MQTT] 🔒 Start command rejected: Sub-node disconnected in AUTO mode.");
+        notifyMqttStatusUpdate = true;
+        return;
+      }
       requestedPumpState = true;
       pendingCmdReason = "MQTT Remote Start";
       pendingCmdId = String(cmdId);
@@ -491,6 +503,12 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       Serial.printf("[SYSTEM] Automation Rules Updated: Start at %.1f%%, Stop at %.1f%%\n", autoStartLevel, autoStopLevel);
       notifyMqttStatusUpdate = true;
     } else if (strcasecmp(action, "TOGGLE_PUMP") == 0 || strcasecmp(action, "TOGGLE") == 0) {
+      bool subAlive = (lastSensorPacketTime > 0 && (millis() - lastSensorPacketTime) < SUB_NODE_TIMEOUT_MS);
+      if (!pumpRunning && systemMode == "AUTO" && !subAlive) {
+        Serial.println("[MQTT] 🔒 Toggle start rejected: Sub-node disconnected in AUTO mode.");
+        notifyMqttStatusUpdate = true;
+        return;
+      }
       requestedPumpState = !pumpRunning;
       pendingCmdReason = "MQTT Toggle";
       pendingCmdId = String(cmdId);
@@ -699,9 +717,9 @@ void TaskNetwork(void *pvParameters) {
     } else {
       mqttClient.loop();
 
-      // 1. Asynchronous Telemetry Dispatch from Sub Node (High-frequency ~300ms, non-blocking)
+      // 1. Asynchronous Telemetry Dispatch from Sub Node (High-frequency ~100ms, non-blocking)
       static unsigned long lastTelMqttSend = 0;
-      if (newSensorPacketAvailable && (millis() - lastTelMqttSend >= 300)) {
+      if (newSensorPacketAvailable && (millis() - lastTelMqttSend >= 100)) {
         lastTelMqttSend = millis();
         newSensorPacketAvailable = false;
 
@@ -744,6 +762,8 @@ void TaskNetwork(void *pvParameters) {
         doc["emergencyStopped"] = emergencyStopped;
         bool subAlive = (lastSensorPacketTime > 0 && (millis() - lastSensorPacketTime) < SUB_NODE_TIMEOUT_MS);
         doc["subNodeOnline"] = subAlive;
+        doc["waterLevel"] = subAlive ? currentLevelPct : -1;
+        doc["waterVolume"] = subAlive ? currentVolumeL : -1;
         doc["ip"] = WiFi.localIP().toString();
         doc["rssi"] = WiFi.RSSI();
         doc["timestamp"] = millis();
@@ -771,7 +791,7 @@ void TaskNetwork(void *pvParameters) {
         }
       }
 
-      // 3. Dedicated Main Node Heartbeat & Live Telemetry (every 2.0 seconds)
+      // 3. Dedicated Main Node Heartbeat & Live Telemetry (every 1.0 second)
       if (millis() - lastReport > STATUS_REPORT_INTERVAL) {
         lastReport = millis();
         StaticJsonDocument<384> doc;
@@ -783,8 +803,8 @@ void TaskNetwork(void *pvParameters) {
         doc["emergencyStopped"] = emergencyStopped;
         bool subAlive = (lastSensorPacketTime > 0 && (millis() - lastSensorPacketTime) < SUB_NODE_TIMEOUT_MS);
         doc["subNodeOnline"] = subAlive;
-        doc["waterLevel"] = currentLevelPct;
-        doc["waterVolume"] = currentVolumeL;
+        doc["waterLevel"] = subAlive ? currentLevelPct : -1;
+        doc["waterVolume"] = subAlive ? currentVolumeL : -1;
         doc["flowRate"] = currentFlowRateLpm;
         doc["temperature"] = currentTempC;
         doc["tds"] = currentTdsPpm;
@@ -884,14 +904,21 @@ void TaskControl(void *pvParameters) {
 
     // 5. Autonomous Automation & Safety Engine
     bool subAlive = (lastSensorPacketTime > 0 && (millis() - lastSensorPacketTime) < SUB_NODE_TIMEOUT_MS);
-    if (systemMode == "AUTO" && subAlive && currentLevelPct >= 0.0f) {
-      // High Level Cutoff
-      if (pumpRunning && currentLevelPct >= autoStopLevel) {
-        setPumpState(false, "Tank High Level Cutoff (" + String(currentLevelPct, 1) + "%)");
-      }
-      // Low Level Auto Refill
-      if (!pumpRunning && currentLevelPct <= autoStartLevel && !emergencyStopped) {
-        setPumpState(true, "Tank Low Level Auto Refill (" + String(currentLevelPct, 1) + "%)");
+    if (systemMode == "AUTO") {
+      if (!subAlive) {
+        // SAFETY INTERLOCK: In AUTO mode, if sub-node is not connected with main node, motor must NOT work!
+        if (pumpRunning) {
+          setPumpState(false, "Sub-Node Disconnected Safety Cutoff (Auto Mode Locked)");
+        }
+      } else if (currentLevelPct >= 0.0f) {
+        // High Level Cutoff
+        if (pumpRunning && currentLevelPct >= autoStopLevel) {
+          setPumpState(false, "Tank High Level Cutoff (" + String(currentLevelPct, 1) + "%)");
+        }
+        // Low Level Auto Refill
+        if (!pumpRunning && currentLevelPct <= autoStartLevel && !emergencyStopped) {
+          setPumpState(true, "Tank Low Level Auto Refill (" + String(currentLevelPct, 1) + "%)");
+        }
       }
     }
 

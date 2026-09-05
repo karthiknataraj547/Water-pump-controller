@@ -1,16 +1,61 @@
 {
-  "users": [],
-  "devices": [],
+  "users": [
+    {
+      "id": "usr_karthik_primary",
+      "email": "karthiknataraj547@gmail.com",
+      "passwordHash": "bcf7ac511ca5be077e4fe13fba9559125a4be7d72ceeb75b9686ab098a867f4da9b1fd8f95f76f8e0c3031e98bf6e19d3236c63d5cddc19ef215c8e24d2c8a00",
+      "salt": "a31b4722641b5e5b3f521f0fc0d9ecb7",
+      "firstName": "Karthik",
+      "lastName": "Nataraj",
+      "role": "ADMIN",
+      "createdAt": "2026-09-01T00:00:00.000Z"
+    },
+    {
+      "id": "usr_demo",
+      "email": "demo@hydropulse.io",
+      "passwordHash": "bcf7ac511ca5be077e4fe13fba9559125a4be7d72ceeb75b9686ab098a867f4da9b1fd8f95f76f8e0c3031e98bf6e19d3236c63d5cddc19ef215c8e24d2c8a00",
+      "salt": "a31b4722641b5e5b3f521f0fc0d9ecb7",
+      "firstName": "Demo",
+      "lastName": "User",
+      "role": "USER",
+      "createdAt": "2026-09-01T00:00:00.000Z"
+    }
+  ],
+  "devices": [
+    {
+      "id": "esp32_pump_94B97E",
+      "deviceId": "esp32_pump_94B97E",
+      "nodeId": "esp32_pump_94B97E",
+      "name": "Agricultural Borewell Pump",
+      "type": "ESP32_WIFI_BLE",
+      "status": "ONLINE",
+      "ownerEmail": "karthiknataraj547@gmail.com",
+      "userEmail": "karthiknataraj547@gmail.com",
+      "isOnline": true,
+      "tankHeightCm": 200,
+      "sensorOffsetCm": 20,
+      "totalCapacityLiters": 5000,
+      "waterLevelPct": 78.5,
+      "pumpRunning": false,
+      "mode": "AUTO",
+      "wifiRssi": -65,
+      "firmwareVersion": "v2.0.9",
+      "lastSeen": 1788575000000,
+      "lastHeartbeat": 1788575000000,
+      "createdAt": "2026-09-01T00:00:00.000Z",
+      "pairedAt": "2026-09-01T00:00:00.000Z"
+    }
+  ],
   "liveState": {
     "pumpRunning": false,
     "mode": "AUTO",
-    "waterLevelPct": 0.0,
-    "volumeLiters": 0.0,
+    "waterLevelPct": 78.5,
+    "volumeLiters": 3925.0,
     "totalCapacityLiters": 5000.0,
     "flowRateLpm": 0.0,
     "powerKw": 0.0,
-    "tdsPpm": 0,
-    "tempC": 0.0,
+    "tdsPpm": 185,
+    "tempC": 26.4,
     "lastHeartbeat": 0,
     "lastSeen": 0
   },

@@ -22,6 +22,6 @@
 #define FLOW_CALIBRATION_FACTOR 7.5f   // Pulses per second per L/min (YF-S201)
 
 #define DEFAULT_NODE_ID        "tank_node_001"
-#define TELEMETRY_INTERVAL_MS  3000    // Send telemetry packet every 3 seconds
+#define TELEMETRY_INTERVAL_MS  150    // Send telemetry packet every 150ms (< 300ms requirement)
 
 #endif // CONFIG_H

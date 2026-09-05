@@ -71,7 +71,15 @@ void AutomationEngine::updateConfigFromJson(JsonObject config) {
 
 void AutomationEngine::loop() {
   if (currentMode != MODE_AUTO) return;
-  if (!espnowMgr.isSensorOnline()) return;
+
+  // SAFETY INTERLOCK: In AUTO mode, if sub-node is not connected with main node, motor must NOT work!
+  if (!espnowMgr.isSensorOnline()) {
+    if (pumpCtrl.isRunning()) {
+      Serial.println("[AutomationEngine] 🔒 SAFETY INTERLOCK: Sub-node disconnected in AUTO mode. Halting motor immediately!");
+      pumpCtrl.stopPump("SUB_NODE_DISCONNECTED_AUTO_CUTOFF");
+    }
+    return;
+  }
 
   if (millis() - lastEvalTime < 500) return; // Responsive evaluation every 500ms
   lastEvalTime = millis();

@@ -16,14 +16,14 @@
 // ==========================================
 // SYSTEM & TIMING CONFIGURATIONS
 // ==========================================
-#define FIRMWARE_VERSION       "1.0.0"
+#define FIRMWARE_VERSION       "2.0.9"
 #define DEFAULT_DEVICE_PREFIX  "esp32_pump_"
 #define BLE_DEVICE_PREFIX      "PumpController-"
 
 #define DEFAULT_MQTT_PORT      1883
 #define DEFAULT_MQTT_BROKER    "broker.emqx.io"  // Standard centralized EMQX Cloud MQTT broker
 
-#define SENSOR_TIMEOUT_MS      45000  // 45s without ESP-NOW packet = sensor offline
+#define SENSOR_TIMEOUT_MS      2000   // 2s timeout for 150ms sub-node streaming (fast offline detection)
 #define STATUS_REPORT_INTERVAL 1000   // 1000ms (1s) periodic MQTT status report (fast heartbeat)
 #define MQTT_LOOP_INTERVAL_MS  10     // 10ms FreeRTOS MQTT loop for sub-100ms ping-pong response
 #define PING_TIMEOUT_MS        3000   // 3s hardware ping response timeout

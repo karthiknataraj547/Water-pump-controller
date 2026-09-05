@@ -260,7 +260,9 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
                                   CustomPaint(
                                     size: const Size(200, 260),
                                     painter: _Solid3DVolumetricTankPainter(
-                                      waterLevelPct: widget.waterLevelPct.clamp(0.0, 100.0),
+                                      waterLevelPct: widget.subNodeStatus != NodeStatus.offline
+                                          ? widget.waterLevelPct.clamp(0.0, 100.0)
+                                          : 0.0,
                                       isPumpRunning: widget.isPumpRunning,
                                       wavePhase: _waveController.value * 2 * math.pi,
                                       splashPhase: _splashController.value,
@@ -300,7 +302,9 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
                               impellerAngle: _impellerController.value * 2 * math.pi,
                               cascadePhase: _cascadeController.value,
                               splashPhase: _splashController.value,
-                              waterLevelPct: widget.waterLevelPct.clamp(0.0, 100.0),
+                              waterLevelPct: widget.subNodeStatus != NodeStatus.offline
+                                  ? widget.waterLevelPct.clamp(0.0, 100.0)
+                                  : 0.0,
                             ),
                           );
                         },
@@ -354,6 +358,7 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
   }
 
   Widget _buildTankHudBadge() {
+    final isSubOnline = widget.subNodeStatus != NodeStatus.offline;
     final clampedPct = widget.waterLevelPct.clamp(0.0, 100.0);
     final volume = (clampedPct / 100.0) * widget.totalCapacityLiters;
 
@@ -362,24 +367,28 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
       decoration: BoxDecoration(
         color: const Color(0xFF0D0D1A).withOpacity(0.9),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppTheme.waterBlueDark.withOpacity(0.3)),
+        border: Border.all(
+          color: isSubOnline ? AppTheme.waterBlueDark.withOpacity(0.3) : const Color(0xFFF59E0B).withOpacity(0.4),
+        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            '${clampedPct.toStringAsFixed(1)}%',
-            style: const TextStyle(
-              color: AppTheme.waterBlueDark,
+            isSubOnline ? '${clampedPct.toStringAsFixed(1)}%' : '--',
+            style: TextStyle(
+              color: isSubOnline ? AppTheme.waterBlueDark : const Color(0xFFF59E0B),
               fontSize: 16,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.3,
             ),
           ),
           Text(
-            '${volume.toStringAsFixed(0)} / ${widget.totalCapacityLiters.toStringAsFixed(0)} L',
+            isSubOnline
+                ? '${volume.toStringAsFixed(0)} / ${widget.totalCapacityLiters.toStringAsFixed(0)} L'
+                : 'Sensor Disconnected',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.6),
+              color: isSubOnline ? Colors.white.withOpacity(0.6) : const Color(0xFFF59E0B).withOpacity(0.8),
               fontSize: 9,
               fontWeight: FontWeight.w500,
             ),
@@ -571,6 +580,70 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.8,
                 ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (isAuto && widget.subNodeStatus == NodeStatus.offline) {
+      return AnimatedPressable(
+        onTap: () {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              duration: Duration(seconds: 3),
+              backgroundColor: Color(0xFFD97706),
+              content: Text(
+                '⚠️ Tank sensor disconnected • Motor locked in AUTO mode for safety.',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+            ),
+          );
+        },
+        pressedScale: 0.98,
+        child: Container(
+          height: 52,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF78350F).withOpacity(0.3) : const Color(0xFFFEF3C7),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: const Color(0xFFD97706).withOpacity(0.5),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.warning_amber_rounded,
+                color: Color(0xFFD97706),
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'TANK SENSOR OFFLINE • MOTOR LOCKED',
+                    style: TextStyle(
+                      color: Color(0xFFD97706),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  Text(
+                    'AUTO mode requires tank sensor data to operate safely',
+                    style: TextStyle(
+                      color: isDark ? Colors.white70 : const Color(0xFF92400E),
+                      fontSize: 9,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

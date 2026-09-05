@@ -107,7 +107,7 @@ void EspNowManager::handlePairingRequest(const uint8_t *senderMac, const EspNowP
   resp.protocol_version = 0x01;
   strncpy(resp.gateway_id, wifiMgr.getDeviceId().c_str(), sizeof(resp.gateway_id) - 1);
   resp.locked_channel = wifiMgr.getChannel();
-  resp.telemetry_interval = 5000;
+  resp.telemetry_interval = 150; // Ultra-fast 150ms stream (< 300ms)
   resp.crc16 = calculateCRC16((const uint8_t*)&resp, sizeof(EspNowPairingResponse) - sizeof(uint16_t));
 
   esp_now_send(senderMac, (uint8_t*)&resp, sizeof(resp));

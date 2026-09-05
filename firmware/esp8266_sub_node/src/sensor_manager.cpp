@@ -22,8 +22,9 @@ void SensorManager::begin() {
   attachInterrupt(digitalPinToInterrupt(PIN_FLOW_SENSOR), SensorManager::flowPulseISR, RISING);
 
   tempSensor.begin();
+  tempSensor.setWaitForConversion(false); // Non-blocking 1-wire DS18B20 conversion
 
-  Serial.println("[SensorManager] Hardware sensors initialized.");
+  Serial.println("[SensorManager] Hardware sensors initialized with fast non-blocking cadence.");
 }
 
 void SensorManager::update() {
@@ -45,7 +46,7 @@ float SensorManager::readUltrasonicLevelCm() {
   delayMicroseconds(10);
   digitalWrite(PIN_ULTRASONIC_TRIG, LOW);
 
-  long duration = pulseIn(PIN_ULTRASONIC_ECHO, HIGH, 30000); // 30ms timeout (~5m)
+  long duration = pulseIn(PIN_ULTRASONIC_ECHO, HIGH, 15000); // 15ms fast timeout (~2.5m)
   if (duration == 0) return readings.waterLevelCm; // Keep last reading if timeout
 
   // Speed of sound: 343 m/s = 0.0343 cm/us
@@ -88,10 +89,16 @@ void SensorManager::calculateFlowRate() {
 }
 
 float SensorManager::readTemperatureC() {
-  tempSensor.requestTemperatures();
-  float temp = tempSensor.getTempCByIndex(0);
-  if (temp < -50.0f || temp > 120.0f) return 25.0f; // Default fallback
-  return temp;
+  static unsigned long lastTempReq = 0;
+  static float cachedTemp = 25.0f;
+  unsigned long now = millis();
+  if (now - lastTempReq > 1500) {
+    lastTempReq = now;
+    float temp = tempSensor.getTempCByIndex(0);
+    if (temp >= -10.0f && temp <= 85.0f) cachedTemp = temp;
+    tempSensor.requestTemperatures(); // Initiate next async conversion
+  }
+  return cachedTemp;
 }
 
 uint16_t SensorManager::readTdsPpm(float tempC) {

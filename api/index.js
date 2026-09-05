@@ -203,16 +203,31 @@ function loadState() {
 }
 
 function saveState() {
+  const payload = {
+    users: Array.from(usersDb.values()),
+    devices: Array.from(devicesDb.values()),
+    liveState,
+    telemetryHistory: telemetryHistory.slice(-50)
+  };
+  const jsonStr = JSON.stringify(payload, null, 2);
   try {
-    const payload = {
-      users: Array.from(usersDb.values()),
-      devices: Array.from(devicesDb.values()),
-      liveState,
-      telemetryHistory: telemetryHistory.slice(-50)
-    };
-    fs.writeFileSync(STORE_PATH, JSON.stringify(payload, null, 2), 'utf8');
+    fs.writeFileSync(STORE_PATH, jsonStr, 'utf8');
   } catch (err) {
     // Ephemeral container notice
+  }
+
+  const candidatePaths = [
+    path.join(__dirname, 'database.json'),
+    path.join(process.cwd(), 'api', 'database.json'),
+    path.join(process.cwd(), 'database.json')
+  ];
+  for (const p of candidatePaths) {
+    try {
+      if (fs.existsSync(p)) {
+        fs.writeFileSync(p, jsonStr, 'utf8');
+        break;
+      }
+    } catch {}
   }
 }
 
@@ -398,16 +413,28 @@ module.exports = async (req, res) => {
 
   // 3. User Registration (Pushes to Database & Baseline)
   if (method === 'POST' && (url.includes('/auth/register') || url.includes('/api/v1/auth/register'))) {
-    const { email, password, firstName, lastName } = body;
-    const cleanFirstName = (firstName || '').trim();
-    const cleanLastName = (lastName || '').trim();
+    const { email, password, firstName, lastName, name, fullName } = body;
     const cleanEmail = (email || '').trim().toLowerCase();
 
-    if (!cleanEmail || !password || !cleanFirstName) {
-      return res.status(400).json({ status: 'error', message: 'First name, email, and password are required.' });
+    if (!cleanEmail || !password) {
+      return res.status(400).json({ status: 'error', message: 'Email and password are required.' });
     }
     if (password.length < 6) {
       return res.status(400).json({ status: 'error', message: 'Password must be at least 6 characters long.' });
+    }
+
+    let cleanFirstName = (firstName || '').trim();
+    let cleanLastName = (lastName || '').trim();
+    if (!cleanFirstName && (name || fullName)) {
+      const parts = (name || fullName).trim().split(' ');
+      cleanFirstName = parts[0];
+      cleanLastName = parts.slice(1).join(' ');
+    }
+    if (!cleanFirstName) {
+      cleanFirstName = cleanEmail.split('@')[0] || 'User';
+    }
+    if (!cleanLastName) {
+      cleanLastName = cleanFirstName;
     }
 
     const salt = crypto.randomBytes(16).toString('hex');
@@ -522,7 +549,12 @@ module.exports = async (req, res) => {
     }
 
     const cleanEmail = email.trim().toLowerCase();
-    const user = usersDb.get(cleanEmail);
+    let user = usersDb.get(cleanEmail);
+
+    if (!user) {
+      loadState();
+      user = usersDb.get(cleanEmail);
+    }
 
     if (!user) {
       return res.status(401).json({ status: 'error', message: 'Account not found. Please create an account via the registration page first.' });

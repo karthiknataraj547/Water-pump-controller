@@ -516,8 +516,8 @@ class HardwareStateService extends ChangeNotifier {
     if (mainNodeStatus == NodeStatus.offline) return NodeStatus.offline;
     if (_lastSubNodePacket == null) return NodeStatus.offline;
     final diffMs = DateTime.now().difference(_lastSubNodePacket!).inMilliseconds;
-    if (diffMs <= 10000) return NodeStatus.online;
-    if (diffMs <= 16000) return NodeStatus.stale;
+    if (diffMs <= 2500) return NodeStatus.online; // Sub-node streams every 150ms
+    if (diffMs <= 4000) return NodeStatus.stale;
     return NodeStatus.offline;
   }
 
@@ -1022,13 +1022,28 @@ class HardwareStateService extends ChangeNotifier {
       return;
     }
 
-    _lastSubNodePacket = now;
+    final rawLevel = (data['waterLevel'] ?? data['water_level'] ?? data['waterLevelPct'] ?? data['water_level_pct'] ?? -1.0 as num).toDouble();
+    if (data.containsKey('subNodeOnline')) {
+      final bool isSubAlive = data['subNodeOnline'] == true;
+      if (isSubAlive) {
+        _lastSubNodePacket = now;
+      } else {
+        _lastSubNodePacket = null;
+      }
+    } else if (data['nodeType'] == 'SUB_NODE' || rawLevel >= 0) {
+      _lastSubNodePacket = now;
+    }
+
     _lastMainNodeHeartbeat = now;
     _totalPacketsReceived++;
-
     _persistHeartbeat(now);
 
-    final levelPct = (data['waterLevel'] ?? data['water_level'] ?? data['waterLevelPct'] ?? data['water_level_pct'] ?? 0.0 as num).toDouble();
+    if (rawLevel < 0 || subNodeStatus == NodeStatus.offline) {
+      notifyListeners();
+      return;
+    }
+
+    final levelPct = rawLevel;
     final flowRate = (data['flowRate'] ?? data['flow_rate'] ?? data['flowRateLpm'] ?? data['flow_rate_lpm'] ?? 0.0 as num).toDouble();
     final tempC = (data['temperature'] ?? data['temp_c'] ?? data['waterTempC'] ?? data['temperature_c'] ?? 25.0 as num).toDouble();
     final tds = (data['tds'] ?? data['tds_ppm'] ?? 120 as num).toInt();
