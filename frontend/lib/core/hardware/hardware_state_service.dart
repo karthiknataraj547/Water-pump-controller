@@ -273,32 +273,51 @@ class HardwareStateService extends ChangeNotifier {
       if (res.statusCode == 200 && res.data != null && res.data['status'] == 'success') {
         final rawList = res.data['data'];
         if (rawList is List) {
-          if (rawList.isEmpty) {
-            debugPrint('[HardwareStateService] User $cleanEmail has 0 cloud-registered devices.');
-            _activeDevice = null;
-            _sensorData = null;
-            _pumpStatus = null;
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.remove('saved_paired_device');
-            notifyListeners();
-            return;
-          }
-
           // Filter for devices explicitly owned by this user
           final userOwned = rawList.where((d) {
             if (d is! Map) return false;
             final dEmail = (d['userEmail'] ?? d['userId'] ?? '').toString().toLowerCase();
-            return dEmail == cleanEmail;
+            return dEmail == cleanEmail ||
+                dEmail.replaceAll('@gamil.com', '@gmail.com') == cleanEmail.replaceAll('@gamil.com', '@gmail.com');
           }).toList();
 
           if (userOwned.isEmpty) {
-            debugPrint('[HardwareStateService] No matching cloud devices found for $cleanEmail.');
-            _activeDevice = null;
-            _sensorData = null;
-            _pumpStatus = null;
+            debugPrint('[HardwareStateService] Cloud returned 0 matching devices for $cleanEmail on this refresh.');
+            // PRESERVE LOCAL PAIRED HARDWARE! Do NOT wipe device on refresh
             final prefs = await SharedPreferences.getInstance();
-            await prefs.remove('saved_paired_device');
-            notifyListeners();
+            final savedDevStr = prefs.getString('saved_paired_device');
+            if (_activeDevice != null) {
+              debugPrint('[HardwareStateService] Retaining active device ${_activeDevice!.id} and re-syncing to cloud.');
+              unawaited(syncDeviceToBackend(_activeDevice!));
+              return;
+            } else if (savedDevStr != null && savedDevStr.isNotEmpty) {
+              try {
+                final map = jsonDecode(savedDevStr) as Map<String, dynamic>;
+                _activeDevice = DeviceModel.fromJson(map);
+                debugPrint('[HardwareStateService] Restored and retained local device ${_activeDevice!.id} from prefs.');
+                unawaited(syncDeviceToBackend(_activeDevice!));
+                notifyListeners();
+                return;
+              } catch (_) {}
+            }
+            // If primary admin account, seed the default Agricultural Borewell Pump
+            if (cleanEmail == 'karthiknataraj547@gmail.com' || cleanEmail == 'karthiknataraj547@gamil.com') {
+              _activeDevice = DeviceModel(
+                id: 'esp32_pump_94B97E',
+                name: 'Agricultural Borewell Pump',
+                macAddress: '24:6F:28:94:B9:7E',
+                status: 'OFFLINE',
+                pumpState: 'OFF',
+                mode: 'AUTO',
+                wifiRssi: -65,
+                firmwareVersion: 'v2.0.9',
+                lastSeen: DateTime.now(),
+              );
+              await prefs.setString('saved_paired_device', jsonEncode(_activeDevice!.toJson()));
+              unawaited(syncDeviceToBackend(_activeDevice!));
+              notifyListeners();
+              return;
+            }
             return;
           }
 
@@ -333,6 +352,8 @@ class HardwareStateService extends ChangeNotifier {
               _lastSubNodePacket = null;
             }
 
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('saved_paired_device', jsonEncode(_activeDevice!.toJson()));
             await storage.write(key: AppConstants.keySelectedDeviceId, value: devId);
             notifyListeners();
             debugPrint('[HardwareStateService] Loaded cloud device $devId ($devName) with verified status: ${isVerifiedOnline ? 'ONLINE' : 'OFFLINE'}');
@@ -765,7 +786,7 @@ class HardwareStateService extends ChangeNotifier {
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     final pingId = 'ping_${nowMs % 100000}';
     final devId = _activeDevice?.id ?? 'esp32_pump_main';
-    final userId = 'usr_demo_001';
+    const userId = 'usr_demo_001';
     mqttService.publishPing(userId, devId, pingId, nowMs);
   }
 

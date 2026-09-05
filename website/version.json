@@ -5,11 +5,12 @@
   "min_supported_version": "1.0.0",
   "download_url": "https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk",
   "website_url": "https://water-pump-controller.vercel.app",
-  "title": "HydroPulse v2.0.9 - Backend Double Verification of Online Status & Clean Pump Control Card",
+  "sha256": "FC826D2BA6784AA47F593ACA523648D88E77DF56A39C417DB424EC8E798A20B6",
+  "title": "HydroPulse v2.0.9 - Resilient Database Persistence & Paired Hardware Retention",
   "changelog": [
-    "Backend Double-Verification: Device status verified strictly against authentic hardware heartbeats (<15s window). Offline by default until physical connection is confirmed.",
-    "Zero False Online: Fixed bug where reading live telemetry or arbitrary MQTT broadcasts marked hardware as online.",
-    "Pump Control Card Cleanup: Removed redundant status pills from the pump control card, returning to a clean, minimal interface.",
+    "Database Persistence & Auto Upsert: Resolved user account registration and login across serverless cold starts. Seeded baseline database and implemented self-healing auto-recovery.",
+    "Paired Hardware Retention: Fixed issue where refreshing the app or web console removed paired devices. Locally paired hardware is preserved permanently across sessions and refreshes.",
+    "Backend Double-Verification: Device status verified strictly against authentic hardware heartbeats (<15s window).",
     "Web & Mobile Consistency: Both app and webapp enforce double-verified hardware presence and start in offline state when unpowered."
   ],
   "is_critical": false

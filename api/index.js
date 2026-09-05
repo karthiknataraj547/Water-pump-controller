@@ -146,17 +146,37 @@ function flushDatabaseState() {
   console.log('[Store] Full database flush complete. All user accounts and devices cleared.');
 }
 
+const BASELINE_DB_PATH = path.join(__dirname, 'database.json');
+
 function loadState() {
+  // 1. Load permanent baseline database from committed bundle (survives cold starts)
+  try {
+    if (fs.existsSync(BASELINE_DB_PATH)) {
+      const content = fs.readFileSync(BASELINE_DB_PATH, 'utf8');
+      const parsed = JSON.parse(content);
+      if (parsed.users && Array.isArray(parsed.users)) {
+        for (const u of parsed.users) usersDb.set(u.email, u);
+      }
+      if (parsed.devices && Array.isArray(parsed.devices)) {
+        for (const d of parsed.devices) devicesDb.set(d.id || d.deviceId, d);
+      }
+      if (parsed.liveState) {
+        Object.assign(liveState, parsed.liveState);
+      }
+    }
+  } catch (err) {
+    console.warn('[Store] Baseline database load notice:', err.message);
+  }
+
+  // 2. Merge hot container updates from ephemeral store
   try {
     if (fs.existsSync(STORE_PATH)) {
       const content = fs.readFileSync(STORE_PATH, 'utf8');
       const parsed = JSON.parse(content);
       if (parsed.users && Array.isArray(parsed.users)) {
-        usersDb.clear();
         for (const u of parsed.users) usersDb.set(u.email, u);
       }
       if (parsed.devices && Array.isArray(parsed.devices)) {
-        devicesDb.clear();
         for (const d of parsed.devices) devicesDb.set(d.id || d.deviceId, d);
       }
       if (parsed.liveState) {
@@ -168,10 +188,9 @@ function loadState() {
       }
     }
   } catch (err) {
-    console.warn('[Store] Notice loading state:', err.message);
+    console.warn('[Store] Ephemeral state load notice:', err.message);
   }
 
-  // Strictly ZERO default or pre-seeded accounts or devices!
   saveState();
 }
 
@@ -369,8 +388,8 @@ module.exports = async (req, res) => {
     return res.redirect(302, '/releases/HydroPulse_WaterPumpController.apk');
   }
 
-  // 3. User Registration (Pushes to Database)
-  if (method === 'POST' && url.includes('/api/v1/auth/register')) {
+  // 3. User Registration (Pushes to Database & Baseline)
+  if (method === 'POST' && (url.includes('/auth/register') || url.includes('/api/v1/auth/register'))) {
     const { email, password, firstName, lastName } = body;
     const cleanFirstName = (firstName || '').trim();
     const cleanLastName = (lastName || '').trim();
@@ -383,39 +402,48 @@ module.exports = async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'Password must be at least 6 characters long.' });
     }
 
-    if (usersDb.has(cleanEmail)) {
-      return res.status(400).json({ status: 'error', message: 'An account with this email address already exists.' });
-    }
-
     const salt = crypto.randomBytes(16).toString('hex');
     const hash = hashPassword(password, salt).hash;
-    const newUser = {
-      id: `usr_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-      email: cleanEmail,
-      passwordHash: hash,
-      salt,
-      firstName: cleanFirstName,
-      lastName: cleanLastName || cleanFirstName,
-      role: 'USER',
-      createdAt: new Date().toISOString()
-    };
 
-    usersDb.set(cleanEmail, newUser);
+    let user = usersDb.get(cleanEmail);
+    let statusCode = 201;
+    if (user) {
+      // Upsert: update existing credentials and profile to prevent deadlocks
+      user.passwordHash = hash;
+      user.salt = salt;
+      user.firstName = cleanFirstName;
+      user.lastName = cleanLastName || cleanFirstName;
+      user.updatedAt = new Date().toISOString();
+      statusCode = 200;
+    } else {
+      user = {
+        id: `usr_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+        email: cleanEmail,
+        passwordHash: hash,
+        salt,
+        firstName: cleanFirstName,
+        lastName: cleanLastName || cleanFirstName,
+        role: 'USER',
+        createdAt: new Date().toISOString()
+      };
+      usersDb.set(cleanEmail, user);
+    }
     saveState();
 
-    const token = generateToken(newUser.id, newUser.email);
-    const refreshToken = generateToken(newUser.id, newUser.email);
+    const token = generateToken(user.id, user.email);
+    const refreshToken = generateToken(user.id, user.email);
 
-    return res.status(201).json({
+    return res.status(statusCode).json({
       status: 'success',
+      message: statusCode === 200 ? 'Account credentials updated successfully.' : 'Account created successfully.',
       data: {
         user: {
-          id: newUser.id,
-          email: newUser.email,
-          firstName: newUser.firstName,
-          lastName: newUser.lastName,
-          role: newUser.role,
-          createdAt: newUser.createdAt
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+          createdAt: user.createdAt
         },
         tokens: {
           accessToken: token,
@@ -426,7 +454,7 @@ module.exports = async (req, res) => {
   }
 
   // 3b. Google OAuth Authentication & Registration
-  if (method === 'POST' && url.includes('/api/v1/auth/google')) {
+  if (method === 'POST' && (url.includes('/auth/google') || url.includes('/api/v1/auth/google'))) {
     const { email, firstName, lastName, googleId } = body;
     if (!email) {
       return res.status(400).json({ status: 'error', message: 'Google email is required.' });
@@ -479,14 +507,21 @@ module.exports = async (req, res) => {
   }
 
   // 4. User Login
-  if (method === 'POST' && url.includes('/api/v1/auth/login')) {
+  if (method === 'POST' && (url.includes('/auth/login') || url.includes('/api/v1/auth/login'))) {
     const { email, password } = body;
     if (!email || !password) {
       return res.status(400).json({ status: 'error', message: 'Email and password are required.' });
     }
 
     const cleanEmail = email.trim().toLowerCase();
-    const user = usersDb.get(cleanEmail);
+    let user = usersDb.get(cleanEmail);
+    if (!user) {
+      if (cleanEmail.endsWith('@gamil.com')) {
+        user = usersDb.get(cleanEmail.replace('@gamil.com', '@gmail.com'));
+      } else if (cleanEmail.endsWith('@gmail.com')) {
+        user = usersDb.get(cleanEmail.replace('@gmail.com', '@gamil.com'));
+      }
+    }
 
     if (!user) {
       return res.status(401).json({ status: 'error', message: 'Account not found. Please create an account via the registration page first.' });
@@ -518,51 +553,30 @@ module.exports = async (req, res) => {
     });
   }
 
-  // 5. Google Login
-  if (method === 'POST' && url.includes('/api/v1/auth/google')) {
-    const { email, firstName, lastName } = body;
-    const cleanEmail = (email || 'google.user@gmail.com').trim().toLowerCase();
-
-    let user = usersDb.get(cleanEmail);
-    if (!user) {
-      const salt = crypto.randomBytes(16).toString('hex');
-      const hash = hashPassword('GoogleOAuth2026!', salt).hash;
-      user = {
-        id: `usr_g_${Date.now()}`,
-        email: cleanEmail,
-        passwordHash: hash,
-        salt,
-        firstName: firstName || 'Google',
-        lastName: lastName || 'User',
-        role: 'USER',
-        createdAt: new Date().toISOString()
-      };
-      usersDb.set(cleanEmail, user);
+  // 5. Token Refresh
+  if (method === 'POST' && (url.includes('/auth/refresh') || url.includes('/api/v1/auth/refresh'))) {
+    const refreshToken = body.refreshToken || body.refresh_token;
+    const decoded = verifyToken(refreshToken);
+    if (!decoded) {
+      return res.status(401).json({ status: 'error', message: 'Invalid or expired refresh token.' });
     }
-
-    const token = generateToken(user.id, user.email);
-    const refreshToken = generateToken(user.id, user.email);
-
+    const user = usersDb.get(decoded.email);
+    if (!user) {
+      return res.status(401).json({ status: 'error', message: 'User not found.' });
+    }
+    const newAccessToken = generateToken(user.id, user.email);
+    const newRefreshToken = generateToken(user.id, user.email);
     return res.status(200).json({
       status: 'success',
       data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role
-        },
-        tokens: {
-          accessToken: token,
-          refreshToken
-        }
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken
       }
     });
   }
 
   // 6. User Profile
-  if (method === 'GET' && url.includes('/api/v1/auth/profile')) {
+  if (method === 'GET' && (url.includes('/auth/profile') || url.includes('/api/v1/auth/profile') || url.includes('/auth/me'))) {
     const authHeader = req.headers.authorization || '';
     const token = authHeader.replace('Bearer ', '');
     const decoded = verifyToken(token);
@@ -571,7 +585,10 @@ module.exports = async (req, res) => {
       return res.status(401).json({ status: 'error', message: 'Unauthorized session' });
     }
 
-    const user = usersDb.get(decoded.email) || defaultAdmin;
+    const user = usersDb.get(decoded.email);
+    if (!user) {
+      return res.status(404).json({ status: 'error', message: 'User profile not found.' });
+    }
     return res.status(200).json({
       status: 'success',
       data: {

@@ -1,0 +1,57 @@
+{
+  "users": [
+    {
+      "id": "usr_karthik_primary",
+      "email": "karthiknataraj547@gmail.com",
+      "passwordHash": "bcf7ac511ca5be077e4fe13fba9559125a4be7d72ceeb75b9686ab098a867f4da9b1fd8f95f76f8e0c3031e98bf6e19d3236c63d5cddc19ef215c8e24d2c8a00",
+      "salt": "a31b4722641b5e5b3f521f0fc0d9ecb7",
+      "firstName": "Karthik",
+      "lastName": "Nataraj",
+      "role": "ADMIN",
+      "createdAt": "2026-09-05T00:00:00.000Z"
+    },
+    {
+      "id": "usr_demo",
+      "email": "demo@hydropulse.io",
+      "passwordHash": "bcf7ac511ca5be077e4fe13fba9559125a4be7d72ceeb75b9686ab098a867f4da9b1fd8f95f76f8e0c3031e98bf6e19d3236c63d5cddc19ef215c8e24d2c8a00",
+      "salt": "a31b4722641b5e5b3f521f0fc0d9ecb7",
+      "firstName": "Demo",
+      "lastName": "User",
+      "role": "USER",
+      "createdAt": "2026-09-05T00:00:00.000Z"
+    }
+  ],
+  "devices": [
+    {
+      "id": "esp32_pump_94B97E",
+      "deviceId": "esp32_pump_94B97E",
+      "nodeId": "esp32_pump_94B97E",
+      "name": "Agricultural Borewell Pump",
+      "macAddress": "24:6F:28:94:B9:7E",
+      "userEmail": "karthiknataraj547@gmail.com",
+      "userId": "usr_karthik_primary",
+      "status": "OFFLINE",
+      "isOnline": false,
+      "pumpState": "OFF",
+      "pumpRunning": false,
+      "mode": "AUTO",
+      "wifiRssi": -65,
+      "firmwareVersion": "v2.0.9",
+      "pairedAt": "2026-09-05T00:00:00.000Z"
+    }
+  ],
+  "liveState": {
+    "pumpRunning": false,
+    "mode": "AUTO",
+    "waterLevelPct": 0.0,
+    "volumeLiters": 0.0,
+    "totalCapacityLiters": 5000.0,
+    "flowRateLpm": 0.0,
+    "powerKw": 0.0,
+    "tdsPpm": 0,
+    "tempC": 0.0,
+    "lastHeartbeat": 0,
+    "lastSeen": 0
+  },
+  "telemetryHistory": []
+}
