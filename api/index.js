@@ -355,25 +355,24 @@ module.exports = async (req, res) => {
 
     if (!manifest) {
       manifest = {
-        version: '2.1.4',
-        build_number: 17,
-        release_date: '2026-09-05',
+        version: '2.1.5',
+        build_number: 18,
+        release_date: '2026-09-06',
         min_supported_version: '1.0.0',
         download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk',
         website_url: 'https://water-pump-controller.vercel.app',
-        sha256: '281620f748975cb1da7f8db8ce2c96c84c7fc3673d776faa2629cf6dcda26945',
-        title: 'HydroPulse v2.1.4 - Zero-Latency Control & Push Notifications',
+        sha256: '591c72bd4c07cf18aa12d95c674f6a5b0cc901469dc926dcf5c15d4b53450350',
+        title: 'HydroPulse v2.1.5 - Instant Status Verification, Top Bar Device ID & Animated Tab Shifter',
         changelog: [
-          'Zero-Delay Actuation: Eliminated 3-second mode-switch lag by reducing command lock from 3000ms to 400ms.',
-          'Smart Offline Detection: Widened heartbeat watchdog to 15s/25s window — eliminates false \'offline\' flashes during brief WiFi hiccups.',
-          'Instant Mode Switching: AUTO/MANUAL toggle now responds immediately; commands dispatch even during stale states.',
-          'Push Notifications: System-level Android notifications for motor start/stop, tank overflow, and emergency alerts via flutter_local_notifications.',
-          'Emergency Stop Always Active: E-Stop button dispatches MQTT command regardless of connection state — safety first.',
-          'Reconnect Grace Window: 2-second grace period after MQTT reconnect prevents false offline flash while retained messages load.',
-          'UI Polish: Mode switcher and action buttons smoothed with 250ms easing instead of 300ms — snappier feel.'
+          'Instant Status Verification: Hardware is immediately verified over MQTT upon pull-to-refresh without false offline drop or delay.',
+          'Top Bar Device ID: Compact action buttons accommodate dedicated, persistent Device ID pill on dashboard top bar without clipping.',
+          'Animated Bottom Tab Shifter: Fluid sliding indicator pill with cubic physics transitions between tabs.',
+          'Renamed Device Tab: Updated \'Nodes\' navigation tab to \'Device\' with dedicated hardware board icon.',
+          'Zero-Delay Actuation: Ultra-fast 400ms mode switching and instant command pipeline.',
+          'Push Notifications: System-level notifications for pump start/stop and critical alerts.'
         ],
         is_critical: true,
-        file_size: 58524916
+        file_size: 58508324
       };
     }
 

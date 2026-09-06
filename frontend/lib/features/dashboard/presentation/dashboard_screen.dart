@@ -114,59 +114,103 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
     return Scaffold(
       appBar: AppBar(
+        titleSpacing: 16,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               children: [
-                Expanded(
+                Flexible(
                   child: Text(
                     device?.name ?? (_userName.isNotEmpty ? '$_userName’s Space' : 'HydroPulse Hub'),
                     overflow: TextOverflow.ellipsis,
-                    style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                    style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, fontSize: 16),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 // Smooth animated status badge
                 AnimatedContainer(
-                  duration: const Duration(milliseconds: 400),
-                  curve: Curves.easeInOut,
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  duration: const Duration(milliseconds: 300),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: (device == null ? const Color(0xFF10B981) : (isOnline ? AppTheme.accent : AppTheme.danger)).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(6),
                     border: Border.all(
-                      color: (device == null ? const Color(0xFF10B981) : (isOnline ? AppTheme.accent : AppTheme.danger)).withValues(alpha: 0.25),
+                      color: (device == null ? const Color(0xFF10B981) : (isOnline ? AppTheme.accent : AppTheme.danger)).withValues(alpha: 0.3),
                       width: 0.5,
                     ),
                   ),
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    child: Text(
-                      device == null ? 'ACCOUNT ACTIVE' : (isOnline ? 'ONLINE' : 'OFFLINE'),
-                      key: ValueKey(device == null ? 'acc-active' : (isOnline ? 'online' : 'offline')),
-                      style: TextStyle(
-                        color: device == null ? const Color(0xFF10B981) : (isOnline ? AppTheme.accent : AppTheme.danger),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
-                      ),
+                  child: Text(
+                    device == null ? 'ACTIVE' : (isOnline ? 'ONLINE' : 'OFFLINE'),
+                    style: TextStyle(
+                      color: device == null ? const Color(0xFF10B981) : (isOnline ? AppTheme.accent : AppTheme.danger),
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ),
               ],
             ),
-            Text(
-              device != null
-                  ? 'ID: ${device.id} • ${isOnline ? "Hardware Ping ${hardwareStateService.lastCommandRttMs}ms" : (isMqttConnected ? "MQTT Connected · Hardware Offline" : "Connecting Broker...")}'
-                  : (_userEmail.isNotEmpty ? 'Account: $_userEmail' : 'Ready to connect'),
-              style: textTheme.bodySmall,
+            const SizedBox(height: 2),
+            Row(
+              children: [
+                if (device != null) ...[
+                  // Prominent Monospace Device ID Badge — crystal clear, never removed
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary.withOpacity(isDarkMode ? 0.18 : 0.08),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: colorScheme.primary.withOpacity(0.2),
+                        width: 0.5,
+                      ),
+                    ),
+                    child: Text(
+                      'ID: ${device.id}',
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: colorScheme.primary,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '•',
+                    style: TextStyle(fontSize: 10, color: textTheme.bodySmall?.color),
+                  ),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      isOnline
+                          ? '${hardwareStateService.lastCommandRttMs}ms Ping'
+                          : (isMqttConnected ? 'MQTT Synced' : 'Connecting...'),
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.bodySmall?.copyWith(fontSize: 11),
+                    ),
+                  ),
+                ] else
+                  Flexible(
+                    child: Text(
+                      _userEmail.isNotEmpty ? 'Account: $_userEmail' : 'Ready to pair',
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.bodySmall?.copyWith(fontSize: 11),
+                    ),
+                  ),
+              ],
             ),
           ],
         ),
         actions: [
           // Theme Toggle with smooth animated icon transition
           IconButton(
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            padding: const EdgeInsets.all(6),
             icon: AnimatedSwitcher(
               duration: const Duration(milliseconds: 350),
               transitionBuilder: (child, anim) => RotationTransition(
@@ -177,28 +221,35 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
                 key: ValueKey(isDarkMode),
                 color: isDarkMode ? AppTheme.warning : colorScheme.primary,
-                size: 22,
+                size: 20,
               ),
             ),
             tooltip: isDarkMode ? 'Switch to Light' : 'Switch to Dark',
             onPressed: () => ThemeNotifier.instance.toggleTheme(),
           ),
           IconButton(
-            icon: Icon(Icons.add_circle_outline_rounded, color: colorScheme.primary, size: 22),
-            tooltip: 'Pair Gateway',
-            onPressed: () => context.push('/provisioning'),
-          ),
-          IconButton(
-            icon: Icon(Icons.notifications_none_rounded, size: 22, color: isDarkMode ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary),
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            padding: const EdgeInsets.all(6),
+            icon: Icon(
+              Icons.notifications_none_rounded,
+              size: 20,
+              color: isDarkMode ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+            ),
             tooltip: 'Notifications',
             onPressed: () => context.push('/notifications'),
           ),
-
           IconButton(
-            icon: Icon(Icons.settings_outlined, size: 22, color: isDarkMode ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary),
-            tooltip: 'Settings & Config',
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            padding: const EdgeInsets.all(6),
+            icon: Icon(
+              Icons.settings_outlined,
+              size: 20,
+              color: isDarkMode ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+            ),
+            tooltip: 'Settings',
             onPressed: () => context.push('/settings'),
           ),
+          const SizedBox(width: 4),
         ],
       ),
       body: RefreshIndicator(

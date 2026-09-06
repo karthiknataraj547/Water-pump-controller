@@ -45,7 +45,7 @@ class _HardwareScreenState extends State<HardwareScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Hardware Nodes', style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+        title: Text('Device Hardware', style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
         actions: [
           IconButton(
             icon: Icon(Icons.add_circle_outline_rounded, color: colorScheme.primary),
@@ -56,8 +56,7 @@ class _HardwareScreenState extends State<HardwareScreen> {
             icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Refresh Status',
             onPressed: () async {
-              await hardwareStateService.fetchUserDevicesFromBackend();
-              await hardwareStateService.connectMqtt();
+              await hardwareStateService.refresh();
             },
           ),
         ],

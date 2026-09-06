@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -361,52 +362,189 @@ class _MainScaffoldState extends State<MainScaffold> {
           Expanded(child: widget.navigationShell),
         ],
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-          border: Border(
-            top: BorderSide(
-              color: colorScheme.outline.withOpacity(0.3),
-              width: 0.5,
-            ),
+      bottomNavigationBar: _AnimatedShiftingBottomBar(
+        selectedIndex: selectedIndex,
+        onTabSelected: _onItemTapped,
+        isDark: isDark,
+        colorScheme: colorScheme,
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// ANIMATED SHIFTING BOTTOM BAR WITH SLIDING PILL INDICATOR
+// ============================================================================
+class _AnimatedNavTabItem {
+  final IconData icon;
+  final IconData selectedIcon;
+  final String label;
+
+  const _AnimatedNavTabItem({
+    required this.icon,
+    required this.selectedIcon,
+    required this.label,
+  });
+}
+
+class _AnimatedShiftingBottomBar extends StatelessWidget {
+  final int selectedIndex;
+  final ValueChanged<int> onTabSelected;
+  final bool isDark;
+  final ColorScheme colorScheme;
+
+  const _AnimatedShiftingBottomBar({
+    Key? key,
+    required this.selectedIndex,
+    required this.onTabSelected,
+    required this.isDark,
+    required this.colorScheme,
+  }) : super(key: key);
+
+  static const List<_AnimatedNavTabItem> _tabs = [
+    _AnimatedNavTabItem(
+      icon: Icons.waves_outlined,
+      selectedIcon: Icons.waves_rounded,
+      label: 'Hydro Hub',
+    ),
+    _AnimatedNavTabItem(
+      icon: Icons.water_drop_outlined,
+      selectedIcon: Icons.water_drop_rounded,
+      label: 'Tank Control',
+    ),
+    _AnimatedNavTabItem(
+      icon: Icons.developer_board_outlined,
+      selectedIcon: Icons.developer_board_rounded,
+      label: 'Device',
+    ),
+    _AnimatedNavTabItem(
+      icon: Icons.insights_outlined,
+      selectedIcon: Icons.query_stats_rounded,
+      label: 'Telemetry',
+    ),
+    _AnimatedNavTabItem(
+      icon: Icons.bolt_outlined,
+      selectedIcon: Icons.bolt_rounded,
+      label: 'Autonomous',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+        border: Border(
+          top: BorderSide(
+            color: colorScheme.outline.withOpacity(isDark ? 0.22 : 0.15),
+            width: 0.5,
           ),
         ),
-        child: NavigationBar(
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.30 : 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, -3),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
           height: 64,
-          elevation: 0,
-          backgroundColor: Colors.transparent,
-          indicatorColor: colorScheme.primary.withOpacity(isDark ? 0.12 : 0.08),
-          selectedIndex: selectedIndex,
-          onDestinationSelected: _onItemTapped,
-          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          animationDuration: const Duration(milliseconds: 400),
-          destinations: [
-            NavigationDestination(
-              icon: Icon(Icons.waves_outlined, size: 22, color: isDark ? AppTheme.darkTextTertiary : AppTheme.lightTextTertiary),
-              selectedIcon: Icon(Icons.waves_rounded, color: colorScheme.primary, size: 23),
-              label: 'Hydro Hub',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.water_drop_outlined, size: 22, color: isDark ? AppTheme.darkTextTertiary : AppTheme.lightTextTertiary),
-              selectedIcon: Icon(Icons.water_drop_rounded, color: colorScheme.primary, size: 23),
-              label: 'Tank Control',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.hub_outlined, size: 22, color: isDark ? AppTheme.darkTextTertiary : AppTheme.lightTextTertiary),
-              selectedIcon: Icon(Icons.hub_rounded, color: colorScheme.primary, size: 23),
-              label: 'Nodes',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.insights_outlined, size: 22, color: isDark ? AppTheme.darkTextTertiary : AppTheme.lightTextTertiary),
-              selectedIcon: Icon(Icons.query_stats_rounded, color: colorScheme.primary, size: 23),
-              label: 'Telemetry',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.bolt_outlined, size: 22, color: isDark ? AppTheme.darkTextTertiary : AppTheme.lightTextTertiary),
-              selectedIcon: Icon(Icons.bolt_rounded, color: AppTheme.accent, size: 23),
-              label: 'Autonomous',
-            ),
-          ],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final tabWidth = constraints.maxWidth / _tabs.length;
+              return Stack(
+                children: [
+                  // Animated Shifting Pill Indicator with spring / easeOutCubic curve
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 320),
+                    curve: Curves.easeOutCubic,
+                    left: selectedIndex * tabWidth + 5,
+                    top: 6,
+                    width: tabWidth - 10,
+                    height: 52,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary.withOpacity(isDark ? 0.16 : 0.10),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: colorScheme.primary.withOpacity(isDark ? 0.35 : 0.25),
+                          width: 1.0,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: colorScheme.primary.withOpacity(isDark ? 0.20 : 0.08),
+                            blurRadius: 8,
+                            spreadRadius: 0.5,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Interactive Tab Items
+                  Row(
+                    children: List.generate(_tabs.length, (index) {
+                      final tab = _tabs[index];
+                      final isSelected = selectedIndex == index;
+                      final isAccentTab = index == 4; // Autonomous tab
+                      final activeColor = isAccentTab ? AppTheme.accent : colorScheme.primary;
+
+                      return Expanded(
+                        child: InkWell(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            onTabSelected(index);
+                          },
+                          splashColor: Colors.transparent,
+                          highlightColor: Colors.transparent,
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                AnimatedScale(
+                                  scale: isSelected ? 1.15 : 1.0,
+                                  duration: const Duration(milliseconds: 280),
+                                  curve: Curves.easeOutBack,
+                                  child: Icon(
+                                    isSelected ? tab.selectedIcon : tab.icon,
+                                    size: 21,
+                                    color: isSelected
+                                        ? activeColor
+                                        : (isDark ? AppTheme.darkTextTertiary : AppTheme.lightTextTertiary),
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                AnimatedDefaultTextStyle(
+                                  duration: const Duration(milliseconds: 250),
+                                  style: TextStyle(
+                                    fontSize: isSelected ? 11 : 10,
+                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                    color: isSelected
+                                        ? activeColor
+                                        : (isDark ? AppTheme.darkTextTertiary : AppTheme.lightTextTertiary),
+                                    letterSpacing: 0.15,
+                                  ),
+                                  child: Text(
+                                    tab.label,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );

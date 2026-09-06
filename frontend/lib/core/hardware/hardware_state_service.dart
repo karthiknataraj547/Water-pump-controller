@@ -328,9 +328,9 @@ class HardwareStateService extends ChangeNotifier {
               lastSeen: DateTime.now(),
             );
 
-            if (!isVerifiedOnline) {
-              _lastMainNodeHeartbeat = null;
-              _lastSubNodePacket = null;
+            // Do NOT wipe live MQTT telemetry! Only seed heartbeat if device is verified online and none recorded yet
+            if (isVerifiedOnline && _lastMainNodeHeartbeat == null) {
+              _lastMainNodeHeartbeat = DateTime.now();
             }
 
             final prefs = await SharedPreferences.getInstance();
@@ -506,17 +506,21 @@ class HardwareStateService extends ChangeNotifier {
   NodeStatus get mainNodeStatus {
     if (_activeDevice == null) return NodeStatus.offline;
     if (!_isMqttConnected) return NodeStatus.offline;
-    if (_lastMainNodeHeartbeat == null) return NodeStatus.offline;
+    if (_lastMainNodeHeartbeat == null) {
+      if (_isVerifyingStatus) return NodeStatus.stale;
+      return NodeStatus.offline;
+    }
 
-    // 2-second grace period after MQTT reconnect — retained messages need time
+    // 2.5-second grace period after MQTT reconnect — retained messages need time
     if (_mqttConnectedAt != null &&
-        DateTime.now().difference(_mqttConnectedAt!).inMilliseconds < 2000) {
+        DateTime.now().difference(_mqttConnectedAt!).inMilliseconds < 2500) {
       return NodeStatus.stale; // Treat as stale (not offline) during grace window
     }
 
     final diffMs = DateTime.now().difference(_lastMainNodeHeartbeat!).inMilliseconds;
     if (diffMs <= 15000) return NodeStatus.online;
     if (diffMs <= 25000) return NodeStatus.stale;
+    if (_isVerifyingStatus && diffMs <= 35000) return NodeStatus.stale;
     return NodeStatus.offline;
   }
 
@@ -893,19 +897,20 @@ class HardwareStateService extends ChangeNotifier {
 
   Future<void> refresh() async {
     _isVerifyingStatus = true;
-    notifyListeners();
 
     try {
-      await fetchUserDevicesFromBackend();
+      // 1. Immediately ping hardware & request status via MQTT with zero delay
       if (!_isMqttConnected) {
         await connectMqtt();
-      } else {
-        sendHardwarePing();
-        requestImmediateStatus();
       }
+      sendHardwarePing();
+      requestImmediateStatus();
+
+      // 2. Refresh device profile from backend without wiping active telemetry
+      await fetchUserDevicesFromBackend();
     } finally {
-      // Grace period allowing ping & status responses to arrive before clearing verification flag
-      Future.delayed(const Duration(milliseconds: 650), () {
+      // Grace period (1200ms) allowing hardware ping and telemetry to return before clearing flag
+      Future.delayed(const Duration(milliseconds: 1200), () {
         _isVerifyingStatus = false;
         notifyListeners();
       });
