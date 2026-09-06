@@ -159,6 +159,7 @@ class HardwareStateService extends ChangeNotifier {
   Timer? _verificationTimer;
 
   // Anti-flicker debounce and connection tracking
+  int _offlineTickCount = 0;
   DateTime? _mqttConnectedAt;
 
   DeviceModel? get activeDevice => _activeDevice;

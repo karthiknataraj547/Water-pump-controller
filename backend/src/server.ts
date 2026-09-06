@@ -68,7 +68,7 @@ function getVersionManifest() {
     min_supported_version: '1.0.0',
     download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk',
     website_url: 'https://water-pump-controller.vercel.app',
-    sha256: '95424d04200c61aa0d4905fa9b6cac148d247785603d0dee417bbd8ac70fed63',
+    sha256: '281620f748975cb1da7f8db8ce2c96c84c7fc3673d776faa2629cf6dcda26945',
     title: 'HydroPulse v2.1.4 - Zero-Latency Control & Push Notifications',
     changelog: [
       'Zero-Delay Actuation: Eliminated 3-second mode-switch lag by reducing command lock from 3000ms to 400ms.',
@@ -80,7 +80,7 @@ function getVersionManifest() {
       'UI Polish: Mode switcher and action buttons smoothed with 250ms easing instead of 300ms — snappier feel.'
     ],
     is_critical: true,
-    file_size: 58325423
+    file_size: 58524916
   };
 }
 
