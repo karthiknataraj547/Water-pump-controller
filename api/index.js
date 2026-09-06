@@ -127,6 +127,39 @@ const cleanupInterval = setInterval(() => {
 }, 5 * 60 * 1000);
 if (cleanupInterval.unref) cleanupInterval.unref();
 
+// ===== 300ms Hardware Online Watchdog =====
+// Evaluates all registered devices and liveState every 300ms.
+// Updates isOnline / status fields proactively so REST API reads are always fresh.
+const hardwareWatchdog = setInterval(() => {
+  const now = Date.now();
+  let changed = false;
+
+  // Check liveState heartbeat
+  const liveAge = liveState.lastHeartbeat ? (now - liveState.lastHeartbeat) : Infinity;
+  const liveOnline = liveAge >= 0 && liveAge <= ONLINE_THRESHOLD_MS;
+  if (liveState._wasOnline !== liveOnline) {
+    liveState._wasOnline = liveOnline;
+    changed = true;
+  }
+
+  // Check all registered devices
+  for (const [devId, dev] of devicesDb.entries()) {
+    const devAge = dev.lastHeartbeat ? (now - dev.lastHeartbeat) : Infinity;
+    const devOnline = devAge >= 0 && devAge <= ONLINE_THRESHOLD_MS;
+    if (dev.isOnline !== devOnline) {
+      dev.isOnline = devOnline;
+      dev.status = devOnline ? 'ONLINE' : 'OFFLINE';
+      changed = true;
+    }
+  }
+
+  // Persist if any device status changed (throttled to avoid excessive disk I/O)
+  if (changed) {
+    try { saveState(); } catch (_) {}
+  }
+}, 300);
+if (hardwareWatchdog.unref) hardwareWatchdog.unref();
+
 function flushDatabaseState() {
   usersDb.clear();
   devicesDb.clear();
@@ -355,21 +388,22 @@ module.exports = async (req, res) => {
 
     if (!manifest) {
       manifest = {
-        version: '2.1.5',
-        build_number: 18,
+        version: '2.1.6',
+        build_number: 20,
         release_date: '2026-09-06',
         min_supported_version: '1.0.0',
         download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk',
         website_url: 'https://water-pump-controller.vercel.app',
-        sha256: '591c72bd4c07cf18aa12d95c674f6a5b0cc901469dc926dcf5c15d4b53450350',
-        title: 'HydroPulse v2.1.5 - Instant Status Verification, Top Bar Device ID & Animated Tab Shifter',
+        sha256: 'f5430541d7cd831aedc1aa75a44d701de7e0fad2d5cf400a98ee8b119c5c003c',
+        title: 'HydroPulse v2.1.6 - <300ms Motor Latency, State Memory, Offline Flash Fix & Provisioning Flow',
         changelog: [
-          'Instant Status Verification: Hardware is immediately verified over MQTT upon pull-to-refresh without false offline drop or delay.',
-          'Top Bar Device ID: Compact action buttons accommodate dedicated, persistent Device ID pill on dashboard top bar without clipping.',
-          'Animated Bottom Tab Shifter: Fluid sliding indicator pill with cubic physics transitions between tabs.',
-          'Renamed Device Tab: Updated \'Nodes\' navigation tab to \'Device\' with dedicated hardware board icon.',
-          'Zero-Delay Actuation: Ultra-fast 400ms mode switching and instant command pipeline.',
-          'Push Notifications: System-level notifications for pump start/stop and critical alerts.'
+          'Sub-300ms Motor Control: Pump start/stop is now visually instant with debounce window reduced to 200ms.',
+          'Hardware State Memory: After MQTT reconnect, the app re-sends last known mode and pump state to the hardware automatically.',
+          'Offline Flash Fix: Refresh no longer flashes OFFLINE status — a 2000ms verification window prevents false drops.',
+          'Manual/Auto Mode Fix: Mode switching now also syncs to the REST backend immediately, eliminating flicker.',
+          'Fresh Login Provisioning: New user accounts now see the hardware pairing flow instead of a pre-existing device.',
+          'Backend Watchdog: Cloud backend now evaluates hardware online status every 300ms for accurate real-time detection.',
+          'Faster Ping Loop: Hardware presence probed every 500ms (from 1000ms) for quicker online detection.'
         ],
         is_critical: true,
         file_size: 58508324

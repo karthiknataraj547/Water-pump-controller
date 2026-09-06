@@ -162,6 +162,8 @@ class HardwareStateService extends ChangeNotifier {
   int _offlineTickCount = 0;
   DateTime? _mqttConnectedAt;
 
+  int get offlineTickCount => _offlineTickCount;
+
   DeviceModel? get activeDevice => _activeDevice;
 
   Future<void> clearDevice() async {
@@ -567,6 +569,7 @@ class HardwareStateService extends ChangeNotifier {
     if (incomingId == null || incomingId.trim().isEmpty) return false;
     final incoming = incomingId.trim().toLowerCase();
 
+    // Only match if there is an actively registered device
     if (_activeDevice != null) {
       final activeId = _activeDevice!.id.trim().toLowerCase();
       if (incoming == activeId) return true;
@@ -581,12 +584,8 @@ class HardwareStateService extends ChangeNotifier {
       }
     }
 
-    if (_activeDevice == null && !_isExplicitlyRemoved) {
-      if (incoming.contains('94b97e') || incoming.contains('esp32_pump') || incoming.contains('borewell')) {
-        return true;
-      }
-    }
-
+    // NO wildcard fallback — a fresh login with no registered device must NOT
+    // auto-adopt hardware messages. The user must explicitly pair their hardware.
     return false;
   }
 
@@ -783,10 +782,10 @@ class HardwareStateService extends ChangeNotifier {
 
   void _startHardwarePingLoop() {
     _hardwarePingTimer?.cancel();
-    // Ping loop: sends hardware presence probe every 1000ms.
+    // Ping loop: sends hardware presence probe every 500ms for faster detection.
     // Offline detection is handled exclusively by the state evaluation timer
     // (via mainNodeStatus getter with 15s/25s watchdog) to avoid race conditions.
-    _hardwarePingTimer = Timer.periodic(const Duration(milliseconds: 1000), (_) {
+    _hardwarePingTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
       if (_isMqttConnected && _activeDevice != null) {
         sendHardwarePing();
       }
@@ -819,17 +818,20 @@ class HardwareStateService extends ChangeNotifier {
 
     final now = DateTime.now();
     if (_activeDevice == null) {
-      final devName = (data['name'] ?? 'Agricultural Borewell Pump').toString();
-      final devMac = (data['macAddress'] ?? data['mac'] ?? '24:6F:28:94:B9:7E').toString();
+      // Only auto-create device from hardware pong if it has not been explicitly removed
+      // and we have a real incoming device ID (not a generic fallback)
+      if (_isExplicitlyRemoved || incomingDevId.isEmpty) return;
+      final devName = (data['name'] ?? 'HydroPulse Gateway').toString();
+      final devMac = (data['macAddress'] ?? data['mac'] ?? '').toString();
       _activeDevice = DeviceModel(
-        id: incomingDevId.isNotEmpty ? incomingDevId : 'esp32_pump_94B97E',
+        id: incomingDevId,
         name: devName,
         macAddress: devMac,
         status: 'ONLINE',
-        pumpState: 'STOPPED',
-        mode: 'AUTO',
-        wifiRssi: -65,
-        firmwareVersion: 'v2.1.0',
+        pumpState: (data['pumpState'] ?? 'OFF').toString().toUpperCase() == 'ON' ? 'ON' : 'OFF',
+        mode: (data['mode'] ?? 'AUTO').toString().toUpperCase(),
+        wifiRssi: data['wifi_rssi'] ?? data['rssi'] ?? -65,
+        firmwareVersion: data['firmware_version'] ?? 'v2.1.0',
         lastSeen: now,
       );
       _persistPairedDevice();
@@ -890,13 +892,37 @@ class HardwareStateService extends ChangeNotifier {
       _offlineTickCount = 0;
       sendHardwarePing();
       requestImmediateStatus();
+      // Restore last known hardware state on reconnect (within 150ms)
+      Future.delayed(const Duration(milliseconds: 150), _restoreHardwareState);
     }
     notifyListeners();
     return ok;
   }
 
+  /// Re-publishes the last known pump state and mode to hardware on reconnect.
+  /// This ensures hardware remembers its previous state after brief MQTT disconnects.
+  void _restoreHardwareState() {
+    if (!_isMqttConnected || _activeDevice == null) return;
+    final devId = _activeDevice!.id;
+    final lastMode = _activeDevice!.mode;
+    final lastPumpState = _activeDevice!.pumpState;
+
+    // Re-sync mode
+    mqttService.publishCommand('app_restore', devId, 'SET_MODE', {'mode': lastMode});
+
+    // Re-sync pump state — only in MANUAL mode (AUTO mode manages itself)
+    if (lastMode == 'MANUAL') {
+      final cmd = (lastPumpState == 'ON') ? 'START_PUMP' : 'STOP_PUMP';
+      mqttService.publishCommand('app_restore', devId, cmd, {'restored': true});
+    }
+
+    debugPrint('[HardwareStateService] Restored hardware state: mode=$lastMode, pump=$lastPumpState after reconnect');
+  }
+
   Future<void> refresh() async {
+    // Set verifying BEFORE any async work — prevents offline flash during the entire refresh
     _isVerifyingStatus = true;
+    notifyListeners();
 
     try {
       // 1. Immediately ping hardware & request status via MQTT with zero delay
@@ -909,8 +935,9 @@ class HardwareStateService extends ChangeNotifier {
       // 2. Refresh device profile from backend without wiping active telemetry
       await fetchUserDevicesFromBackend();
     } finally {
-      // Grace period (1200ms) allowing hardware ping and telemetry to return before clearing flag
-      Future.delayed(const Duration(milliseconds: 1200), () {
+      // Extended 2000ms grace period — gives hardware time to respond to ping
+      // before removing the 'verifying' guard that prevents false offline flash.
+      Future.delayed(const Duration(milliseconds: 2000), () {
         _isVerifyingStatus = false;
         notifyListeners();
       });
@@ -952,17 +979,20 @@ class HardwareStateService extends ChangeNotifier {
     }
 
     if (_activeDevice == null) {
-      final devName = (data['name'] ?? 'Agricultural Borewell Pump').toString();
-      final devMac = (data['macAddress'] ?? data['mac'] ?? '24:6F:28:94:B9:7E').toString();
+      // Only auto-create device from hardware status if it has not been explicitly removed
+      // and incoming device ID is a real hardware ID (not empty)
+      if (_isExplicitlyRemoved || devId.isEmpty) return;
+      final devName = (data['name'] ?? 'HydroPulse Gateway').toString();
+      final devMac = (data['macAddress'] ?? data['mac'] ?? '').toString();
       _activeDevice = DeviceModel(
-        id: devId.isNotEmpty ? devId : 'esp32_pump_94B97E',
+        id: devId,
         name: devName,
         macAddress: devMac,
         status: 'ONLINE',
-        pumpState: 'STOPPED',
-        mode: 'AUTO',
-        wifiRssi: -65,
-        firmwareVersion: 'v2.1.0',
+        pumpState: (data['pumpState'] ?? 'OFF').toString().toUpperCase() == 'ON' ? 'ON' : 'OFF',
+        mode: (data['mode'] ?? 'AUTO').toString().toUpperCase(),
+        wifiRssi: data['rssi'] ?? data['wifiRssi'] ?? -65,
+        firmwareVersion: data['firmware_version'] ?? 'v2.1.0',
         lastSeen: now,
       );
       _persistPairedDevice();
@@ -1404,9 +1434,10 @@ class HardwareStateService extends ChangeNotifier {
     final isTurningOn = (normCmd == 'START_PUMP' || normCmd == 'PUMP_ON' || normCmd == 'ON');
     final newState = isTurningOn ? 'ON' : 'OFF';
 
-    // Fast 800ms debounce lock window to prevent bounce while keeping live telemetry immediate
+    // 200ms debounce lock — just enough to suppress a single stale MQTT retained message
+    // while keeping UI response <300ms as required.
     _expectedPumpState = newState;
-    _pumpCommandLockUntil = DateTime.now().add(const Duration(milliseconds: 800));
+    _pumpCommandLockUntil = DateTime.now().add(const Duration(milliseconds: 200));
 
     final cmdId = 'cmd_${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
     _lastCommand = PendingCommand(
@@ -1587,10 +1618,10 @@ class HardwareStateService extends ChangeNotifier {
     final normalizedMode = mode.toUpperCase();
     _previousMode = _activeDevice!.mode;
 
-    // 400ms optimistic mode lock — just enough to prevent a single stale
-    // retained MQTT message from flipping mode back before hardware ACKs.
+    // 200ms optimistic mode lock — prevents a single stale retained MQTT message
+    // from flipping mode back before hardware ACKs. Reduced from 400ms for <300ms responsiveness.
     _expectedMode = normalizedMode;
-    _modeCommandLockUntil = DateTime.now().add(const Duration(milliseconds: 400));
+    _modeCommandLockUntil = DateTime.now().add(const Duration(milliseconds: 200));
 
     _activeDevice = DeviceModel(
       id: _activeDevice!.id,
@@ -1617,12 +1648,22 @@ class HardwareStateService extends ChangeNotifier {
     _persistActiveDevice();
     notifyListeners();
 
+    // Fire MQTT mode command immediately (zero await)
     mqttService.publishCommand(
       'user_app',
       _activeDevice!.id,
       'SET_MODE',
       {'mode': normalizedMode},
     );
+
+    // Also sync mode to REST backend (fire-and-forget, no latency impact)
+    final devId = _activeDevice!.id;
+    apiClient.post('/command', data: {
+      'command': 'SET_MODE',
+      'action': 'SET_MODE',
+      'deviceId': devId,
+      'parameters': {'mode': normalizedMode},
+    }).ignore();
   }
 
   void saveAutomationRules({

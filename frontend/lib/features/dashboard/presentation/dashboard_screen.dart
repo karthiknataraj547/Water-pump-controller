@@ -102,7 +102,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   Widget build(BuildContext context) {
     final device = hardwareStateService.activeDevice;
     final isOnline = hardwareStateService.isHardwareOnline;
-    final isMqttConnected = hardwareStateService.isMqttConnected;
     final sensorData = hardwareStateService.sensorData;
     final pumpStatus = hardwareStateService.pumpStatus;
 
@@ -115,96 +114,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 16,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Flexible(
-                  child: Text(
-                    device?.name ?? (_userName.isNotEmpty ? '$_userName’s Space' : 'HydroPulse Hub'),
-                    overflow: TextOverflow.ellipsis,
-                    style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, fontSize: 16),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                // Smooth animated status badge
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: (device == null ? const Color(0xFF10B981) : (isOnline ? AppTheme.accent : AppTheme.danger)).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: (device == null ? const Color(0xFF10B981) : (isOnline ? AppTheme.accent : AppTheme.danger)).withValues(alpha: 0.3),
-                      width: 0.5,
-                    ),
-                  ),
-                  child: Text(
-                    device == null ? 'ACTIVE' : (isOnline ? 'ONLINE' : 'OFFLINE'),
-                    style: TextStyle(
-                      color: device == null ? const Color(0xFF10B981) : (isOnline ? AppTheme.accent : AppTheme.danger),
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 2),
-            Row(
-              children: [
-                if (device != null) ...[
-                  // Prominent Monospace Device ID Badge — crystal clear, never removed
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                    decoration: BoxDecoration(
-                      color: colorScheme.primary.withOpacity(isDarkMode ? 0.18 : 0.08),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                        color: colorScheme.primary.withOpacity(0.2),
-                        width: 0.5,
-                      ),
-                    ),
-                    child: Text(
-                      'ID: ${device.id}',
-                      style: TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w700,
-                        color: colorScheme.primary,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    '•',
-                    style: TextStyle(fontSize: 10, color: textTheme.bodySmall?.color),
-                  ),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      isOnline
-                          ? '${hardwareStateService.lastCommandRttMs}ms Ping'
-                          : (isMqttConnected ? 'MQTT Synced' : 'Connecting...'),
-                      overflow: TextOverflow.ellipsis,
-                      style: textTheme.bodySmall?.copyWith(fontSize: 11),
-                    ),
-                  ),
-                ] else
-                  Flexible(
-                    child: Text(
-                      _userEmail.isNotEmpty ? 'Account: $_userEmail' : 'Ready to pair',
-                      overflow: TextOverflow.ellipsis,
-                      style: textTheme.bodySmall?.copyWith(fontSize: 11),
-                    ),
-                  ),
-              ],
-            ),
-          ],
+        title: Text(
+          device?.name ?? (_userName.isNotEmpty ? '$_userName’s Space' : 'HydroPulse Hub'),
+          overflow: TextOverflow.ellipsis,
+          style: textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            fontSize: 17,
+            letterSpacing: -0.2,
+          ),
         ),
         actions: [
           // Theme Toggle with smooth animated icon transition

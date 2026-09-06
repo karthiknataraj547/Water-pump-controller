@@ -61,35 +61,19 @@
       "createdAt": "2026-09-05T15:41:52.549Z"
     }
   ],
-  "devices": [
-    {
-      "id": "esp32_pump_94B97E",
-      "deviceId": "esp32_pump_94B97E",
-      "nodeId": "esp32_pump_94B97E",
-      "name": "Agricultural Borewell Pump",
-      "macAddress": "24:6F:28:94:B9:7E",
-      "userId": "karthiknataraj547@gmail.com",
-      "userEmail": "karthiknataraj547@gmail.com",
-      "isOnline": true,
-      "pumpRunning": false,
-      "mode": "AUTO",
-      "waterLevelPct": 0,
-      "pairedAt": "2026-09-04T01:59:17.936Z",
-      "lastSeen": "2026-09-04T09:56:26.093Z"
-    }
-  ],
+  "devices": [],
   "liveState": {
-    "pumpRunning": true,
+    "pumpRunning": false,
     "mode": "AUTO",
-    "waterLevelPct": 82.5,
-    "volumeLiters": 4125,
-    "totalCapacityLiters": 5000,
-    "flowRateLpm": 0,
-    "powerKw": 0,
+    "waterLevelPct": 0.0,
+    "volumeLiters": 0.0,
+    "totalCapacityLiters": 5000.0,
+    "flowRateLpm": 0.0,
+    "powerKw": 0.0,
     "tdsPpm": 0,
-    "tempC": 0,
+    "tempC": 0.0,
     "lastHeartbeat": 0,
-    "lastSeen": 1788515786098
+    "lastSeen": 0
   },
   "telemetryHistory": []
 }
