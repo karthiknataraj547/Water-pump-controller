@@ -63,8 +63,7 @@ class _HardwareScreenState extends State<HardwareScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          await hardwareStateService.fetchUserDevicesFromBackend();
-          await hardwareStateService.connectMqtt();
+          await hardwareStateService.refresh();
         },
         color: colorScheme.primary,
         child: SingleChildScrollView(

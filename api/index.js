@@ -130,7 +130,7 @@ if (cleanupInterval.unref) cleanupInterval.unref();
 // ===== 300ms Hardware Online Watchdog =====
 // Evaluates all registered devices and liveState every 300ms.
 // Updates isOnline / status fields proactively so REST API reads are always fresh.
-const hardwareWatchdog = setInterval(() => {
+function runHardwareWatchdog() {
   const now = Date.now();
   let changed = false;
 
@@ -157,7 +157,9 @@ const hardwareWatchdog = setInterval(() => {
   if (changed) {
     try { saveState(); } catch (_) {}
   }
-}, 300);
+}
+
+const hardwareWatchdog = setInterval(runHardwareWatchdog, 300);
 if (hardwareWatchdog.unref) hardwareWatchdog.unref();
 
 function flushDatabaseState() {

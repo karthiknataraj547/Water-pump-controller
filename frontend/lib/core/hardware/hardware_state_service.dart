@@ -160,7 +160,6 @@ class HardwareStateService extends ChangeNotifier {
 
   // Anti-flicker debounce and connection tracking
   int _offlineTickCount = 0;
-  DateTime? _mqttConnectedAt;
 
   int get offlineTickCount => _offlineTickCount;
 
@@ -172,6 +171,25 @@ class HardwareStateService extends ChangeNotifier {
     await prefs.setBool('hardware_explicitly_removed', true);
     await prefs.remove('saved_paired_device');
     await prefs.remove('last_heartbeat_ms');
+    _activeDevice = null;
+    _sensorData = null;
+    _pumpStatus = null;
+    _lastMainNodeHeartbeat = null;
+    _lastSubNodePacket = null;
+    notifyListeners();
+  }
+
+  Future<void> clearDeviceForNewLogin() async {
+    _isExplicitlyRemoved = false;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('hardware_explicitly_removed');
+    await prefs.remove('saved_paired_device');
+    await prefs.remove('saved_paired_device_owner_email');
+    await prefs.remove('saved_last_pump_state');
+    await prefs.remove('saved_last_mode');
+    await prefs.remove('last_heartbeat_ms');
+    const storage = FlutterSecureStorage();
+    await storage.delete(key: AppConstants.keySelectedDeviceId);
     _activeDevice = null;
     _sensorData = null;
     _pumpStatus = null;
@@ -283,24 +301,17 @@ class HardwareStateService extends ChangeNotifier {
           }).toList();
 
           if (userOwned.isEmpty) {
-            debugPrint('[HardwareStateService] Cloud returned 0 matching devices for $cleanEmail on this refresh.');
-            // PRESERVE LOCAL PAIRED HARDWARE! Do NOT wipe device on refresh
+            debugPrint('[HardwareStateService] Cloud returned 0 matching devices for $cleanEmail. Clearing any stale device cache and showing pairing UI.');
+            _activeDevice = null;
+            _sensorData = null;
+            _pumpStatus = null;
+            _lastMainNodeHeartbeat = null;
+            _lastSubNodePacket = null;
             final prefs = await SharedPreferences.getInstance();
-            final savedDevStr = prefs.getString('saved_paired_device');
-            if (_activeDevice != null) {
-              debugPrint('[HardwareStateService] Retaining active device ${_activeDevice!.id} and re-syncing to cloud.');
-              unawaited(syncDeviceToBackend(_activeDevice!));
-              return;
-            } else if (savedDevStr != null && savedDevStr.isNotEmpty) {
-              try {
-                final map = jsonDecode(savedDevStr) as Map<String, dynamic>;
-                _activeDevice = DeviceModel.fromJson(map);
-                debugPrint('[HardwareStateService] Restored and retained local device ${_activeDevice!.id} from prefs.');
-                unawaited(syncDeviceToBackend(_activeDevice!));
-                notifyListeners();
-                return;
-              } catch (_) {}
-            }
+            await prefs.remove('saved_paired_device');
+            await prefs.remove('saved_paired_device_owner_email');
+            await storage.delete(key: AppConstants.keySelectedDeviceId);
+            notifyListeners();
             return;
           }
 
@@ -318,11 +329,16 @@ class HardwareStateService extends ChangeNotifier {
             final targetStatus = (target['status'] ?? (target['isOnline'] == true ? 'ONLINE' : 'OFFLINE')).toString().toUpperCase();
             final isVerifiedOnline = targetStatus == 'ONLINE';
 
+            // Preserve verified live MQTT online status if already streaming packets
+            final hasRecentMqttHeartbeat = _isMqttConnected && _lastMainNodeHeartbeat != null &&
+                DateTime.now().difference(_lastMainNodeHeartbeat!).inMilliseconds <= 15000;
+            final effectiveStatus = (isVerifiedOnline || hasRecentMqttHeartbeat) ? 'ONLINE' : 'OFFLINE';
+
             _activeDevice = DeviceModel(
               id: devId,
               name: devName,
               macAddress: devMac,
-              status: isVerifiedOnline ? 'ONLINE' : 'OFFLINE',
+              status: effectiveStatus,
               pumpState: pumpNorm,
               mode: devMode,
               wifiRssi: rssi is int ? rssi : -65,
@@ -331,15 +347,16 @@ class HardwareStateService extends ChangeNotifier {
             );
 
             // Do NOT wipe live MQTT telemetry! Only seed heartbeat if device is verified online and none recorded yet
-            if (isVerifiedOnline && _lastMainNodeHeartbeat == null) {
+            if ((isVerifiedOnline || hasRecentMqttHeartbeat) && _lastMainNodeHeartbeat == null) {
               _lastMainNodeHeartbeat = DateTime.now();
             }
 
             final prefs = await SharedPreferences.getInstance();
             await prefs.setString('saved_paired_device', jsonEncode(_activeDevice!.toJson()));
+            await prefs.setString('saved_paired_device_owner_email', cleanEmail);
             await storage.write(key: AppConstants.keySelectedDeviceId, value: devId);
             notifyListeners();
-            debugPrint('[HardwareStateService] Loaded cloud device $devId ($devName) with verified status: ${isVerifiedOnline ? 'ONLINE' : 'OFFLINE'}');
+            debugPrint('[HardwareStateService] Loaded cloud device $devId ($devName) with verified status: $effectiveStatus');
           }
         }
       }
@@ -397,8 +414,8 @@ class HardwareStateService extends ChangeNotifier {
   }
 
   void addLiveAlert(String title, String message, String type, {AlertLevel level = AlertLevel.info}) {
-    if (type == 'motor_start' && !notifyMotorStart) return;
-    if (type == 'motor_stop' && !notifyMotorStop) return;
+    if ((type == 'motor_start' || type == 'motor') && !notifyMotorStart) return;
+    if ((type == 'motor_stop' || type == 'motor') && !notifyMotorStop) return;
     if (type == 'low_level' && !notifyLowLevel) return;
     if (type == 'high_level' && !notifyHighLevel) return;
     if (type == 'auto_mode' && !notifyAutoMode) return;
@@ -513,12 +530,6 @@ class HardwareStateService extends ChangeNotifier {
       return NodeStatus.offline;
     }
 
-    // 2.5-second grace period after MQTT reconnect — retained messages need time
-    if (_mqttConnectedAt != null &&
-        DateTime.now().difference(_mqttConnectedAt!).inMilliseconds < 2500) {
-      return NodeStatus.stale; // Treat as stale (not offline) during grace window
-    }
-
     final diffMs = DateTime.now().difference(_lastMainNodeHeartbeat!).inMilliseconds;
     if (diffMs <= 15000) return NodeStatus.online;
     if (diffMs <= 25000) return NodeStatus.stale;
@@ -545,7 +556,16 @@ class HardwareStateService extends ChangeNotifier {
     return SystemHealth.degraded;
   }
 
-  bool get isHardwareOnline => mainNodeStatus == NodeStatus.online;
+  bool get isHardwareOnline {
+    if (_activeDevice == null) return false;
+    if (mainNodeStatus == NodeStatus.online) return true;
+    if (_isVerifyingStatus &&
+        _lastMainNodeHeartbeat != null &&
+        DateTime.now().difference(_lastMainNodeHeartbeat!).inMilliseconds <= 25000) {
+      return true;
+    }
+    return false;
+  }
   bool get isSubNodeOnline => subNodeStatus == NodeStatus.online;
 
   HardwareDiagnostics get diagnostics {
@@ -618,26 +638,36 @@ class HardwareStateService extends ChangeNotifier {
 
     _isExplicitlyRemoved = prefs.getBool('hardware_explicitly_removed') ?? false;
 
-    // Restore locally paired device from persistent storage
+    // Restore locally paired device from persistent storage ONLY if owned by current user
+    const storage = FlutterSecureStorage();
+    final currentEmail = (await storage.read(key: AppConstants.keyUserEmail))?.trim().toLowerCase() ?? '';
     final savedDevStr = prefs.getString('saved_paired_device');
-    if (!_isExplicitlyRemoved && savedDevStr != null && savedDevStr.isNotEmpty) {
+    final savedOwnerEmail = prefs.getString('saved_paired_device_owner_email')?.trim().toLowerCase() ?? '';
+
+    if (!_isExplicitlyRemoved &&
+        savedDevStr != null &&
+        savedDevStr.isNotEmpty &&
+        currentEmail.isNotEmpty &&
+        (savedOwnerEmail.isEmpty || savedOwnerEmail == currentEmail)) {
       try {
         final map = jsonDecode(savedDevStr) as Map<String, dynamic>;
         final restored = DeviceModel.fromJson(map);
+        final savedPump = prefs.getString('saved_last_pump_state') ?? restored.pumpState;
+        final savedMode = prefs.getString('saved_last_mode') ?? restored.mode;
         _activeDevice = DeviceModel(
           id: restored.id,
           name: restored.name,
           macAddress: restored.macAddress,
           status: 'OFFLINE',
-          pumpState: restored.pumpState,
-          mode: restored.mode,
+          pumpState: savedPump,
+          mode: savedMode,
           wifiRssi: restored.wifiRssi,
           firmwareVersion: restored.firmwareVersion,
           lastSeen: restored.lastSeen,
         );
         _lastMainNodeHeartbeat = null;
         _lastSubNodePacket = null;
-        debugPrint('[HardwareStateService] Restored paired hardware: ${_activeDevice!.id} (initial state: OFFLINE)');
+        debugPrint('[HardwareStateService] Restored paired hardware: ${_activeDevice!.id} for $currentEmail');
       } catch (e) {
         debugPrint('[HardwareStateService] Restoring saved device notice: $e');
       }
@@ -687,7 +717,6 @@ class HardwareStateService extends ChangeNotifier {
       final wasConnected = _isMqttConnected;
       _isMqttConnected = mqttService.isConnected;
       if (_isMqttConnected && !wasConnected) {
-        _mqttConnectedAt = DateTime.now();
         _offlineTickCount = 0;
         requestImmediateStatus();
       }
@@ -801,13 +830,6 @@ class HardwareStateService extends ChangeNotifier {
     mqttService.publishPing(userId, devId, pingId, nowMs);
   }
 
-  Future<void> _persistPairedDevice() async {
-    if (_activeDevice == null) return;
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('saved_paired_device', jsonEncode(_activeDevice!.toJson()));
-    } catch (_) {}
-  }
 
   void _handlePongMessage(Map<String, dynamic> data) {
     final incomingDevId = (data['deviceId'] ?? data['device_id'] ?? '').toString().trim();
@@ -818,23 +840,7 @@ class HardwareStateService extends ChangeNotifier {
 
     final now = DateTime.now();
     if (_activeDevice == null) {
-      // Only auto-create device from hardware pong if it has not been explicitly removed
-      // and we have a real incoming device ID (not a generic fallback)
-      if (_isExplicitlyRemoved || incomingDevId.isEmpty) return;
-      final devName = (data['name'] ?? 'HydroPulse Gateway').toString();
-      final devMac = (data['macAddress'] ?? data['mac'] ?? '').toString();
-      _activeDevice = DeviceModel(
-        id: incomingDevId,
-        name: devName,
-        macAddress: devMac,
-        status: 'ONLINE',
-        pumpState: (data['pumpState'] ?? 'OFF').toString().toUpperCase() == 'ON' ? 'ON' : 'OFF',
-        mode: (data['mode'] ?? 'AUTO').toString().toUpperCase(),
-        wifiRssi: data['wifi_rssi'] ?? data['rssi'] ?? -65,
-        firmwareVersion: data['firmware_version'] ?? 'v2.1.0',
-        lastSeen: now,
-      );
-      _persistPairedDevice();
+      return;
     }
     _lastMainNodeHeartbeat = now;
     _totalPacketsReceived++;
@@ -888,7 +894,6 @@ class HardwareStateService extends ChangeNotifier {
 
     _isMqttConnected = ok;
     if (ok) {
-      _mqttConnectedAt = DateTime.now();
       _offlineTickCount = 0;
       sendHardwarePing();
       requestImmediateStatus();
@@ -901,22 +906,29 @@ class HardwareStateService extends ChangeNotifier {
 
   /// Re-publishes the last known pump state and mode to hardware on reconnect.
   /// This ensures hardware remembers its previous state after brief MQTT disconnects.
-  void _restoreHardwareState() {
+  Future<void> _restoreHardwareState() async {
     if (!_isMqttConnected || _activeDevice == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    final savedMode = prefs.getString('saved_last_mode') ?? _activeDevice!.mode;
+    final savedPumpState = prefs.getString('saved_last_pump_state') ?? _activeDevice!.pumpState;
     final devId = _activeDevice!.id;
-    final lastMode = _activeDevice!.mode;
-    final lastPumpState = _activeDevice!.pumpState;
 
-    // Re-sync mode
-    mqttService.publishCommand('app_restore', devId, 'SET_MODE', {'mode': lastMode});
+    // Re-sync mode to hardware & cloud
+    mqttService.publishCommand('app_restore', devId, 'SET_MODE', {'mode': savedMode});
+    apiClient.post('/command', data: {
+      'command': 'SET_MODE',
+      'action': 'SET_MODE',
+      'deviceId': devId,
+      'parameters': {'mode': savedMode},
+    }).ignore();
 
-    // Re-sync pump state — only in MANUAL mode (AUTO mode manages itself)
-    if (lastMode == 'MANUAL') {
-      final cmd = (lastPumpState == 'ON') ? 'START_PUMP' : 'STOP_PUMP';
+    // Re-sync pump state — in MANUAL mode (AUTO mode manages itself)
+    if (savedMode == 'MANUAL') {
+      final cmd = (savedPumpState == 'ON') ? 'START_PUMP' : 'STOP_PUMP';
       mqttService.publishCommand('app_restore', devId, cmd, {'restored': true});
     }
 
-    debugPrint('[HardwareStateService] Restored hardware state: mode=$lastMode, pump=$lastPumpState after reconnect');
+    debugPrint('[HardwareStateService] Restored hardware state: mode=$savedMode, pump=$savedPumpState after reconnect');
   }
 
   Future<void> refresh() async {
@@ -979,23 +991,7 @@ class HardwareStateService extends ChangeNotifier {
     }
 
     if (_activeDevice == null) {
-      // Only auto-create device from hardware status if it has not been explicitly removed
-      // and incoming device ID is a real hardware ID (not empty)
-      if (_isExplicitlyRemoved || devId.isEmpty) return;
-      final devName = (data['name'] ?? 'HydroPulse Gateway').toString();
-      final devMac = (data['macAddress'] ?? data['mac'] ?? '').toString();
-      _activeDevice = DeviceModel(
-        id: devId,
-        name: devName,
-        macAddress: devMac,
-        status: 'ONLINE',
-        pumpState: (data['pumpState'] ?? 'OFF').toString().toUpperCase() == 'ON' ? 'ON' : 'OFF',
-        mode: (data['mode'] ?? 'AUTO').toString().toUpperCase(),
-        wifiRssi: data['rssi'] ?? data['wifiRssi'] ?? -65,
-        firmwareVersion: data['firmware_version'] ?? 'v2.1.0',
-        lastSeen: now,
-      );
-      _persistPairedDevice();
+      return;
     }
 
     // Automatically parse embedded sensor readings if present in status/heartbeat
@@ -1434,10 +1430,10 @@ class HardwareStateService extends ChangeNotifier {
     final isTurningOn = (normCmd == 'START_PUMP' || normCmd == 'PUMP_ON' || normCmd == 'ON');
     final newState = isTurningOn ? 'ON' : 'OFF';
 
-    // 200ms debounce lock — just enough to suppress a single stale MQTT retained message
-    // while keeping UI response <300ms as required.
+    // Debounce lock: 3000ms window to absorb broker propagation and in-flight packets.
+    // Unlocks immediately upon matching hardware state ACK.
     _expectedPumpState = newState;
-    _pumpCommandLockUntil = DateTime.now().add(const Duration(milliseconds: 200));
+    _pumpCommandLockUntil = DateTime.now().add(const Duration(milliseconds: 3000));
 
     final cmdId = 'cmd_${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
     _lastCommand = PendingCommand(
@@ -1494,10 +1490,10 @@ class HardwareStateService extends ChangeNotifier {
 
     if (newState == 'ON') {
       _pumpCycleCount++;
-      addLiveAlert('Motor Started', 'Start motor command executed successfully.', 'motor');
-    } else {
-      addLiveAlert('Motor Stopped', 'Stop motor command executed successfully.', 'motor');
     }
+
+    // Persist motor state memory
+    SharedPreferences.getInstance().then((p) => p.setString('saved_last_pump_state', newState));
 
     _persistActiveDevice();
 
@@ -1618,10 +1614,11 @@ class HardwareStateService extends ChangeNotifier {
     final normalizedMode = mode.toUpperCase();
     _previousMode = _activeDevice!.mode;
 
-    // 200ms optimistic mode lock — prevents a single stale retained MQTT message
-    // from flipping mode back before hardware ACKs. Reduced from 400ms for <300ms responsiveness.
+    // 3000ms optimistic mode lock — prevents in-flight status packets from flapping mode.
+    // Clears immediately upon matching hardware state ACK/echo.
     _expectedMode = normalizedMode;
-    _modeCommandLockUntil = DateTime.now().add(const Duration(milliseconds: 200));
+    _modeCommandLockUntil = DateTime.now().add(const Duration(milliseconds: 3000));
+    SharedPreferences.getInstance().then((p) => p.setString('saved_last_mode', normalizedMode));
 
     _activeDevice = DeviceModel(
       id: _activeDevice!.id,

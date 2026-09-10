@@ -88,14 +88,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
   void _sendPumpCommand(String command, {Map<String, dynamic>? params}) {
     hardwareStateService.sendPumpCommand(command, params: params);
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$command sent to hardware'),
-        duration: const Duration(milliseconds: 1200),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   @override
@@ -233,13 +225,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                           return;
                         }
                         hardwareStateService.setMode(newMode);
-                        ScaffoldMessenger.of(context).clearSnackBars();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Mode switched to $newMode'),
-                            duration: const Duration(seconds: 2),
-                          ),
-                        );
                       },
                       onTogglePump: () {
                         if (!isOnline) {

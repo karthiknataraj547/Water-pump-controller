@@ -90,8 +90,28 @@ class PushNotificationService {
     }
   }
 
+  bool isNotificationAllowed(String type) {
+    if ((type == 'motor_start' || type == 'motor') && !hardwareStateService.notifyMotorStart) {
+      return false;
+    }
+    if ((type == 'motor_stop' || type == 'motor') && !hardwareStateService.notifyMotorStop) {
+      return false;
+    }
+    if (type == 'low_level' && !hardwareStateService.notifyLowLevel) {
+      return false;
+    }
+    if (type == 'high_level' && !hardwareStateService.notifyHighLevel) {
+      return false;
+    }
+    if (type == 'auto_mode' && !hardwareStateService.notifyAutoMode) {
+      return false;
+    }
+    return true;
+  }
+
   void _listenToHardwareAlerts() {
     hardwareStateService.alertStream.listen((alert) {
+      if (!isNotificationAllowed(alert.type)) return;
       showPushNotification(
         title: alert.title,
         body: alert.message,
@@ -108,6 +128,9 @@ class PushNotificationService {
     AlertLevel level = AlertLevel.info,
     String? payload,
   }) async {
+    // Strictly respect notification settings
+    if (!isNotificationAllowed(type)) return;
+
     // 1. Emit to in-app heads-up banner stream for instant visual feedback inside the app
     _inAppNotificationController.add(
       InAppNotificationData(

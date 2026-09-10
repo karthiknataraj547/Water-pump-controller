@@ -242,6 +242,8 @@ class _MainScaffoldState extends State<MainScaffold> {
     // Live Notification Alerts Stream
     _alertSub = hardwareStateService.alertStream.listen((alert) {
       if (!mounted) return;
+      if (!pushNotificationService.isNotificationAllowed(alert.type)) return;
+      if (alert.type == 'motor') return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(

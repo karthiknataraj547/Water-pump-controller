@@ -217,6 +217,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         await storage.write(key: 'auth_pwd_$email', value: password);
         await storage.write(key: 'auth_name_$email', value: fullName);
 
+        // Reset device state cleanly for new user account
+        await hardwareStateService.clearDeviceForNewLogin();
         // Check if hardware already registered in cloud backend database for this account
         await hardwareStateService.fetchUserDevicesFromBackend();
 
@@ -307,6 +309,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         await storage.write(key: 'auth_pwd_$email', value: password);
         await storage.write(key: 'auth_name_$email', value: resolvedName);
 
+        // Reset device state cleanly for logging in user
+        await hardwareStateService.clearDeviceForNewLogin();
         // Synchronize and activate paired hardware for this account from cloud backend database
         await hardwareStateService.fetchUserDevicesFromBackend();
 
@@ -352,6 +356,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               await storage.write(key: 'auth_pwd_$email', value: password);
               await storage.write(key: 'auth_name_$email', value: recoveryName);
 
+              await hardwareStateService.clearDeviceForNewLogin();
               await hardwareStateService.fetchUserDevicesFromBackend();
               authStateNotifier.value = finalToken;
 
@@ -545,6 +550,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         await storage.write(key: AppConstants.keyAccessToken, value: finalToken);
         await storage.write(key: AppConstants.keyRefreshToken, value: finalRefresh);
 
+        // Reset device state cleanly for logging in user
+        await hardwareStateService.clearDeviceForNewLogin();
         // Synchronize and activate paired hardware for this account from cloud backend database
         await hardwareStateService.fetchUserDevicesFromBackend();
 

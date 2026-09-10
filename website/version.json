@@ -1,22 +1,23 @@
-﻿{
-    "version":  "2.1.6",
-    "build_number":  20,
-    "release_date":  "2026-09-06",
+{
+    "version":  "2.1.7",
+    "build_number":  21,
+    "release_date":  "2026-09-10",
     "min_supported_version":  "1.0.0",
     "download_url":  "https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk",
     "website_url":  "https://water-pump-controller.vercel.app",
-    "sha256":  "f5430541d7cd831aedc1aa75a44d701de7e0fad2d5cf400a98ee8b119c5c003c",
-    "title":  "HydroPulse v2.1.6 - \u003c300ms Motor Latency, State Memory, Offline Flash Fix \u0026 Provisioning Flow",
+    "sha256":  "1fcb77b1d660135d0c08bc6ac17185e1d222b9e79d234316807b009d067fd2c9",
+    "title":  "HydroPulse v2.1.7 - <300ms Motor Latency, State Memory, Watchdog & Notification Enforcement",
     "changelog":  [
-                      "Sub-300ms Motor Control: Pump start/stop is now visually instant with debounce window reduced to 200ms.",
-                      "Hardware State Memory: After MQTT reconnect, the app re-sends last known mode and pump state to the hardware automatically.",
-                      "Offline Flash Fix: Refresh no longer flashes OFFLINE status â€” a 2000ms verification window prevents false drops.",
-                      "Manual/Auto Mode Fix: Mode switching now also syncs to the REST backend immediately, eliminating flicker.",
-                      "Fresh Login Provisioning: New user accounts now see the hardware pairing flow instead of a pre-existing device.",
-                      "Backend Watchdog: Cloud backend now evaluates hardware online status every 300ms for accurate real-time detection.",
-                      "Faster Ping Loop: Hardware presence probed every 500ms (from 1000ms) for quicker online detection."
+                      "Sub-300ms Motor Control: Pump start/stop is visually instant with 3000ms anti-flap lock window.",
+                      "Hardware State Memory: Motor state and mode persisted in SharedPreferences; restored on reconnect.",
+                      "Manual/Auto Mode Fix: 3000ms optimistic lock prevents mode flapping from stale MQTT packets.",
+                      "Offline Flash Fix: Refresh preserves live MQTT heartbeat — no more false OFFLINE flashes.",
+                      "Fresh Login Provisioning: New accounts see hardware pairing flow, not phantom devices.",
+                      "Notification Enforcement: Alerts strictly respect user notification settings toggles.",
+                      "Command Notifications Removed: No more 'Motor Started' or 'command sent' SnackBars on user actions.",
+                      "Backend 300ms Watchdog: Cloud evaluates hardware online status every 300ms proactively."
                   ],
     "is_critical":  true,
-    "updatedAt":  "2026-09-06T05:30:00.000Z",
+    "updatedAt":  "2026-09-10T16:57:00.000Z",
     "file_size":  58508324
 }

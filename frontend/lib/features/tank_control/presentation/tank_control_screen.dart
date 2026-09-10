@@ -5,7 +5,6 @@ import '../../../core/hardware/hardware_state_service.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/widgets/smart_water_system_card.dart';
 import '../../../shared/widgets/metric_card.dart';
-import '../../../shared/widgets/confirmation_dialog.dart';
 
 class TankControlScreen extends ConsumerStatefulWidget {
   const TankControlScreen({Key? key}) : super(key: key);
@@ -156,16 +155,7 @@ class _TankControlScreenState extends ConsumerState<TankControlScreen> {
                       if (isPumpRunning) {
                         hardwareStateService.sendPumpCommand('STOP_PUMP');
                       } else {
-                        showDialog(
-                          context: context,
-                          builder: (_) => ConfirmationDialog(
-                            title: 'Activate Pump Motor?',
-                            content: 'Confirm starting the water pump motor. Local safety watchdogs will automatically halt the pump if the tank fills or dry run is detected.',
-                            confirmText: 'Start Motor',
-                            confirmColor: colorScheme.primary,
-                            onConfirm: () => hardwareStateService.sendPumpCommand('START_PUMP'),
-                          ),
-                        );
+                        hardwareStateService.sendPumpCommand('START_PUMP');
                       }
                     },
                     onModeChanged: (newMode) {
