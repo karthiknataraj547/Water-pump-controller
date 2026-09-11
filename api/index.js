@@ -332,7 +332,8 @@ module.exports = async (req, res) => {
   }
 
   const parsedUrl = new URL(url, 'http://localhost');
-  const query = req.query || Object.fromEntries(parsedUrl.searchParams.entries());
+  const searchParamsObj = Object.fromEntries(parsedUrl.searchParams.entries());
+  const query = Object.assign({}, searchParamsObj, req.query || {});
 
   // Parse JSON body if present
   let body = {};
