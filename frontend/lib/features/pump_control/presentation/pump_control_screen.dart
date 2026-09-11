@@ -25,6 +25,17 @@ class _PumpControlScreenState extends ConsumerState<PumpControlScreen> {
     final dev = hardwareStateService.activeDevice;
     _isPumpRunning = dev?.isPumpRunning ?? false;
     _isAutoMode = (dev?.mode ?? 'AUTO').toUpperCase() != 'MANUAL';
+    hardwareStateService.addListener(_onHardwareStateChanged);
+  }
+
+  @override
+  void dispose() {
+    hardwareStateService.removeListener(_onHardwareStateChanged);
+    super.dispose();
+  }
+
+  void _onHardwareStateChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadPumpData() async {
@@ -62,47 +73,27 @@ class _PumpControlScreenState extends ConsumerState<PumpControlScreen> {
       return;
     }
 
-    // 1. Instantaneous optimistic state update (0ms UI latency)
-    setState(() {
-      if (command == 'PUMP_ON') _isPumpRunning = true;
-      if (command == 'PUMP_OFF' || command == 'EMERGENCY_STOP') _isPumpRunning = false;
-      if (command == 'SET_MODE') _isAutoMode = (params?['mode'] == 'AUTO');
-    });
-
     if (command == 'SET_MODE') {
       final newMode = (params?['mode'] ?? 'AUTO').toString().toUpperCase();
       hardwareStateService.setMode(newMode);
       return;
     }
 
-    // 2. Immediate direct hardware dispatch via MQTT (< 5ms)
+    if (command == 'EMERGENCY_STOP') {
+      hardwareStateService.sendEmergencyStop();
+      return;
+    }
+
+    // Direct hardware dispatch via MQTT with command_id & strict 5-second ACK timeout SLA.
+    // The UI does NOT optimistically flip the pump state; it enters 'STARTING...' or 'STOPPING...'
+    // and awaits hardware ACK from the ESP32 before showing the final state.
     hardwareStateService.sendPumpCommand(command, params: params);
 
-    // 3. Asynchronous background backend sync (never blocks UI or delays actuation)
+    // Asynchronous background backend notification
     apiClient.post(
       '/pumps/$devId/command',
       data: {'command': command, 'parameters': params ?? {}},
-    ).then((res) {
-      if (mounted && res.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: AppTheme.accentEmerald,
-            duration: const Duration(milliseconds: 1200),
-            content: Text('✓ ${res.data['data']['message'] ?? 'Command executed!'}'),
-          ),
-        );
-      }
-    }).catchError((_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: const Color(0xFF1E2D4A),
-            duration: const Duration(milliseconds: 1200),
-            content: Text('⚡ Instant Direct Action: $command dispatched'),
-          ),
-        );
-      }
-    });
+    ).ignore();
   }
 
   @override
@@ -113,6 +104,28 @@ class _PumpControlScreenState extends ConsumerState<PumpControlScreen> {
       _isAutoMode = activeDevice.mode.toUpperCase() != 'MANUAL';
       _isPumpRunning = (hardwareStateService.pumpStatus?.isRunning ?? false) || activeDevice.isPumpRunning;
     }
+
+    final isCommandInFlight = hardwareStateService.lastCommand?.state == CommandTransitState.sending;
+    final pendingAction = hardwareStateService.pendingCommandAction;
+
+    String statusTitle;
+    Color statusColor;
+    if (!isOnline) {
+      statusTitle = 'OFFLINE';
+      statusColor = AppTheme.accentRose;
+    } else if (isCommandInFlight) {
+      statusTitle = (pendingAction == 'ON' || hardwareStateService.lastCommand?.command == 'PUMP_ON')
+          ? 'STARTING...'
+          : 'STOPPING...';
+      statusColor = const Color(0xFFF59E0B);
+    } else if (_isPumpRunning) {
+      statusTitle = 'ACTIVE (PUMPING)';
+      statusColor = AppTheme.accentRose;
+    } else {
+      statusTitle = 'IDLE (STANDBY)';
+      statusColor = AppTheme.accentEmerald;
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Pump Control Center', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -154,13 +167,9 @@ class _PumpControlScreenState extends ConsumerState<PumpControlScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          !isOnline
-                              ? 'OFFLINE'
-                              : (_isPumpRunning ? 'ACTIVE (PUMPING)' : 'IDLE (STANDBY)'),
+                          statusTitle,
                           style: TextStyle(
-                            color: !isOnline
-                                ? AppTheme.accentRose
-                                : (_isPumpRunning ? AppTheme.accentRose : AppTheme.accentEmerald),
+                            color: statusColor,
                             fontWeight: FontWeight.w900,
                             fontSize: 22,
                             letterSpacing: 1,
@@ -168,7 +177,7 @@ class _PumpControlScreenState extends ConsumerState<PumpControlScreen> {
                         ),
                         const SizedBox(height: 28),
 
-                        // Big Circular Toggle Button
+                        // Big Circular Toggle Button (Confirmed by Hardware ACK)
                         GestureDetector(
                           onTap: () {
                             if (!isOnline) {
@@ -177,6 +186,16 @@ class _PumpControlScreenState extends ConsumerState<PumpControlScreen> {
                                 const SnackBar(
                                   backgroundColor: AppTheme.accentRose,
                                   content: Text('🔒 Hardware Offline • Connect or power on ESP32 first.'),
+                                ),
+                              );
+                              return;
+                            }
+                            if (isCommandInFlight) {
+                              ScaffoldMessenger.of(context).clearSnackBars();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  backgroundColor: Color(0xFFF59E0B),
+                                  content: Text('⏳ Awaiting hardware confirmation... Please wait.'),
                                 ),
                               );
                               return;
@@ -203,13 +222,17 @@ class _PumpControlScreenState extends ConsumerState<PumpControlScreen> {
                               shape: BoxShape.circle,
                               gradient: !isOnline
                                   ? null
-                                  : (_isPumpRunning ? AppTheme.dangerGradient : AppTheme.emeraldGradient),
+                                  : (isCommandInFlight
+                                      ? const LinearGradient(colors: [Color(0xFFD97706), Color(0xFFB45309)])
+                                      : (_isPumpRunning ? AppTheme.dangerGradient : AppTheme.emeraldGradient)),
                               color: !isOnline ? const Color(0xFF1E293B) : null,
                               boxShadow: [
                                 BoxShadow(
                                   color: (!isOnline
                                           ? Colors.black26
-                                          : (_isPumpRunning ? AppTheme.accentRose : AppTheme.accentEmerald))
+                                          : (isCommandInFlight
+                                              ? const Color(0xFFF59E0B)
+                                              : (_isPumpRunning ? AppTheme.accentRose : AppTheme.accentEmerald)))
                                       .withOpacity(0.35),
                                   blurRadius: 32,
                                   spreadRadius: 4,
@@ -217,13 +240,22 @@ class _PumpControlScreenState extends ConsumerState<PumpControlScreen> {
                               ],
                             ),
                             child: Center(
-                              child: Icon(
-                                !isOnline
-                                    ? Icons.cloud_off_rounded
-                                    : (_isPumpRunning ? Icons.power_settings_new_rounded : Icons.play_arrow_rounded),
-                                size: 64,
-                                color: !isOnline ? AppTheme.darkTextTertiary : Colors.white,
-                              ),
+                              child: !isOnline
+                                  ? const Icon(Icons.cloud_off_rounded, size: 64, color: AppTheme.darkTextTertiary)
+                                  : (isCommandInFlight
+                                      ? const SizedBox(
+                                          width: 48,
+                                          height: 48,
+                                          child: CircularProgressIndicator(
+                                            color: Colors.white,
+                                            strokeWidth: 4,
+                                          ),
+                                        )
+                                      : Icon(
+                                          _isPumpRunning ? Icons.power_settings_new_rounded : Icons.play_arrow_rounded,
+                                          size: 64,
+                                          color: Colors.white,
+                                        )),
                             ),
                           ),
                         ),
@@ -231,7 +263,11 @@ class _PumpControlScreenState extends ConsumerState<PumpControlScreen> {
                         Text(
                           !isOnline
                               ? 'Hardware Offline • Control Locked'
-                              : (_isPumpRunning ? 'Tap to STOP Pump' : 'Tap to START Pump'),
+                              : (isCommandInFlight
+                                  ? (pendingAction == 'ON' || hardwareStateService.lastCommand?.command == 'PUMP_ON'
+                                      ? 'Hardware Starting Relay...'
+                                      : 'Hardware Stopping Relay...')
+                                  : (_isPumpRunning ? 'Tap to STOP Pump' : 'Tap to START Pump')),
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.7),
                             fontWeight: FontWeight.w600,

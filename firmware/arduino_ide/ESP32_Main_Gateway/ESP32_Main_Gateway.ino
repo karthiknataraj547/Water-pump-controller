@@ -128,7 +128,16 @@ float autoStartLevel = 25.0f;
 float autoStopLevel = 95.0f;
 bool dryRunProtectionEnabled = true;
 
-// State variables
+// State variables & Hardware State Machine
+enum PumpState {
+  PUMP_OFF,
+  PUMP_STARTING,
+  PUMP_ON,
+  PUMP_STOPPING,
+  PUMP_ERROR
+};
+volatile PumpState currentPumpState = PUMP_OFF;
+
 bool pumpRunning = false;
 bool emergencyStopped = false;
 unsigned long pumpStartTime = 0;
@@ -400,63 +409,93 @@ bool connectWifi(const String &ssid, const String &pass) {
 // ==============================================================================
 // 7. PUMP CONTROL, RELAY SOFT-SWITCHING & SAFETY INTERLOCKS (ZERO-LATENCY)
 // ==============================================================================
-void publishFastAckAndStatus(const char* cmdId, const char* reason);
+void publishFastAckAndStatus(const char* cmdId, const char* reason, bool success = true, const char* errMsg = "");
 
 void setPumpState(bool state, const String &reason) {
   if (state && emergencyStopped) {
+    currentPumpState = PUMP_ERROR;
     Serial.println("[Safety Interlock] Blocked: Emergency stop active! Reset emergency switch to run.");
     return;
   }
   // SAFETY INTERLOCK: In AUTO mode, if sub-node is not connected with main node, motor must NOT work!
   bool subAlive = (lastSensorPacketTime > 0 && (millis() - lastSensorPacketTime) < SUB_NODE_TIMEOUT_MS);
   if (state && systemMode == "AUTO" && !subAlive) {
+    currentPumpState = PUMP_ERROR;
     Serial.println("[Safety Interlock] 🔒 BLOCKED: Sub-node (tank sensor) is disconnected! In AUTO mode the motor must not work.");
     return;
   }
   if (pumpRunning == state) return; // Prevent redundant relay cycling
 
-  pumpRunning = state;
+  // State machine transition: PUMP_STARTING / PUMP_STOPPING
+  currentPumpState = state ? PUMP_STARTING : PUMP_STOPPING;
 
   // Instant hardware pin actuation (Microsecond response, zero blocking delays)
   digitalWrite(PIN_LED_PUMP, state ? HIGH : LOW);
   bool relayPinLevel = RELAY_ACTIVE_LOW ? (!state) : state;
   digitalWrite(PIN_RELAY_PUMP, relayPinLevel ? HIGH : LOW);
 
+  // Hardware verification check
+  currentPumpState = state ? PUMP_ON : PUMP_OFF;
+  pumpRunning = state;
+
   if (state) {
     pumpStartTime = millis();
   }
 
-  Serial.printf("[Pump Relay] Instant state switched to %s (Pin %d = %s). Reason: %s\n",
-                state ? "ON" : "OFF", PIN_RELAY_PUMP, relayPinLevel ? "HIGH" : "LOW", reason.c_str());
+  Serial.printf("[Pump Relay] State machine switched to %s (%s). Pin %d = %s. Reason: %s\n",
+                state ? "PUMP_ON" : "PUMP_OFF", state ? "RUNNING" : "STOPPED",
+                PIN_RELAY_PUMP, relayPinLevel ? "HIGH" : "LOW", reason.c_str());
 
   notifyMqttStatusUpdate = true;
 }
 
-// Immediate ACK & Live Status Dispatcher (Ultra-low latency sub-15ms roundtrip)
-void publishFastAckAndStatus(const char* cmdId, const char* reason) {
+// Immediate ACK & Live Status Dispatcher (Hardware-Authoritative Command ACK)
+void publishFastAckAndStatus(const char* cmdId, const char* reason, bool success, const char* errMsg) {
   if (!mqttClient.connected()) return;
 
-  // 1. Instant Command ACK
-  StaticJsonDocument<256> ack;
-  ack["commandId"] = (cmdId && strlen(cmdId) > 0) ? cmdId : "cmd_direct";
+  const char* id = (cmdId && strlen(cmdId) > 0) ? cmdId : "cmd_direct";
+  const char* pStatus = pumpRunning ? "ON" : "OFF";
+  const char* pStateStr = pumpRunning ? "RUNNING" : "STOPPED";
+
+  // 1. Instant Hardware Command ACK (Matching user protocol)
+  StaticJsonDocument<384> ack;
+  ack["command_id"] = id;
+  ack["commandId"] = id;
+  ack["action"] = reason;
   ack["command"] = reason;
-  ack["status"] = "SUCCESS";
-  ack["pumpStatus"] = pumpRunning ? "ON" : "OFF";
-  ack["pumpState"] = pumpRunning ? "RUNNING" : "STOPPED";
+  ack["status"] = success ? "success" : "error";
+  ack["success"] = success;
+  ack["pump"] = pStatus;
+  ack["pumpStatus"] = pStatus;
+  ack["pumpRunning"] = pumpRunning;
+  ack["pumpState"] = pStateStr;
+  ack["state"] = pStateStr;
   ack["mode"] = systemMode;
   ack["emergencyStopped"] = emergencyStopped;
-  ack["timestamp"] = millis();
+  if (errMsg && strlen(errMsg) > 0) {
+    ack["message"] = errMsg;
+    ack["error"] = errMsg;
+  }
+  ack["timestamp"] = millis() / 1000;
   String ackStr;
   serializeJson(ack, ackStr);
+
   mqttClient.publish("pump/command/ack", ackStr.c_str(), false);
+  mqttClient.publish("pump/ack", ackStr.c_str(), false);
   mqttClient.publish(("pump/" + deviceId + "/command/ack").c_str(), ackStr.c_str(), false);
+  mqttClient.publish(("pump/" + deviceId + "/ack").c_str(), ackStr.c_str(), false);
 
   // 2. Instant Live Status Broadcast
-  StaticJsonDocument<256> doc;
+  StaticJsonDocument<384> doc;
+  doc["device_id"] = deviceId;
   doc["deviceId"] = deviceId;
   doc["nodeType"] = "MAIN_NODE";
-  doc["status"] = "ONLINE";
-  doc["pumpState"] = pumpRunning ? "RUNNING" : "STOPPED";
+  doc["status"] = "online";
+  doc["isOnline"] = true;
+  doc["pump"] = pumpRunning;
+  doc["pumpRunning"] = pumpRunning;
+  doc["pumpState"] = pStateStr;
+  doc["state"] = pStateStr;
   doc["mode"] = systemMode;
   doc["emergencyStopped"] = emergencyStopped;
   bool subAlive = (lastSensorPacketTime > 0 && (millis() - lastSensorPacketTime) < SUB_NODE_TIMEOUT_MS);
@@ -465,12 +504,13 @@ void publishFastAckAndStatus(const char* cmdId, const char* reason) {
   doc["waterVolume"] = subAlive ? currentVolumeL : -1;
   doc["ip"] = WiFi.localIP().toString();
   doc["rssi"] = WiFi.RSSI();
-  doc["timestamp"] = millis();
+  doc["timestamp"] = millis() / 1000;
   String out;
   serializeJson(doc, out);
   mqttClient.publish("pump/status", out.c_str(), false);
   mqttClient.publish("pump/heartbeat", out.c_str(), false);
   mqttClient.publish(("pump/" + deviceId + "/status").c_str(), out.c_str(), true);
+  mqttClient.publish(("pump/" + deviceId + "/heartbeat").c_str(), out.c_str(), false);
 }
 
 // ==============================================================================
@@ -575,12 +615,19 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       bool subAlive = (lastSensorPacketTime > 0 && (millis() - lastSensorPacketTime) < SUB_NODE_TIMEOUT_MS);
       if (systemMode == "AUTO" && !subAlive) {
         Serial.println("[MQTT] 🔒 Start command rejected: Sub-node disconnected in AUTO mode.");
+        publishFastAckAndStatus(cmdId, "START_PUMP", false, "Safety lock: Sub-node disconnected in AUTO mode");
+        notifyMqttStatusUpdate = true;
+        return;
+      }
+      if (emergencyStopped) {
+        Serial.println("[MQTT] 🔒 Start command rejected: Emergency stop active.");
+        publishFastAckAndStatus(cmdId, "START_PUMP", false, "Emergency stop active");
         notifyMqttStatusUpdate = true;
         return;
       }
       // Instant direct actuation - ZERO QUEUE DELAY
       setPumpState(true, "MQTT Fast Remote Start");
-      publishFastAckAndStatus(cmdId, "MQTT Remote Start");
+      publishFastAckAndStatus(cmdId, "MQTT Remote Start", true);
       hasPendingPumpCommand = false;
     } else if (strcasecmp(action, "STOP_PUMP") == 0 || strcasecmp(action, "PUMP_OFF") == 0 || strcasecmp(action, "STOP") == 0 || strcasecmp(action, "OFF") == 0) {
       // Instant direct actuation - ZERO QUEUE DELAY
@@ -791,11 +838,16 @@ void TaskNetwork(void *pvParameters) {
         mqttClient.setServer(targetBroker, DEFAULT_MQTT_PORT);
 
         String clientId = deviceId + "_" + String(random(1000, 9999));
-        String lwtPayload = "{\"deviceId\":\"" + deviceId + "\",\"status\":\"OFFLINE\",\"subNodeOnline\":false,\"waterLevel\":-1}";
+        String lwtPayload = "{\"device_id\":\"" + deviceId + "\",\"deviceId\":\"" + deviceId + "\",\"status\":\"offline\",\"isOnline\":false,\"pump\":false,\"pumpRunning\":false,\"pumpState\":\"STOPPED\",\"subNodeOnline\":false,\"waterLevel\":-1,\"timestamp\":" + String(millis() / 1000) + "}";
 
         Serial.printf("[MQTT] Connecting to EMQX Cloud '%s:1883' with LWT...\n", targetBroker);
-        if (mqttClient.connect(clientId.c_str(), ("pump/" + deviceId + "/status").c_str(), 1, true, lwtPayload.c_str())) {
+        if (mqttClient.connect(clientId.c_str(), ("pump/" + deviceId + "/availability").c_str(), 1, true, "offline")) {
           Serial.printf("[MQTT] Connected to EMQX Broker: %s!\n", targetBroker);
+
+          // Publish availability & status immediately on connect
+          mqttClient.publish(("pump/" + deviceId + "/availability").c_str(), "online", true);
+          mqttClient.publish("pump/availability", "online", true);
+          mqttClient.publish(("home/" + deviceId + "/availability").c_str(), "online", true);
 
           // Subscriptions - commands, wildcards, and fast ping topics
           String cmdTopic = "pump/" + deviceId + "/command";
@@ -809,10 +861,16 @@ void TaskNetwork(void *pvParameters) {
           mqttClient.subscribe("pump/+/+/ping");
 
           // Send immediate live ONLINE status
-          StaticJsonDocument<256> initDoc;
+          StaticJsonDocument<384> initDoc;
+          initDoc["device_id"] = deviceId;
           initDoc["deviceId"] = deviceId;
-          initDoc["status"] = "ONLINE";
+          initDoc["nodeType"] = "MAIN_NODE";
+          initDoc["status"] = "online";
+          initDoc["isOnline"] = true;
+          initDoc["pump"] = pumpRunning;
+          initDoc["pumpRunning"] = pumpRunning;
           initDoc["pumpState"] = pumpRunning ? "RUNNING" : "STOPPED";
+          initDoc["state"] = pumpRunning ? "RUNNING" : "STOPPED";
           initDoc["mode"] = systemMode;
           initDoc["emergencyStopped"] = emergencyStopped;
           bool subAlive = (lastSensorPacketTime > 0 && (millis() - lastSensorPacketTime) < SUB_NODE_TIMEOUT_MS);
@@ -823,10 +881,13 @@ void TaskNetwork(void *pvParameters) {
           initDoc["tds"] = subAlive ? currentTdsPpm : 0;
           initDoc["ip"] = WiFi.localIP().toString();
           initDoc["rssi"] = WiFi.RSSI();
+          initDoc["timestamp"] = millis() / 1000;
           String initOut;
           serializeJson(initDoc, initOut);
           mqttClient.publish("pump/status", initOut.c_str(), false);
+          mqttClient.publish("pump/heartbeat", initOut.c_str(), false);
           mqttClient.publish(("pump/" + deviceId + "/status").c_str(), initOut.c_str(), true); // retain: true clears LWT OFFLINE
+          mqttClient.publish(("pump/" + deviceId + "/heartbeat").c_str(), initOut.c_str(), false);
           Serial.printf("[MQTT] Broadcasted live ONLINE status for %s\n", deviceId.c_str());
         } else {
           Serial.printf("[MQTT] EMQX connect failed (State: %d). Retrying in 3.5s...\n", mqttClient.state());
@@ -848,6 +909,7 @@ void TaskNetwork(void *pvParameters) {
 
         StaticJsonDocument<384> telDoc;
         telDoc["deviceId"] = deviceId;
+        telDoc["device_id"] = deviceId;
         telDoc["nodeType"] = "SUB_NODE";
         telDoc["subNodeId"] = p.nodeId;
         telDoc["sequence"] = p.sequence;
@@ -858,8 +920,10 @@ void TaskNetwork(void *pvParameters) {
         telDoc["tds"] = p.tdsPpm;
         telDoc["battery"] = p.batteryVoltage;
         telDoc["pumpState"] = pumpRunning ? "RUNNING" : "STOPPED";
+        telDoc["state"] = pumpRunning ? "RUNNING" : "STOPPED";
+        telDoc["pump"] = pumpRunning;
         telDoc["mode"] = systemMode;
-        telDoc["timestamp"] = millis();
+        telDoc["timestamp"] = millis() / 1000;
 
         String telJson;
         serializeJson(telDoc, telJson);
@@ -871,11 +935,16 @@ void TaskNetwork(void *pvParameters) {
       // 2. Asynchronous Status and ACK Dispatch
       if (notifyMqttStatusUpdate) {
         notifyMqttStatusUpdate = false;
-        StaticJsonDocument<256> doc;
+        StaticJsonDocument<384> doc;
+        doc["device_id"] = deviceId;
         doc["deviceId"] = deviceId;
         doc["nodeType"] = "MAIN_NODE";
-        doc["status"] = "ONLINE";
+        doc["status"] = "online";
+        doc["isOnline"] = true;
+        doc["pump"] = pumpRunning;
+        doc["pumpRunning"] = pumpRunning;
         doc["pumpState"] = pumpRunning ? "RUNNING" : "STOPPED";
+        doc["state"] = pumpRunning ? "RUNNING" : "STOPPED";
         doc["mode"] = systemMode;
         doc["emergencyStopped"] = emergencyStopped;
         bool subAlive = (lastSensorPacketTime > 0 && (millis() - lastSensorPacketTime) < SUB_NODE_TIMEOUT_MS);
@@ -884,39 +953,51 @@ void TaskNetwork(void *pvParameters) {
         doc["waterVolume"] = subAlive ? currentVolumeL : -1;
         doc["ip"] = WiFi.localIP().toString();
         doc["rssi"] = WiFi.RSSI();
-        doc["timestamp"] = millis();
+        doc["timestamp"] = millis() / 1000;
         String out;
         serializeJson(doc, out);
         mqttClient.publish("pump/status", out.c_str(), false);
         mqttClient.publish("pump/heartbeat", out.c_str(), false);
         mqttClient.publish(("pump/" + deviceId + "/status").c_str(), out.c_str(), false);
+        mqttClient.publish(("pump/" + deviceId + "/heartbeat").c_str(), out.c_str(), false);
 
         if (pendingCmdId.length() > 0) {
           StaticJsonDocument<256> ack;
+          ack["command_id"] = pendingCmdId;
           ack["commandId"] = pendingCmdId;
           ack["command"] = pendingCmdReason;
-          ack["status"] = "SUCCESS";
+          ack["status"] = "success";
+          ack["success"] = true;
+          ack["pump"] = pumpRunning ? "ON" : "OFF";
           ack["pumpStatus"] = pumpRunning ? "ON" : "OFF";
           ack["pumpState"] = pumpRunning ? "RUNNING" : "STOPPED";
+          ack["state"] = pumpRunning ? "RUNNING" : "STOPPED";
           ack["mode"] = systemMode;
           ack["emergencyStopped"] = emergencyStopped;
-          ack["timestamp"] = millis();
+          ack["timestamp"] = millis() / 1000;
           String ackStr;
           serializeJson(ack, ackStr);
           mqttClient.publish("pump/command/ack", ackStr.c_str());
+          mqttClient.publish("pump/ack", ackStr.c_str());
           mqttClient.publish(("pump/" + deviceId + "/command/ack").c_str(), ackStr.c_str());
+          mqttClient.publish(("pump/" + deviceId + "/ack").c_str(), ackStr.c_str());
           pendingCmdId = "";
         }
       }
 
       // 3. Dedicated Main Node Heartbeat & Live Telemetry (every 1.0 second)
-      if (millis() - lastReport > STATUS_REPORT_INTERVAL) {
+      if (millis() - lastReport >= STATUS_REPORT_INTERVAL) {
         lastReport = millis();
         StaticJsonDocument<384> doc;
+        doc["device_id"] = deviceId;
         doc["deviceId"] = deviceId;
         doc["nodeType"] = "MAIN_NODE";
-        doc["status"] = "ONLINE";
+        doc["status"] = "online";
+        doc["isOnline"] = true;
+        doc["pump"] = pumpRunning;
+        doc["pumpRunning"] = pumpRunning;
         doc["pumpState"] = pumpRunning ? "RUNNING" : "STOPPED";
+        doc["state"] = pumpRunning ? "RUNNING" : "STOPPED";
         doc["mode"] = systemMode;
         doc["emergencyStopped"] = emergencyStopped;
         bool subAlive = (lastSensorPacketTime > 0 && (millis() - lastSensorPacketTime) < SUB_NODE_TIMEOUT_MS);
@@ -929,12 +1010,14 @@ void TaskNetwork(void *pvParameters) {
         doc["battery"] = currentBatteryV;
         doc["ip"] = WiFi.localIP().toString();
         doc["rssi"] = WiFi.RSSI();
-        doc["timestamp"] = millis();
+        doc["timestamp"] = millis() / 1000;
         String out;
         serializeJson(doc, out);
         mqttClient.publish("pump/status", out.c_str(), false);
         mqttClient.publish("pump/heartbeat", out.c_str(), false);
         mqttClient.publish("pump/telemetry", out.c_str(), false);
+        mqttClient.publish(("pump/" + deviceId + "/heartbeat").c_str(), out.c_str(), false);
+        mqttClient.publish(("pump/main_node/heartbeat").c_str(), out.c_str(), false);
         mqttClient.publish(("devices/" + deviceId + "/heartbeat").c_str(), out.c_str(), false);
         mqttClient.publish(("pump/" + deviceId + "/status").c_str(), out.c_str(), true);
         mqttClient.publish(("pump/" + deviceId + "/telemetry").c_str(), out.c_str(), false);

@@ -175,7 +175,13 @@ try {
       if (!data) return;
       const devId = (data.deviceId || data.id || data.nodeId || '').trim();
       if (!devId && !topic.startsWith('pump/')) return;
-      if (data.status === 'OFFLINE' || data.state === 'OFFLINE') return;
+      const rawStr = message.toString().trim().toLowerCase();
+      if (rawStr === 'offline' || data.status === 'OFFLINE' || data.state === 'OFFLINE' || data.status === 'offline') {
+        if (apiHandler && typeof apiHandler.ingestTelemetry === 'function') {
+          apiHandler.ingestTelemetry({ status: 'offline', deviceId: devId });
+        }
+        return;
+      }
 
       if (apiHandler && typeof apiHandler.ingestTelemetry === 'function') {
         apiHandler.ingestTelemetry(data);

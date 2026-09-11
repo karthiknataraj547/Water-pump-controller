@@ -59,6 +59,17 @@
       "lastName": "Glass",
       "role": "USER",
       "createdAt": "2026-09-05T15:41:52.549Z"
+    },
+    {
+      "id": "usr_1789151618983_334",
+      "email": "user_1789151618979@hydropulse.io",
+      "passwordHash": "e57a5140b5eed6b32a14c7fb28fdac5834b518cdcffc35ba5e3ea172257a7a7991fb666e7f59782540f624b40b7ba00087f1197b21ad5ccccd94ebb2bc09c8cc",
+      "salt": "a48ec6d3cda1e1299615a30efa899f09",
+      "firstName": "New",
+      "lastName": "TesterUpdated",
+      "role": "USER",
+      "createdAt": "2026-09-11T18:33:38.983Z",
+      "updatedAt": "2026-09-11T18:33:38.992Z"
     }
   ],
   "devices": [

@@ -69,20 +69,29 @@ let liveState = {
   lastSeen: 0
 };
 
-// Double verification of hardware online status:
-// 1. Must have authentic hardware heartbeat timestamp
-// 2. Heartbeat age must be within 25 seconds (< 25000ms)
-const ONLINE_THRESHOLD_MS = 25000;
+// Multi-Node Hardware State Tracking
+const nodeTracking = {
+  mainNode: {
+    online: false,
+    lastSeen: 0
+  },
+  subNode: {
+    online: false,
+    lastSeen: 0
+  },
+  system: {
+    online: false
+  }
+};
+
+// Strict Heartbeat Offline Watchdog (3-Second SLA)
+// Heartbeat age must be within 3 seconds (<= 3000ms). Never use permanent cached 'online' status.
+const ONLINE_THRESHOLD_MS = 3000;
 function verifyHardwareOnline(target) {
   if (!target) return false;
   const now = Date.now();
-  const lastHb = target.lastHeartbeat || 0;
+  const lastHb = target.lastHeartbeat || target.lastSeenTime || 0;
   if (lastHb > 0 && (now - lastHb) <= ONLINE_THRESHOLD_MS) {
-    return true;
-  }
-  // Fallback: If global liveState received hardware telemetry within threshold
-  const liveHb = liveState.lastHeartbeat || 0;
-  if (liveHb > 0 && (now - liveHb) <= ONLINE_THRESHOLD_MS) {
     return true;
   }
   return false;
@@ -141,11 +150,29 @@ function runHardwareWatchdog() {
   const now = Date.now();
   let changed = false;
 
+  // Update Main Node & Sub Node state tracking
+  const mainAge = nodeTracking.mainNode.lastSeen ? (now - nodeTracking.mainNode.lastSeen) : Infinity;
+  const mainOnline = mainAge >= 0 && mainAge <= ONLINE_THRESHOLD_MS;
+  if (nodeTracking.mainNode.online !== mainOnline) {
+    nodeTracking.mainNode.online = mainOnline;
+    changed = true;
+  }
+
+  const subAge = nodeTracking.subNode.lastSeen ? (now - nodeTracking.subNode.lastSeen) : Infinity;
+  const subOnline = subAge >= 0 && subAge <= 4000;
+  if (nodeTracking.subNode.online !== subOnline) {
+    nodeTracking.subNode.online = subOnline;
+    changed = true;
+  }
+
+  nodeTracking.system.online = mainOnline;
+
   // Check liveState heartbeat
   const liveAge = liveState.lastHeartbeat ? (now - liveState.lastHeartbeat) : Infinity;
   const liveOnline = liveAge >= 0 && liveAge <= ONLINE_THRESHOLD_MS;
   if (liveState._wasOnline !== liveOnline) {
     liveState._wasOnline = liveOnline;
+    liveState.isOnline = liveOnline;
     changed = true;
   }
 
@@ -404,23 +431,23 @@ module.exports = async (req, res) => {
 
     if (!manifest) {
       manifest = {
-        version: '2.2.0',
-        build_number: 24,
+        version: '2.2.1',
+        build_number: 25,
         release_date: '2026-09-11',
         min_supported_version: '1.0.0',
-        download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.0_build24.apk',
+        download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.1_build25.apk',
         website_url: 'https://water-pump-controller.vercel.app',
-        sha256: 'd8ce20d1888b45b004c777fb5b3a8f788b6d1415c20e8d701826b4ef0238d6c6',
-        title: 'HydroPulse v2.2.0 - Non-Volatile Mode Persistence, Deterministic Manual Override & Instant Actuation',
+        sha256: '05fb6d0620b4034332811e083df70f25536d688237dfded5ea6b1db1bfa4aa62',
+        title: 'HydroPulse v2.2.1 - Strict 3s Heartbeat SLA, Hardware Confirmed Start/Stop & Multi-Node Tracking',
         changelog: [
-          'Non-Volatile Mode Persistence: ESP32 stores active operating mode (Manual/Auto) in NVS flash memory with checksum validation to survive resets and reconnections.',
-          'Deterministic Manual Override: Fixed auto-mode loop to strictly respect manual mode selection without reverting back automatically.',
-          'Direct Hardware Actuation: Motor Start and Stop buttons trigger instant relay switching directly in hardware with zero FreeRTOS tick delay.',
-          'Optimized In-App Updater: Automatic detection and silent background caching of HydroPulse v2.2.0 (Build 24).',
-          'Cloud & Edge Synchronization: Retained state synchronization across EMQX, HiveMQ, and Mosquitto cloud brokers.'
+          'Strict 3-Second Heartbeat SLA: High-frequency 1.0s heartbeats feed a strict 3000ms watchdog. Powering down or unplugging the ESP32 switches the mobile app & web console to OFFLINE within 3 seconds.',
+          'Hardware-Confirmed Start/Stop: Buttons never flip state optimistically. Relays actuate through a verified state machine (PUMP_OFF, PUMP_STARTING, PUMP_ON, PUMP_STOPPING, PUMP_ERROR) and only lock state upon receiving the ESP32 ACK packet.',
+          'Deterministic 5s Command Timeout: If the ESP32 hardware does not acknowledge actuation within 5000ms, the command aborts safely with timeout feedback instead of remaining stuck.',
+          'Decoupled Multi-Node Tracking: Main Node and Sub Node heartbeats are evaluated independently, allowing safe manual pump control if the tank sensor node goes offline.',
+          'Dual-Channel MQTT & REST Synchronization: Retained availability via Last Will & Testament across EMQX, HiveMQ, and Mosquitto brokers.'
         ],
         is_critical: false,
-        file_size: 58524704
+        file_size: 58524708
       };
     }
 
@@ -741,7 +768,18 @@ module.exports = async (req, res) => {
       return {
         ...d,
         isOnline,
-        status: isOnline ? 'ONLINE' : 'OFFLINE'
+        status: isOnline ? 'ONLINE' : 'OFFLINE',
+        mainNode: {
+          online: isOnline,
+          lastSeen: d.lastHeartbeat || 0
+        },
+        subNode: {
+          online: nodeTracking.subNode.online,
+          lastSeen: nodeTracking.subNode.lastSeen
+        },
+        system: {
+          online: isOnline
+        }
       };
     });
 
@@ -877,7 +915,18 @@ module.exports = async (req, res) => {
       data: {
         ...liveState,
         isOnline,
-        status: isOnline ? 'ONLINE' : 'OFFLINE'
+        status: isOnline ? 'ONLINE' : 'OFFLINE',
+        mainNode: {
+          online: isOnline,
+          lastSeen: nodeTracking.mainNode.lastSeen || liveState.lastHeartbeat || 0
+        },
+        subNode: {
+          online: nodeTracking.subNode.online,
+          lastSeen: nodeTracking.subNode.lastSeen || 0
+        },
+        system: {
+          online: isOnline
+        }
       }
     });
   }
@@ -894,6 +943,17 @@ module.exports = async (req, res) => {
         isOnline,
         status: isOnline ? 'ONLINE' : 'OFFLINE',
         lastHeartbeat: dev ? (dev.lastHeartbeat || 0) : (liveState.lastHeartbeat || 0),
+        mainNode: {
+          online: isOnline,
+          lastSeen: dev ? (dev.lastHeartbeat || 0) : (liveState.lastHeartbeat || 0)
+        },
+        subNode: {
+          online: nodeTracking.subNode.online,
+          lastSeen: nodeTracking.subNode.lastSeen || 0
+        },
+        system: {
+          online: isOnline
+        },
         verifiedAt: new Date().toISOString()
       }
     });
@@ -901,6 +961,23 @@ module.exports = async (req, res) => {
 
   // 8d. Ingest / Sync Telemetry from Hardware or Mobile
   if (method === 'POST' && (url.includes('/api/v1/telemetry') || url.includes('/telemetry') || url.includes('/hardware/heartbeat'))) {
+    // Check if device reported offline (e.g. LWT or disconnection)
+    const rawStatus = (body.status || body.state || '').toString().toLowerCase();
+    if (rawStatus === 'offline') {
+      liveState.lastHeartbeat = 0;
+      liveState.isOnline = false;
+      liveState._wasOnline = false;
+      nodeTracking.mainNode.online = false;
+      nodeTracking.mainNode.lastSeen = 0;
+      for (const dev of devicesDb.values()) {
+        dev.isOnline = false;
+        dev.status = 'OFFLINE';
+        dev.lastHeartbeat = 0;
+      }
+      saveState();
+      return res.status(200).json({ status: 'success', data: { status: 'OFFLINE', isOnline: false } });
+    }
+
     const rawLevel = body.water_level_pct ?? body.waterLevelPct ?? body.water_level ?? body.waterLevel ?? body.level;
     const rawFlow = body.flow_rate_lpm ?? body.flowRateLpm ?? body.flow_rate ?? body.flowRate;
     const rawTds = body.tds_ppm ?? body.tdsPpm ?? body.tds;
@@ -931,6 +1008,19 @@ module.exports = async (req, res) => {
       liveState.lastHeartbeat = now;
       liveState.lastSeen = now;
       liveState.isOnline = true;
+      nodeTracking.mainNode.lastSeen = now;
+      nodeTracking.mainNode.online = true;
+
+      const subAlive = body.subNodeOnline === true || (body.nodeType === 'SUB_NODE') || (rawLevel !== undefined && rawLevel >= 0);
+      if (subAlive) {
+        nodeTracking.subNode.lastSeen = now;
+        nodeTracking.subNode.online = true;
+      } else if (body.subNodeOnline === false) {
+        nodeTracking.subNode.online = false;
+        nodeTracking.subNode.lastSeen = 0;
+      }
+      nodeTracking.system.online = true;
+
       const devId = (body.deviceId || body.id || body.nodeId || '').trim();
       for (const dev of devicesDb.values()) {
         const isMatch = !devId || devId === 'esp32_pump_000000' || devId === 'esp32_pump_main' ||
@@ -1043,11 +1133,42 @@ module.exports = async (req, res) => {
 module.exports.ingestTelemetry = function(data) {
   if (!data) return;
   const now = Date.now();
+  const rawStatus = (data.status || data.state || '').toString().toLowerCase();
+
+  // If payload signals device is offline (e.g. MQTT LWT)
+  if (rawStatus === 'offline') {
+    liveState.lastHeartbeat = 0;
+    liveState.isOnline = false;
+    liveState._wasOnline = false;
+    nodeTracking.mainNode.online = false;
+    nodeTracking.mainNode.lastSeen = 0;
+    for (const dev of devicesDb.values()) {
+      dev.isOnline = false;
+      dev.status = 'OFFLINE';
+      dev.lastHeartbeat = 0;
+    }
+    return;
+  }
+
   liveState.lastHeartbeat = now;
   liveState.lastSeen = now;
   liveState.isOnline = true;
-  if (data.pumpRunning !== undefined || data.pumpState !== undefined) {
-    const p = String(data.pumpState || data.pumpRunning).toUpperCase();
+  nodeTracking.mainNode.lastSeen = now;
+  nodeTracking.mainNode.online = true;
+
+  const rawLevel = data.water_level_pct ?? data.waterLevelPct ?? data.water_level ?? data.waterLevel ?? data.level;
+  const subAlive = data.subNodeOnline === true || (data.nodeType === 'SUB_NODE') || (rawLevel !== undefined && parseFloat(rawLevel) >= 0);
+  if (subAlive) {
+    nodeTracking.subNode.lastSeen = now;
+    nodeTracking.subNode.online = true;
+  } else if (data.subNodeOnline === false) {
+    nodeTracking.subNode.online = false;
+    nodeTracking.subNode.lastSeen = 0;
+  }
+  nodeTracking.system.online = true;
+
+  if (data.pumpRunning !== undefined || data.pumpState !== undefined || data.pump !== undefined) {
+    const p = String(data.pumpState || data.pumpRunning || data.pump).toUpperCase();
     liveState.pumpRunning = (p === 'ON' || p === 'RUNNING' || p === 'TRUE' || p === '1');
   }
   if (data.mode !== undefined) liveState.mode = String(data.mode).toUpperCase();
@@ -1067,7 +1188,7 @@ module.exports.ingestTelemetry = function(data) {
       dev.lastSeen = new Date().toISOString();
       dev.isOnline = true;
       dev.status = 'ONLINE';
-      if (data.pumpRunning !== undefined || data.pumpState !== undefined) {
+      if (data.pumpRunning !== undefined || data.pumpState !== undefined || data.pump !== undefined) {
         dev.pumpRunning = liveState.pumpRunning;
       }
       if (data.mode !== undefined) dev.mode = liveState.mode;

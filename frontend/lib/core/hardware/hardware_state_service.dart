@@ -118,6 +118,8 @@ class HardwareStateService extends ChangeNotifier {
   int _totalPacketsReceived = 0;
   int _lastCommandRttMs = 0;
   PendingCommand? _lastCommand;
+  Timer? _commandTimeoutTimer;
+  String? _pendingCommandAction;
 
   String _brokerHost = AppConstants.mqttBrokerHost;
   int _brokerPort = AppConstants.mqttBrokerPort;
@@ -578,31 +580,25 @@ class HardwareStateService extends ChangeNotifier {
     }
   }
 
-  // 1. Resilient Physical Hardware Connection State — Dual-Channel (MQTT + Cloud REST) Watchdog Window
-  // The ESP32 publishes heartbeats every ~1s. A 20s window gives 20 missed
-  // packets before going online→stale, and 35s before going stale→offline.
-  // Dual-channel: If phone's MQTT is reconnecting or on cellular data, status stays ONLINE
-  // via Cloud REST verification, eliminating false-offline trips.
+  // 1. Strict Physical Hardware Connection State — 3.5s Heartbeat SLA
+  // The ESP32 publishes heartbeats every 1.0s. If unplugged or powered down,
+  // the app switches to OFFLINE within 3-4 seconds. No cached permanent online status.
   NodeStatus get mainNodeStatus {
     if (_activeDevice == null) return NodeStatus.offline;
 
     final now = DateTime.now();
 
-    // A. Direct verified hardware heartbeat (via MQTT or WebSocket)
+    // A. Direct verified hardware heartbeat (via MQTT)
     if (_lastMainNodeHeartbeat != null) {
       final diffMs = now.difference(_lastMainNodeHeartbeat!).inMilliseconds;
-      if (diffMs <= 20000) return NodeStatus.online;
-      if (diffMs <= 35000) return NodeStatus.stale;
-      if (_isVerifyingStatus && diffMs <= 45000) return NodeStatus.stale;
+      if (diffMs <= 3500) return NodeStatus.online;
+      if (diffMs <= 5000) return NodeStatus.stale;
+      return NodeStatus.offline;
     }
 
-    // B. Cloud Backend Verification Failover (REST Watchdog)
+    // B. Cloud Backend Verification Failover (REST Watchdog within 3.5s)
     if (_lastCloudVerifiedOnline != null &&
-        now.difference(_lastCloudVerifiedOnline!).inMilliseconds <= 25000) {
-      return NodeStatus.online;
-    }
-
-    if (_activeDevice!.status == 'ONLINE' && _isVerifyingStatus) {
+        now.difference(_lastCloudVerifiedOnline!).inMilliseconds <= 4000) {
       return NodeStatus.online;
     }
 
@@ -615,7 +611,7 @@ class HardwareStateService extends ChangeNotifier {
     if (mainNodeStatus == NodeStatus.offline) return NodeStatus.offline;
     if (_lastSubNodePacket == null) return NodeStatus.offline;
     final diffMs = DateTime.now().difference(_lastSubNodePacket!).inMilliseconds;
-    if (diffMs <= 3000) return NodeStatus.online; // Sub-node streams every 150ms
+    if (diffMs <= 3500) return NodeStatus.online;
     if (diffMs <= 5000) return NodeStatus.stale;
     return NodeStatus.offline;
   }
@@ -631,20 +627,10 @@ class HardwareStateService extends ChangeNotifier {
 
   bool get isHardwareOnline {
     if (_activeDevice == null) return false;
-    if (mainNodeStatus == NodeStatus.online) return true;
-    if (_activeDevice!.status == 'ONLINE') return true;
-    final now = DateTime.now();
-    if (_lastMainNodeHeartbeat != null &&
-        now.difference(_lastMainNodeHeartbeat!).inMilliseconds <= 25000) {
-      return true;
-    }
-    if (_lastCloudVerifiedOnline != null &&
-        now.difference(_lastCloudVerifiedOnline!).inMilliseconds <= 25000) {
-      return true;
-    }
-    return false;
+    return mainNodeStatus == NodeStatus.online;
   }
   bool get isSubNodeOnline => subNodeStatus == NodeStatus.online;
+  String? get pendingCommandAction => _pendingCommandAction;
 
   HardwareDiagnostics get diagnostics {
     final now = DateTime.now();
@@ -1371,8 +1357,8 @@ class HardwareStateService extends ChangeNotifier {
   }
 
   void _handleAckMessage(Map<String, dynamic> data) {
-    final cmdId = data['commandId'] ?? data['command_id'];
-    final pumpState = (data['pumpState'] ?? data['pumpStatus'] ?? '').toString().toUpperCase();
+    final cmdId = (data['commandId'] ?? data['command_id'] ?? '').toString();
+    final pumpState = (data['pumpState'] ?? data['pumpStatus'] ?? data['pump'] ?? '').toString().toUpperCase();
     final now = DateTime.now();
 
     if (data.containsKey('emergencyStopped')) {
@@ -1383,11 +1369,22 @@ class HardwareStateService extends ChangeNotifier {
     _lastMainNodeHeartbeat = now;
     _offlineTickCount = 0;
 
-    if (_lastCommand != null && _lastCommand!.commandId == cmdId) {
-      _lastCommand!.state = CommandTransitState.acknowledged;
-      _lastCommandRttMs = now.difference(_lastCommand!.sentAt).inMilliseconds;
-      _lastCommand!.rttMs = _lastCommandRttMs;
-      debugPrint('[Command ACK] Command $cmdId acknowledged! RTT: ${_lastCommandRttMs}ms');
+    // Check if ACK matches our active command
+    if (_lastCommand != null && (cmdId.isEmpty || _lastCommand!.commandId == cmdId)) {
+      _commandTimeoutTimer?.cancel();
+      final isSuccess = (data['status'] == 'success' || data['status'] == 'SUCCESS' || data['success'] == true);
+      if (isSuccess) {
+        _lastCommand!.state = CommandTransitState.acknowledged;
+        _lastCommandRttMs = now.difference(_lastCommand!.sentAt).inMilliseconds;
+        _lastCommand!.rttMs = _lastCommandRttMs;
+        debugPrint('[Command ACK] Command ${_lastCommand!.commandId} confirmed by hardware! RTT: ${_lastCommandRttMs}ms');
+      } else {
+        _lastCommand!.state = CommandTransitState.failed;
+        final errMsg = data['message'] ?? data['error'] ?? 'Hardware rejected command';
+        debugPrint('[Command ACK] Command ${_lastCommand!.commandId} rejected: $errMsg');
+        addLiveAlert('Command Blocked', errMsg.toString(), 'error', level: AlertLevel.warning);
+      }
+      _pendingCommandAction = null;
     }
 
     if (pumpState.isNotEmpty && _activeDevice != null) {
@@ -1413,6 +1410,9 @@ class HardwareStateService extends ChangeNotifier {
         safetyStatus: _pumpStatus?.safetyStatus ?? 'NORMAL',
         timestamp: now,
       );
+
+      SharedPreferences.getInstance().then((p) => p.setString('saved_last_pump_state', stateStr));
+      _persistActiveDevice();
     }
 
     notifyListeners();
@@ -1569,14 +1569,17 @@ class HardwareStateService extends ChangeNotifier {
       return;
     }
 
+    if (!isHardwareOnline) {
+      addLiveAlert('Control Locked', 'ESP32 hardware is offline. Ensure device is powered on.', 'error', level: AlertLevel.danger);
+      notifyListeners();
+      return;
+    }
+
     final isTurningOn = (normCmd == 'START_PUMP' || normCmd == 'PUMP_ON' || normCmd == 'ON');
     final newState = isTurningOn ? 'ON' : 'OFF';
+    _pendingCommandAction = newState;
 
-    // Instant actuation lock: 400ms window to absorb broker propagation and prevent jitter
-    _expectedPumpState = newState;
-    _pumpCommandLockUntil = DateTime.now().add(const Duration(milliseconds: 400));
-
-    final cmdId = 'cmd_${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+    final cmdId = 'cmd_${DateTime.now().millisecondsSinceEpoch}_${(DateTime.now().microsecond % 1000)}';
     _lastCommand = PendingCommand(
       commandId: cmdId,
       command: command,
@@ -1584,67 +1587,46 @@ class HardwareStateService extends ChangeNotifier {
       state: CommandTransitState.sending,
     );
 
-    mqttService.publishCommand(
-      'user_app',
-      _activeDevice!.id,
-      command,
-      params ?? {},
-    );
-
-    // Fast Dual-Channel REST sync to immediately update backend liveState (under 20ms)
-    final devId = _activeDevice!.id;
-    apiClient.post('/command', data: {
-      'command': command,
-      'action': command,
-      'deviceId': devId,
-      'parameters': params ?? {},
-    }).ignore();
-
-    apiClient.post('/telemetry', data: {
-      'pumpRunning': isTurningOn,
-      'pump_running': isTurningOn,
-      'pumpState': newState,
-      'pump_state': newState,
-      'mode': _activeDevice!.mode,
-      'deviceId': devId,
-    }).ignore();
-
-    _pumpStatus = PumpStatusModel(
-      state: newState,
-      mode: _activeDevice!.mode,
-      runningDurationSeconds: isTurningOn ? (_pumpStatus?.runningDurationSeconds ?? 0) : 0,
-      safetyStatus: 'NORMAL',
-      timestamp: DateTime.now(),
-    );
-
-    _activeDevice = DeviceModel(
-      id: _activeDevice!.id,
-      name: _activeDevice!.name,
-      macAddress: _activeDevice!.macAddress,
-      status: _activeDevice!.status,
-      pumpState: newState,
-      mode: _activeDevice!.mode,
-      wifiRssi: _activeDevice!.wifiRssi,
-      firmwareVersion: _activeDevice!.firmwareVersion,
-      lastSeen: _activeDevice!.lastSeen,
-    );
-
-    if (newState == 'ON') {
-      _pumpCycleCount++;
-    }
-
-    // Persist motor state memory
-    SharedPreferences.getInstance().then((p) => p.setString('saved_last_pump_state', newState));
-
-    _persistActiveDevice();
-
-    Timer(const Duration(milliseconds: 180), () {
-      if (_lastCommand?.commandId == cmdId) {
-        _lastCommand?.state = CommandTransitState.idle;
+    // Cancel any previous timeout timer and arm a strict 5000ms command timeout
+    _commandTimeoutTimer?.cancel();
+    _commandTimeoutTimer = Timer(const Duration(milliseconds: 5000), () {
+      if (_lastCommand?.commandId == cmdId && _lastCommand?.state == CommandTransitState.sending) {
+        _lastCommand?.state = CommandTransitState.failed;
+        _pendingCommandAction = null;
+        debugPrint('[HardwareStateService] ⚠️ Command $command ($cmdId) timed out after 5000ms with no hardware ACK.');
+        addLiveAlert('Command Timeout', 'ESP32 hardware did not confirm $command within 5 seconds.', 'error', level: AlertLevel.warning);
         notifyListeners();
       }
     });
 
+    // Send via MQTT with command_id and action
+    final cmdPayload = {
+      'command_id': cmdId,
+      'commandId': cmdId,
+      'action': isTurningOn ? 'START' : 'STOP',
+      'command': command,
+      ...?params,
+    };
+    mqttService.publishCommand(
+      'user_app',
+      _activeDevice!.id,
+      command,
+      cmdPayload,
+    );
+
+    // Fast Dual-Channel REST sync
+    final devId = _activeDevice!.id;
+    apiClient.post('/command', data: {
+      'command': command,
+      'action': isTurningOn ? 'START' : 'STOP',
+      'command_id': cmdId,
+      'commandId': cmdId,
+      'deviceId': devId,
+      'parameters': cmdPayload,
+    }).ignore();
+
+    // NOTICE: Do NOT optimistically update _activeDevice!.pumpState or _pumpStatus!
+    // Hardware reports actual hardware state upon ACK or heartbeat.
     notifyListeners();
   }
 

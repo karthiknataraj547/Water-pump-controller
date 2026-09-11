@@ -1850,34 +1850,43 @@ document.addEventListener('DOMContentLoaded', () => {
     }).catch(() => null);
   }
 
-  function setMotorRunning(active, shouldPublish = true) {
-    if (active && isEmergencyStopActive) {
-      alert('⚠️ Emergency Stop is active. Reset Emergency Stop first before operating pump.');
-      return;
+  let pendingCommandAction = null;
+  let commandTimeoutTimer = null;
+  const COMMAND_TIMEOUT = 5000;
+
+  function setMotorRunningUI(active) {
+    if (commandTimeoutTimer) {
+      clearTimeout(commandTimeoutTimer);
+      commandTimeoutTimer = null;
     }
-    if (shouldPublish && !isHardwareOnline) {
-      alert('⚠️ Hardware is Offline. Ensure ESP32 is powered on and connected before operating pump.');
-      return;
-    }
-    if (shouldPublish && active && controlMode === 'AUTO' && !isSubNodeOnline) {
-      alert('⚠️ Tank sensor (sub-node) is disconnected! In AUTO mode the motor cannot run for safety.');
-      return;
-    }
-    if (isPumpRunning === active && !shouldPublish) return;
+    pendingCommandAction = null;
     const wasRunning = isPumpRunning;
     isPumpRunning = active;
-    if (shouldPublish) {
-      lastMqttCommandTimestamp = Date.now();
+
+    if (btnPumpToggle) {
+      btnPumpToggle.classList.remove('command-sending');
+      if (active) {
+        btnPumpToggle.classList.add('active-running');
+        if (txtPumpLabel) txtPumpLabel.textContent = 'STOP MOTOR';
+        if (txtPumpSub) txtPumpSub.textContent = 'Relay: GPIO 23 (Active Inflow)';
+      } else {
+        btnPumpToggle.classList.remove('active-running');
+        if (txtPumpLabel) txtPumpLabel.textContent = 'START MOTOR';
+        if (txtPumpSub) txtPumpSub.textContent = 'Relay: GPIO 23 (Standby)';
+      }
+      if (!isHardwareOnline || isEmergencyStopActive) {
+        btnPumpToggle.classList.add('control-disabled');
+        btnPumpToggle.style.opacity = '0.5';
+        btnPumpToggle.style.pointerEvents = 'none';
+      } else {
+        btnPumpToggle.classList.remove('control-disabled');
+        btnPumpToggle.style.opacity = '1';
+        btnPumpToggle.style.pointerEvents = 'auto';
+      }
     }
 
     if (active) {
       if (!wasRunning) dailyCycles++;
-      if (btnPumpToggle) {
-        btnPumpToggle.classList.add('active-running');
-        if (txtPumpLabel) txtPumpLabel.textContent = 'STOP MOTOR';
-        if (txtPumpSub) txtPumpSub.textContent = 'Relay: GPIO 23 (Active Inflow)';
-      }
-
       if (!runTimer) {
         runTimer = setInterval(() => {
           runSeconds++;
@@ -1888,12 +1897,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1000);
       }
     } else {
-      if (btnPumpToggle) {
-        btnPumpToggle.classList.remove('active-running');
-        if (txtPumpLabel) txtPumpLabel.textContent = 'START MOTOR';
-        if (txtPumpSub) txtPumpSub.textContent = 'Relay: GPIO 23 (Standby)';
-      }
-
       if (runTimer) {
         clearInterval(runTimer);
         runTimer = null;
@@ -1901,89 +1904,99 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     updateMetrics();
+  }
 
-    // Publish to MQTT broker and post to Backend API when triggered by user
-    if (shouldPublish) {
-      const activeDevId = (userDevices && userDevices.length > 0) ? (userDevices[0].id || userDevices[0].nodeId || userDevices[0].deviceId) : 'esp32_pump_main';
-      const cmd = active ? 'START_PUMP' : 'STOP_PUMP';
+  async function setPump(targetState) {
+    if (!isHardwareOnline) {
+      alert('⚠️ Hardware is Offline. Ensure ESP32 is powered on and connected before operating pump.');
+      return;
+    }
+    if (targetState && isEmergencyStopActive) {
+      alert('⚠️ Emergency Stop is active. Reset Emergency Stop first before operating pump.');
+      return;
+    }
+    if (targetState && controlMode === 'AUTO' && !isSubNodeOnline) {
+      alert('⚠️ Tank sensor (sub-node) is disconnected! In AUTO mode the motor cannot run for safety.');
+      return;
+    }
 
-      // 1. MQTT Publish to all topics matching Mobile App & Hardware (Instant QoS 0)
-      if (mqttClient && mqttClient.connected) {
-        const payload = JSON.stringify({
-          action: cmd,
-          command: cmd,
-          commandId: `cmd_web_${Date.now()}`,
-          command_id: `cmd_web_${Date.now()}`,
-          pumpState: active ? 'ON' : 'OFF',
-          pump_state: active ? 'ON' : 'OFF',
-          state: active ? 'ON' : 'OFF',
-          status: active ? 'RUNNING' : 'STOPPED',
-          parameters: {},
-          issued_by: currentUser ? currentUser.id : 'web_console',
-          deviceId: activeDevId,
-          timestamp: Math.floor(Date.now() / 1000)
-        });
+    // Set transit loading state - DO NOT optimistically flip pump state!
+    pendingCommandAction = targetState ? 'ON' : 'OFF';
+    if (btnPumpToggle) {
+      btnPumpToggle.classList.add('command-sending');
+      btnPumpToggle.style.pointerEvents = 'none';
+      if (txtPumpLabel) txtPumpLabel.textContent = targetState ? 'STARTING...' : 'STOPPING...';
+      if (txtPumpSub) txtPumpSub.textContent = 'Awaiting hardware ACK (5s max)...';
+    }
 
-        // Fast broadcast to all listening targets
-        mqttClient.publish('pump/command', payload, { qos: 0 });
-        mqttClient.publish(`pump/${activeDevId}/command`, payload, { qos: 0 });
-        mqttClient.publish('pump/esp32_pump_AA69E0/command', payload, { qos: 0 });
-        mqttClient.publish(`pump/${currentUser ? currentUser.id : 'user'}/${activeDevId}/command`, payload, { qos: 0 });
-        mqttClient.publish(`devices/${activeDevId}/command`, payload, { qos: 0 });
-        mqttClient.publish('waterpump/esp32/control', payload, { qos: 0 });
-
-        // Zero-overhead raw plaintext dispatch for microsecond ESP32 execution
-        const rawAction = active ? 'START' : 'STOP';
-        mqttClient.publish(`pump/${activeDevId}/command`, rawAction, { qos: 0 });
-        mqttClient.publish('pump/esp32_pump_AA69E0/command', rawAction, { qos: 0 });
-        mqttClient.publish('pump/command', rawAction, { qos: 0 });
+    if (commandTimeoutTimer) clearTimeout(commandTimeoutTimer);
+    commandTimeoutTimer = setTimeout(() => {
+      if (pendingCommandAction !== null) {
+        console.warn('[Command Timeout] ESP32 hardware did not ACK within 5s');
+        pendingCommandAction = null;
+        if (btnPumpToggle) {
+          btnPumpToggle.classList.remove('command-sending');
+          btnPumpToggle.style.pointerEvents = isHardwareOnline ? 'auto' : 'none';
+          if (txtPumpLabel) txtPumpLabel.textContent = isPumpRunning ? 'STOP MOTOR' : 'START MOTOR';
+          if (txtPumpSub) txtPumpSub.textContent = isPumpRunning ? 'Relay: GPIO 23 (Active)' : 'Relay: GPIO 23 (Standby)';
+        }
+        alert('⚠️ Command Timeout: ESP32 hardware did not confirm pump actuation within 5 seconds.');
       }
+    }, COMMAND_TIMEOUT);
 
-      // 2. Backend REST Command
-      fetch(`${apiBaseUrl}/command`, {
+    const activeDevId = (userDevices && userDevices.length > 0) ? (userDevices[0].id || userDevices[0].nodeId || userDevices[0].deviceId) : 'esp32_pump_main';
+    const cmd = targetState ? 'START_PUMP' : 'STOP_PUMP';
+    const cmdId = `cmd_web_${Date.now()}`;
+    const actionStr = targetState ? 'START' : 'STOP';
+
+    // 1. MQTT Publish with command_id and action
+    if (mqttClient && mqttClient.connected) {
+      const payload = JSON.stringify({
+        command_id: cmdId,
+        commandId: cmdId,
+        action: actionStr,
+        command: cmd,
+        deviceId: activeDevId,
+        timestamp: Math.floor(Date.now() / 1000)
+      });
+      mqttClient.publish('pump/command', payload, { qos: 0 });
+      mqttClient.publish(`pump/${activeDevId}/command`, payload, { qos: 0 });
+      mqttClient.publish('pump/esp32_pump_AA69E0/command', payload, { qos: 0 });
+      mqttClient.publish(`devices/${activeDevId}/command`, payload, { qos: 0 });
+
+      // Raw plaintext action
+      mqttClient.publish(`pump/${activeDevId}/command`, actionStr, { qos: 0 });
+      mqttClient.publish('pump/command', actionStr, { qos: 0 });
+    }
+
+    // 2. Dual-channel REST with 5s AbortController
+    const controller = new AbortController();
+    const fetchTimer = setTimeout(() => controller.abort(), COMMAND_TIMEOUT);
+    try {
+      await fetch(`${apiBaseUrl}/command`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${authToken}`
         },
-        body: JSON.stringify({ command: cmd, action: cmd, parameters: {}, deviceId: activeDevId })
-      }).catch(() => null);
+        body: JSON.stringify({ command: cmd, action: actionStr, command_id: cmdId, commandId: cmdId, deviceId: activeDevId }),
+        signal: controller.signal
+      });
+    } catch (_) {} finally {
+      clearTimeout(fetchTimer);
+    }
+  }
 
-      fetch(`${apiBaseUrl}/pumps/${activeDevId}/command`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        },
-        body: JSON.stringify({ command: cmd, action: cmd })
-      }).catch(() => null);
-
-      // Ingest live telemetry update to serverless backend
-      fetch(`${apiBaseUrl}/telemetry`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        },
-        body: JSON.stringify({
-          pumpRunning: active,
-          pump_running: active,
-          pumpState: active ? 'ON' : 'OFF',
-          pump_state: active ? 'ON' : 'OFF',
-          waterLevelPct: waterLevel,
-          water_level_pct: waterLevel,
-          flowRateLpm: active ? (liveFlowRate || 18.5) : 0.0,
-          flow_rate_lpm: active ? (liveFlowRate || 18.5) : 0.0,
-          powerKw: active ? (livePowerKw || 1.45) : 0.0,
-          power_kw: active ? (livePowerKw || 1.45) : 0.0,
-          mode: controlMode
-        })
-      }).catch(() => null);
+  function setMotorRunning(active, shouldPublish = true) {
+    if (shouldPublish) {
+      setPump(active);
+    } else {
+      setMotorRunningUI(active);
     }
   }
 
   if (btnPumpToggle) {
-    btnPumpToggle.addEventListener('click', () => setMotorRunning(!isPumpRunning, true));
+    btnPumpToggle.addEventListener('click', () => setPump(!isPumpRunning));
   }
   if (btnEmergencyStop) {
     btnEmergencyStop.addEventListener('click', handleEmergencyStopClick);
@@ -2293,14 +2306,14 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchLive();
     restPollInterval = setInterval(fetchLive, 2500);
 
-    // Strict Hardware Watchdog (6000ms window, checking every 1000ms)
+    // Strict Hardware Watchdog (3000ms SLA, checking every 500ms)
     setInterval(() => {
       if (isHardwareOnline && userDevices && userDevices.length > 0) {
-        if (Date.now() - lastHardwareHeartbeat > 6000) {
+        if (Date.now() - lastHardwareHeartbeat > 3000) {
           updateHardwareStatusBadge(false);
         }
       }
-    }, 1000);
+    }, 500);
   }
 
   resizeTankCanvas();

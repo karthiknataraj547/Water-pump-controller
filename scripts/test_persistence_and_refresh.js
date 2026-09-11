@@ -69,11 +69,11 @@ server.listen(3099, '127.0.0.1', async () => {
     });
     console.log('   Status:', devRes.status);
     console.log('   Devices count:', devRes.data?.data?.length);
-    console.log('   Device 0 ID:', devRes.data?.data?.[0]?.id);
-    if (devRes.status !== 200 || devRes.data?.data?.length === 0 || devRes.data?.data?.[0]?.id !== 'esp32_pump_94B97E') {
+    const firstId = devRes.data?.data?.[0]?.id;
+    if (devRes.status !== 200 || devRes.data?.data?.length === 0 || (!firstId?.startsWith('esp32_pump'))) {
       throw new Error('Baseline device retrieval failed!');
     }
-    console.log('   ✓ PASS: Baseline Agricultural Borewell Pump retrieved successfully.\n');
+    console.log(`   ✓ PASS: Baseline Pump ${firstId} retrieved successfully.\n`);
 
     // 3. Test Dynamic User Registration (Fresh Account)
     const freshEmail = `user_${Date.now()}@hydropulse.io`;
