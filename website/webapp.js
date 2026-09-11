@@ -964,8 +964,13 @@ document.addEventListener('DOMContentLoaded', () => {
   let isSubNodeOnline = false;
   let lastHardwareHeartbeat = 0;
   let lastMqttCommandTimestamp = 0;
-  let controlMode = 'AUTO';
-  let previousControlMode = 'AUTO';
+  let savedModeInit = 'AUTO';
+  try {
+    const s = localStorage.getItem('saved_last_mode');
+    if (s === 'MANUAL' || s === 'AUTO') savedModeInit = s;
+  } catch (_) {}
+  let controlMode = savedModeInit;
+  let previousControlMode = savedModeInit;
   let isEmergencyStopActive = false;
   let runSeconds = 0;
   let runTimer = null;
@@ -1734,11 +1739,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (cyclesEl) cyclesEl.textContent = dailyCycles;
   }
 
+  let modeLockUntil = 0;
+
   function setControlMode(mode, shouldPublish = true) {
     if (!isEmergencyStopActive && mode !== controlMode) {
       previousControlMode = controlMode;
     }
     controlMode = mode === 'MANUAL' ? 'MANUAL' : 'AUTO';
+    try {
+      localStorage.setItem('saved_last_mode', controlMode);
+    } catch (_) {}
+
     if (btnModeAuto && btnModeManual) {
       if (controlMode === 'AUTO') {
         btnModeAuto.classList.add('active');
@@ -1750,6 +1761,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (shouldPublish) {
+      modeLockUntil = Date.now() + 5000;
       const activeDevId = userDevices.length > 0 ? (userDevices[0].id || userDevices[0].nodeId) : 'esp32_pump_main';
       if (mqttClient && mqttClient.connected) {
         const payload = JSON.stringify({
@@ -1762,6 +1774,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         mqttClient.publish('pump/command', payload, { qos: 0 });
         mqttClient.publish(`pump/${activeDevId}/command`, payload, { qos: 0 });
+        mqttClient.publish('pump/esp32_pump_AA69E0/command', payload, { qos: 0 });
+
+        // Zero-overhead raw plaintext dispatch for microsecond ESP32 execution
+        mqttClient.publish('pump/command', controlMode, { qos: 0 });
+        mqttClient.publish(`pump/${activeDevId}/command`, controlMode, { qos: 0 });
+        mqttClient.publish('pump/esp32_pump_AA69E0/command', controlMode, { qos: 0 });
       }
 
       fetch(`${apiBaseUrl}/command`, {
@@ -1770,13 +1788,15 @@ document.addEventListener('DOMContentLoaded', () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${authToken}`
         },
-        body: JSON.stringify({ command: 'SET_MODE', parameters: { mode: controlMode } })
+        body: JSON.stringify({ command: 'SET_MODE', action: 'SET_MODE', mode: controlMode, parameters: { mode: controlMode } })
       }).catch(() => null);
     }
   }
 
   if (btnModeAuto) btnModeAuto.addEventListener('click', () => setControlMode('AUTO', true));
   if (btnModeManual) btnModeManual.addEventListener('click', () => setControlMode('MANUAL', true));
+  // Apply saved mode to UI
+  setControlMode(controlMode, false);
 
   // ==============================================================================
   // 6. Two-Way Live MQTT & Backend Synchronization with Mobile App
@@ -2105,7 +2125,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
           // 3. Operational Mode Sync
           if (data.mode) {
-            setControlMode(data.mode, false);
+            const incMode = String(data.mode).toUpperCase();
+            if (Date.now() > modeLockUntil) {
+              setControlMode(incMode, false);
+            }
           }
 
           // 3b. Sub-Node Status Sync
@@ -2227,7 +2250,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
               }
             }
-            if (d.mode && d.mode !== controlMode) {
+            if (d.mode && d.mode !== controlMode && Date.now() > modeLockUntil) {
               setControlMode(d.mode, false);
             }
             if (d.subNodeOnline !== undefined) {

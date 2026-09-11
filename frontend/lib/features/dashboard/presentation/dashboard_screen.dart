@@ -240,9 +240,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                         if (device.mode.toUpperCase() == 'AUTO' && hardwareStateService.subNodeStatus == NodeStatus.offline) {
                           ScaffoldMessenger.of(context).clearSnackBars();
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('⚠️ Tank sensor disconnected • Motor locked in AUTO mode for safety.'),
+                            SnackBar(
+                              content: const Text('⚠️ Tank sensor disconnected • Motor locked in AUTO mode for safety.'),
                               backgroundColor: AppTheme.warning,
+                              action: SnackBarAction(
+                                label: 'Switch to Manual',
+                                textColor: Colors.white,
+                                onPressed: () {
+                                  hardwareStateService.setMode('MANUAL');
+                                },
+                              ),
                             ),
                           );
                           return;

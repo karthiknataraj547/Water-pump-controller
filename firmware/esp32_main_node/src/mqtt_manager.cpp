@@ -255,11 +255,20 @@ void MqttManager::onMessageReceived(char* topic, byte* payload, unsigned int len
       mqttMgr.publishAck(cmdId, "SUCCESS", "Emergency stop triggered.", execMs);
       mqttMgr.publishStatus(pumpCtrl.isRunning() ? "ON" : "OFF", autoEngine.getModeString(), pumpCtrl.getRunDurationSec(), "EMERGENCY_STOP");
     } else if (cmd == "SET_MODE") {
-      String mode = doc["parameters"]["mode"] | "AUTO";
-      autoEngine.setMode(mode == "MANUAL" ? MODE_MANUAL : MODE_AUTO);
-      uint32_t execMs = millis() - startT;
-      mqttMgr.publishAck(cmdId, "SUCCESS", "Mode updated to " + mode, execMs);
-      mqttMgr.publishStatus(pumpCtrl.isRunning() ? "ON" : "OFF", autoEngine.getModeString(), pumpCtrl.getRunDurationSec(), "NORMAL");
+      String mode = "";
+      if (doc.containsKey("mode") && !doc["mode"].isNull()) {
+        mode = doc["mode"].as<String>();
+      } else if (doc.containsKey("parameters") && doc["parameters"].containsKey("mode") && !doc["parameters"]["mode"].isNull()) {
+        mode = doc["parameters"]["mode"].as<String>();
+      }
+      mode.trim();
+      mode.toUpperCase();
+      if (mode.length() > 0) {
+        autoEngine.setMode(mode == "MANUAL" ? MODE_MANUAL : MODE_AUTO);
+        uint32_t execMs = millis() - startT;
+        mqttMgr.publishAck(cmdId, "SUCCESS", "Mode updated to " + mode, execMs);
+        mqttMgr.publishStatus(pumpCtrl.isRunning() ? "ON" : "OFF", autoEngine.getModeString(), pumpCtrl.getRunDurationSec(), "NORMAL");
+      }
     } else if (cmd == "SET_RULES" || cmd == "SET_CONFIG") {
       JsonObject p = doc["parameters"].as<JsonObject>();
       if (p.containsKey("autoStartLevel")) autoEngine.setAutoStartLevel(p["autoStartLevel"].as<float>());

@@ -93,7 +93,7 @@ def handle_command(client, data):
         running_duration_sec = 0
         ack = {"command_id": cmd_id, "device_id": DEVICE_ID, "status": "SUCCESS", "message": "🚨 EMERGENCY HARD SHUTDOWN EXECUTED. Relay locked.", "execution_time_ms": 12, "timestamp": int(time.time())}
     elif cmd == "SET_MODE":
-        new_mode = data.get("parameters", {}).get("mode", "AUTO")
+        new_mode = data.get("mode") or data.get("parameters", {}).get("mode", "AUTO")
         state["mode"] = new_mode
         ack = {"command_id": cmd_id, "device_id": DEVICE_ID, "status": "SUCCESS", "message": f"Mode changed to {new_mode}.", "execution_time_ms": 20, "timestamp": int(time.time())}
     elif cmd == "RESTART_DEVICE":

@@ -843,8 +843,11 @@ module.exports = async (req, res) => {
       liveState.pumpRunning = false;
       liveState.flowRateLpm = 0.0;
       liveState.powerKw = 0.00;
-    } else if (cmd === 'SET_MODE' && parameters && parameters.mode) {
-      liveState.mode = parameters.mode.toUpperCase();
+    } else if (cmd === 'SET_MODE' || body.mode || (parameters && parameters.mode)) {
+      const newMode = (parameters.mode || body.mode || '').toUpperCase();
+      if (newMode === 'MANUAL' || newMode === 'AUTO') {
+        liveState.mode = newMode;
+      }
     }
     // Sync state across all registered devices (does not alter online verification)
     for (const dev of devicesDb.values()) {

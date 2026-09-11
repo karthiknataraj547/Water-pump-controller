@@ -19,11 +19,23 @@ class _PumpControlScreenState extends ConsumerState<PumpControlScreen> {
   double _autoStartLevel = 30.0;
   double _autoStopLevel = 90.0;
 
+  @override
+  void initState() {
+    super.initState();
+    final dev = hardwareStateService.activeDevice;
+    _isPumpRunning = dev?.isPumpRunning ?? false;
+    _isAutoMode = (dev?.mode ?? 'AUTO').toUpperCase() != 'MANUAL';
+  }
+
   Future<void> _loadPumpData() async {
     setState(() => _isLoading = true);
-    // Add logic to fetch initial state
-    await Future.delayed(const Duration(milliseconds: 500));
-    setState(() => _isLoading = false);
+    final dev = hardwareStateService.activeDevice;
+    if (dev != null) {
+      _isPumpRunning = dev.isPumpRunning;
+      _isAutoMode = dev.mode.toUpperCase() != 'MANUAL';
+    }
+    await Future.delayed(const Duration(milliseconds: 200));
+    if (mounted) setState(() => _isLoading = false);
   }
 
   Future<void> _sendCommand(String command, {Map<String, dynamic>? params}) async {
@@ -56,6 +68,12 @@ class _PumpControlScreenState extends ConsumerState<PumpControlScreen> {
       if (command == 'PUMP_OFF' || command == 'EMERGENCY_STOP') _isPumpRunning = false;
       if (command == 'SET_MODE') _isAutoMode = (params?['mode'] == 'AUTO');
     });
+
+    if (command == 'SET_MODE') {
+      final newMode = (params?['mode'] ?? 'AUTO').toString().toUpperCase();
+      hardwareStateService.setMode(newMode);
+      return;
+    }
 
     // 2. Immediate direct hardware dispatch via MQTT (< 5ms)
     hardwareStateService.sendPumpCommand(command, params: params);
@@ -90,6 +108,11 @@ class _PumpControlScreenState extends ConsumerState<PumpControlScreen> {
   @override
   Widget build(BuildContext context) {
     final isOnline = hardwareStateService.isHardwareOnline;
+    final activeDevice = hardwareStateService.activeDevice;
+    if (activeDevice != null) {
+      _isAutoMode = activeDevice.mode.toUpperCase() != 'MANUAL';
+      _isPumpRunning = (hardwareStateService.pumpStatus?.isRunning ?? false) || activeDevice.isPumpRunning;
+    }
     return Scaffold(
       appBar: AppBar(
         title: const Text('Pump Control Center', style: TextStyle(fontWeight: FontWeight.bold)),

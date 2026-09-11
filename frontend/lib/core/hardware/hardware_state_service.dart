@@ -368,7 +368,19 @@ class HardwareStateService extends ChangeNotifier {
             final devMac = (target['macAddress'] ?? target['mac'] ?? '24:6F:28:94:B9:7E').toString();
             final rawPump = (target['pumpState'] ?? target['pump_state'] ?? 'OFF').toString().toUpperCase();
             final pumpNorm = (rawPump == 'ON' || rawPump == 'RUNNING' || rawPump == '1') ? 'ON' : 'OFF';
-            final devMode = (target['mode'] ?? 'AUTO').toString().toUpperCase();
+            final rawMode = (target['mode'] ?? 'AUTO').toString().toUpperCase();
+            final prefs = await SharedPreferences.getInstance();
+            final savedLastMode = prefs.getString('saved_last_mode');
+
+            // Anti-flapping: preserve manual mode if locked, saved locally, or already active
+            String devMode = rawMode;
+            if (_modeCommandLockUntil != null && DateTime.now().isBefore(_modeCommandLockUntil!)) {
+              devMode = _expectedMode ?? _activeDevice?.mode ?? rawMode;
+            } else if (savedLastMode != null && savedLastMode.isNotEmpty) {
+              devMode = savedLastMode;
+            } else if (_activeDevice != null && _activeDevice!.mode.isNotEmpty) {
+              devMode = _activeDevice!.mode;
+            }
             final fwVer = (target['firmwareVersion'] ?? target['firmware_version'] ?? 'v2.0.2').toString();
             final rssi = target['wifiRssi'] ?? target['wifi_rssi'] ?? -65;
 
@@ -400,7 +412,6 @@ class HardwareStateService extends ChangeNotifier {
               _lastMainNodeHeartbeat = DateTime.now();
             }
 
-            final prefs = await SharedPreferences.getInstance();
             await prefs.setString('saved_paired_device', jsonEncode(_activeDevice!.toJson()));
             await prefs.setString('saved_paired_device_owner_email', cleanEmail);
             await storage.write(key: AppConstants.keySelectedDeviceId, value: devId);
@@ -1552,6 +1563,12 @@ class HardwareStateService extends ChangeNotifier {
     if (_activeDevice == null) return;
 
     final normCmd = command.toUpperCase();
+    if (normCmd == 'SET_MODE') {
+      final modeStr = (params?['mode'] ?? 'AUTO').toString().toUpperCase();
+      setMode(modeStr);
+      return;
+    }
+
     final isTurningOn = (normCmd == 'START_PUMP' || normCmd == 'PUMP_ON' || normCmd == 'ON');
     final newState = isTurningOn ? 'ON' : 'OFF';
 
@@ -1738,10 +1755,10 @@ class HardwareStateService extends ChangeNotifier {
     final normalizedMode = mode.toUpperCase();
     _previousMode = _activeDevice!.mode;
 
-    // 3000ms optimistic mode lock — prevents in-flight status packets from flapping mode.
+    // 5000ms optimistic mode lock — prevents in-flight status packets from flapping mode.
     // Clears immediately upon matching hardware state ACK/echo.
     _expectedMode = normalizedMode;
-    _modeCommandLockUntil = DateTime.now().add(const Duration(milliseconds: 3000));
+    _modeCommandLockUntil = DateTime.now().add(const Duration(milliseconds: 5000));
     SharedPreferences.getInstance().then((p) => p.setString('saved_last_mode', normalizedMode));
 
     _activeDevice = DeviceModel(

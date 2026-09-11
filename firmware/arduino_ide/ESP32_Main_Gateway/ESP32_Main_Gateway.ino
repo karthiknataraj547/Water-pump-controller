@@ -522,15 +522,35 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   // Fast Path 1: Plaintext commands (Zero serialization overhead)
   String cleanMsg = message;
   cleanMsg.trim();
-  if (cleanMsg.equalsIgnoreCase("START") || cleanMsg.equalsIgnoreCase("ON") || cleanMsg.equalsIgnoreCase("START_PUMP")) {
+  if (cleanMsg.equalsIgnoreCase("START") || cleanMsg.equalsIgnoreCase("ON") || 
+      cleanMsg.equalsIgnoreCase("START_PUMP") || cleanMsg.equalsIgnoreCase("PUMP_ON")) {
     setPumpState(true, "MQTT Direct Plaintext Start");
     publishFastAckAndStatus("cmd_fast_raw", "MQTT Remote Start");
     hasPendingPumpCommand = false;
     return;
-  } else if (cleanMsg.equalsIgnoreCase("STOP") || cleanMsg.equalsIgnoreCase("OFF") || cleanMsg.equalsIgnoreCase("STOP_PUMP")) {
+  } else if (cleanMsg.equalsIgnoreCase("STOP") || cleanMsg.equalsIgnoreCase("OFF") || 
+             cleanMsg.equalsIgnoreCase("STOP_PUMP") || cleanMsg.equalsIgnoreCase("PUMP_OFF")) {
     setPumpState(false, "MQTT Direct Plaintext Stop");
     publishFastAckAndStatus("cmd_fast_raw", "MQTT Remote Stop");
     hasPendingPumpCommand = false;
+    return;
+  } else if (cleanMsg.equalsIgnoreCase("MANUAL") || cleanMsg.equalsIgnoreCase("MODE:MANUAL") || 
+             cleanMsg.equalsIgnoreCase("MODE_MANUAL") || cleanMsg.equalsIgnoreCase("SET_MODE_MANUAL")) {
+    systemMode = "MANUAL";
+    prefs.begin(NVS_NAMESPACE, false);
+    prefs.putString("sys_mode", systemMode);
+    prefs.end();
+    Serial.println("[MQTT Fast Path] System Mode changed and stored in NVS: MANUAL");
+    publishFastAckAndStatus("cmd_fast_raw", "Mode Switch to MANUAL");
+    return;
+  } else if (cleanMsg.equalsIgnoreCase("AUTO") || cleanMsg.equalsIgnoreCase("MODE:AUTO") || 
+             cleanMsg.equalsIgnoreCase("MODE_AUTO") || cleanMsg.equalsIgnoreCase("SET_MODE_AUTO")) {
+    systemMode = "AUTO";
+    prefs.begin(NVS_NAMESPACE, false);
+    prefs.putString("sys_mode", systemMode);
+    prefs.end();
+    Serial.println("[MQTT Fast Path] System Mode changed and stored in NVS: AUTO");
+    publishFastAckAndStatus("cmd_fast_raw", "Mode Switch to AUTO");
     return;
   }
 
@@ -568,14 +588,28 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       publishFastAckAndStatus(cmdId, "MQTT Remote Stop");
       hasPendingPumpCommand = false;
     } else if (strcasecmp(action, "SET_MODE") == 0) {
-      const char* m = doc["mode"] | doc["parameters"]["mode"] | "AUTO";
-      systemMode = String(m);
-      systemMode.toUpperCase();
-      Serial.printf("[SYSTEM] Mode changed to: %s\n", systemMode.c_str());
-      prefs.begin(NVS_NAMESPACE, false);
-      prefs.putString("sys_mode", systemMode);
-      prefs.end();
-      publishFastAckAndStatus(cmdId, "Mode Switch");
+      String m = "";
+      if (doc.containsKey("mode") && !doc["mode"].isNull()) {
+        m = doc["mode"].as<String>();
+      } else if (doc.containsKey("parameters") && doc["parameters"].containsKey("mode") && !doc["parameters"]["mode"].isNull()) {
+        m = doc["parameters"]["mode"].as<String>();
+      } else if (doc.containsKey("state") && !doc["state"].isNull()) {
+        m = doc["state"].as<String>();
+      }
+      m.trim();
+      m.toUpperCase();
+      if (m.length() > 0) {
+        if (m.indexOf("MANUAL") >= 0) {
+          systemMode = "MANUAL";
+        } else if (m.indexOf("AUTO") >= 0) {
+          systemMode = "AUTO";
+        }
+        Serial.printf("[SYSTEM] Mode changed to: %s and saved to NVS\n", systemMode.c_str());
+        prefs.begin(NVS_NAMESPACE, false);
+        prefs.putString("sys_mode", systemMode);
+        prefs.end();
+        publishFastAckAndStatus(cmdId, "Mode Switch");
+      }
     } else if (strcasecmp(action, "SET_RULES") == 0) {
       if (doc.containsKey("autoStartLevel")) autoStartLevel = doc["autoStartLevel"];
       if (doc.containsKey("autoStopLevel")) autoStopLevel = doc["autoStopLevel"];
@@ -962,10 +996,16 @@ void TaskControl(void *pvParameters) {
         setPumpState(false, "Serial Command");
       } else if (cmd.equalsIgnoreCase("auto")) {
         systemMode = "AUTO";
-        Serial.println("[SYSTEM] Mode changed to AUTO");
+        prefs.begin(NVS_NAMESPACE, false);
+        prefs.putString("sys_mode", systemMode);
+        prefs.end();
+        Serial.println("[SYSTEM] Mode changed to AUTO and saved to NVS");
       } else if (cmd.equalsIgnoreCase("manual")) {
         systemMode = "MANUAL";
-        Serial.println("[SYSTEM] Mode changed to MANUAL");
+        prefs.begin(NVS_NAMESPACE, false);
+        prefs.putString("sys_mode", systemMode);
+        prefs.end();
+        Serial.println("[SYSTEM] Mode changed to MANUAL and saved to NVS");
       }
     }
 
@@ -987,6 +1027,13 @@ void TaskControl(void *pvParameters) {
       manualBtnCounter++;
       if (manualBtnCounter >= 6 && !manualBtnLatched) {
         manualBtnLatched = true;
+        if (systemMode != "MANUAL") {
+          systemMode = "MANUAL";
+          prefs.begin(NVS_NAMESPACE, false);
+          prefs.putString("sys_mode", systemMode);
+          prefs.end();
+          Serial.println("[Manual Button] Physical button pressed: Switched to MANUAL mode and saved to NVS.");
+        }
         setPumpState(!pumpRunning, "Manual Physical Toggle Button");
       }
     } else {
@@ -1065,12 +1112,17 @@ void setup() {
   // Load Saved Configuration from NVS
   prefs.begin(NVS_NAMESPACE, false);
   systemMode = prefs.getString("sys_mode", "AUTO");
+  systemMode.trim();
+  systemMode.toUpperCase();
+  if (systemMode != "MANUAL" && systemMode != "AUTO") {
+    systemMode = "AUTO";
+  }
   autoStartLevel = prefs.getFloat("auto_start", 25.0f);
   autoStopLevel = prefs.getFloat("auto_stop", 95.0f);
   dryRunProtectionEnabled = prefs.getBool("dry_run", true);
   prefs.end();
 
-  Serial.printf("[SYSTEM] Mode: %s | Auto-Start: %.0f%% | Auto-Stop: %.0f%%\n",
+  Serial.printf("[SYSTEM] Booted with Saved Mode: %s | Auto-Start: %.0f%% | Auto-Stop: %.0f%%\n",
                 systemMode.c_str(), autoStartLevel, autoStopLevel);
 
   // Instant Power-On Reset Check (Hold BOOT button at power-on for 1.2s)

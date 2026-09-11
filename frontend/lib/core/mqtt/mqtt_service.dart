@@ -233,6 +233,7 @@ class MqttService {
       'commandId': cmdId,
       'command_id': cmdId,
       'parameters': params,
+      if (params.containsKey('mode')) 'mode': params['mode'],
       'issued_by': userId,
       'deviceId': deviceId,
       'timestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
@@ -251,13 +252,22 @@ class MqttService {
     _client!.publishMessage('waterpump/esp32/control', MqttQos.atMostOnce, builder.payload!);
 
     // Raw plaintext fast-path for immediate zero-heap ESP32 actuation
+    String rawAction = command;
+    if (command == 'SET_MODE' && params.containsKey('mode')) {
+      rawAction = params['mode'].toString().toUpperCase();
+    } else if (command == 'PUMP_ON' || command == 'START_PUMP') {
+      rawAction = 'START';
+    } else if (command == 'PUMP_OFF' || command == 'STOP_PUMP') {
+      rawAction = 'STOP';
+    }
+
     final rawBuilder = MqttClientPayloadBuilder();
-    rawBuilder.addString(command);
+    rawBuilder.addString(rawAction);
     _client!.publishMessage('pump/$deviceId/command', MqttQos.atMostOnce, rawBuilder.payload!);
     _client!.publishMessage('pump/esp32_pump_AA69E0/command', MqttQos.atMostOnce, rawBuilder.payload!);
     _client!.publishMessage('pump/command', MqttQos.atMostOnce, rawBuilder.payload!);
 
-    debugPrint('[MQTT Ultra-Fast TX Command <2ms] $command to $deviceId (ID: $cmdId)');
+    debugPrint('[MQTT Ultra-Fast TX Command <2ms] $command (Raw: $rawAction) to $deviceId (ID: $cmdId)');
   }
 
   void publishPing(String userId, String deviceId, String pingId, int timestampMs) {
