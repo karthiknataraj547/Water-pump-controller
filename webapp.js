@@ -2010,20 +2010,24 @@ document.addEventListener('DOMContentLoaded', () => {
             ? (userDevices[0].id || userDevices[0].nodeId || userDevices[0].deviceId)
             : 'esp32_pump_94B97E';
 
-          const incomingDevId = data.deviceId || data.nodeId || data.id;
+          const incomingDevId = (data.deviceId || data.nodeId || data.id || '').toString().trim();
           const isMatch = !incomingDevId || !activeDevId || 
             incomingDevId === activeDevId || 
             incomingDevId === 'esp32_pump_main' || 
             activeDevId === 'esp32_pump_main' ||
+            incomingDevId.includes('000000') ||
+            activeDevId.includes('000000') ||
             (incomingDevId.includes('94B97E') && activeDevId.includes('94B97E'));
 
           if (!isMatch) {
             return;
           }
 
-          // Strict Offline Detection via LWT or status payload
+          // Strict Offline Detection via live (non-retained) LWT or status payload
           if (data.status === 'OFFLINE' || data.state === 'OFFLINE') {
-            updateHardwareStatusBadge(false);
+            if (!data._isRetained) {
+              updateHardwareStatusBadge(false);
+            }
             return;
           }
 

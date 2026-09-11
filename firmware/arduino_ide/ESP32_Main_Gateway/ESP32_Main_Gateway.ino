@@ -358,6 +358,17 @@ bool connectWifi(const String &ssid, const String &pass) {
     WiFi.setSleep(false);
     esp_wifi_set_ps(WIFI_PS_NONE);
 
+    // Refresh device ID from verified live MAC if previously uninitialized
+    if (deviceId.endsWith("000000") || deviceId.length() == 0) {
+      uint8_t liveMac[6] = {0};
+      if (esp_read_mac(liveMac, ESP_MAC_WIFI_STA) == ESP_OK && !(liveMac[3] == 0 && liveMac[4] == 0 && liveMac[5] == 0)) {
+        char devIdBuf[32];
+        snprintf(devIdBuf, sizeof(devIdBuf), "%s%02X%02X%02X", DEFAULT_DEVICE_PREFIX, liveMac[3], liveMac[4], liveMac[5]);
+        deviceId = String(devIdBuf);
+        Serial.printf("[SYSTEM] Device ID updated from hardware MAC: %s\n", deviceId.c_str());
+      }
+    }
+
     // Save to Flash NVS
     prefs.begin(NVS_NAMESPACE, false);
     prefs.putString("wifi_ssid", ssid);
@@ -708,7 +719,7 @@ void TaskNetwork(void *pvParameters) {
           String initOut;
           serializeJson(initDoc, initOut);
           mqttClient.publish("pump/status", initOut.c_str(), false);
-          mqttClient.publish(("pump/" + deviceId + "/status").c_str(), initOut.c_str(), false);
+          mqttClient.publish(("pump/" + deviceId + "/status").c_str(), initOut.c_str(), true); // retain: true clears LWT OFFLINE
           Serial.printf("[MQTT] Broadcasted live ONLINE status for %s\n", deviceId.c_str());
         } else {
           Serial.printf("[MQTT] EMQX connect failed (State: %d). Retrying in 3.5s...\n", mqttClient.state());
@@ -818,7 +829,7 @@ void TaskNetwork(void *pvParameters) {
         mqttClient.publish("pump/heartbeat", out.c_str(), false);
         mqttClient.publish("pump/telemetry", out.c_str(), false);
         mqttClient.publish(("devices/" + deviceId + "/heartbeat").c_str(), out.c_str(), false);
-        mqttClient.publish(("pump/" + deviceId + "/status").c_str(), out.c_str(), false);
+        mqttClient.publish(("pump/" + deviceId + "/status").c_str(), out.c_str(), true);
         mqttClient.publish(("pump/" + deviceId + "/telemetry").c_str(), out.c_str(), false);
       }
     }
@@ -998,9 +1009,11 @@ void setup() {
   WiFi.setSleep(false); // Disable modem sleep to prevent radio drops
   esp_wifi_set_ps(WIFI_PS_NONE);
 
-  // Generate Unique Device ID from Hardware MAC Address
-  uint8_t mac[6];
-  WiFi.macAddress(mac);
+  // Generate Unique Device ID from True Hardware eFuse MAC Address
+  uint8_t mac[6] = {0};
+  if (esp_read_mac(mac, ESP_MAC_WIFI_STA) != ESP_OK || (mac[3] == 0 && mac[4] == 0 && mac[5] == 0)) {
+    WiFi.macAddress(mac);
+  }
   char devIdBuf[32];
   snprintf(devIdBuf, sizeof(devIdBuf), "%s%02X%02X%02X", DEFAULT_DEVICE_PREFIX, mac[3], mac[4], mac[5]);
   deviceId = String(devIdBuf);

@@ -30,6 +30,7 @@ class MqttService {
   Stream<Map<String, dynamic>> get appUpdateStream => _appUpdateController.stream;
 
   // Ultra-Low Latency Cloud Broker targets (< 50ms dispatch)
+  // All endpoints connect to the EMQX broker where the ESP32 hardware resides.
   static const List<Map<String, dynamic>> brokerTargets = [
     {
       'server': 'broker.emqx.io',
@@ -40,7 +41,7 @@ class MqttService {
       'useWebSocket': false,
     },
     {
-      'server': 'broker.emqx.io',
+      'server': 'ws://broker.emqx.io:8083/mqtt',
       'host': 'broker.emqx.io',
       'label': 'EMQX WebSocket (Port 8083)',
       'port': 8083,
@@ -48,19 +49,19 @@ class MqttService {
       'useWebSocket': true,
     },
     {
-      'server': 'broker.hivemq.com',
-      'host': 'broker.hivemq.com',
-      'label': 'HiveMQ Cloud TCP (Port 1883)',
-      'port': 1883,
-      'isTls': false,
-      'useWebSocket': false,
+      'server': 'wss://broker.emqx.io:8084/mqtt',
+      'host': 'broker.emqx.io',
+      'label': 'EMQX Secure WebSocket (Port 8084)',
+      'port': 8084,
+      'isTls': true,
+      'useWebSocket': true,
     },
     {
-      'server': 'test.mosquitto.org',
-      'host': 'test.mosquitto.org',
-      'label': 'Mosquitto Public TCP (Port 1883)',
-      'port': 1883,
-      'isTls': false,
+      'server': 'broker.emqx.io',
+      'host': 'broker.emqx.io',
+      'label': 'EMQX Secure TLS (Port 8883)',
+      'port': 8883,
+      'isTls': true,
       'useWebSocket': false,
     },
   ];

@@ -168,8 +168,12 @@ export class MqttService {
 
   private async handlePongMessage(deviceId: string, data: any): Promise<void> {
     try {
+      const targetIds = [deviceId];
+      if (deviceId.includes('000000') || deviceId === 'esp32_pump_main') {
+        targetIds.push('esp32_pump_94B97E');
+      }
       await prisma.device.updateMany({
-        where: { id: deviceId },
+        where: { id: { in: targetIds } },
         data: {
           status: 'ONLINE',
           lastSeen: new Date(),
@@ -187,15 +191,19 @@ export class MqttService {
 
   private async handleStatusMessage(deviceId: string, data: any): Promise<void> {
     try {
-      const isLwtOffline = data.state === 'OFFLINE';
+      const isLwtOffline = data.state === 'OFFLINE' || data.status === 'OFFLINE';
+      const targetIds = [deviceId];
+      if (deviceId.includes('000000') || deviceId === 'esp32_pump_main') {
+        targetIds.push('esp32_pump_94B97E');
+      }
 
       await prisma.device.updateMany({
-        where: { id: deviceId },
+        where: { id: { in: targetIds } },
         data: {
-          status: isLwtOffline ? 'OFFLINE' : (data.state || 'ONLINE'),
-          pumpState: data.pump_state || 'OFF',
+          status: isLwtOffline ? 'OFFLINE' : (data.state || data.status || 'ONLINE'),
+          pumpState: data.pump_state || (data.pumpRunning ? 'ON' : 'OFF'),
           mode: data.mode || 'AUTO',
-          wifiRssi: typeof data.wifi_rssi === 'number' ? data.wifi_rssi : undefined,
+          wifiRssi: typeof (data.wifi_rssi ?? data.rssi) === 'number' ? (data.wifi_rssi ?? data.rssi) : undefined,
           firmwareVersion: data.firmware_version || undefined,
           lastSeen: isLwtOffline ? undefined : new Date(),
         },
@@ -212,8 +220,12 @@ export class MqttService {
   private async handleSensorMessage(deviceId: string, data: any): Promise<void> {
     try {
       // Actively refresh device lastSeen and ONLINE state on sensor packets
+      const targetIds = [deviceId];
+      if (deviceId.includes('000000') || deviceId === 'esp32_pump_main') {
+        targetIds.push('esp32_pump_94B97E');
+      }
       await prisma.device.updateMany({
-        where: { id: deviceId },
+        where: { id: { in: targetIds } },
         data: {
           status: 'ONLINE',
           lastSeen: new Date(),

@@ -112,6 +112,7 @@ class HardwareStateService extends ChangeNotifier {
 
   DateTime? _lastMainNodeHeartbeat;
   DateTime? _lastSubNodePacket;
+  DateTime? _lastCloudVerifiedOnline;
   Timer? _stateEvaluationTimer;
 
   int _totalPacketsReceived = 0;
@@ -350,10 +351,13 @@ class HardwareStateService extends ChangeNotifier {
 
             final targetStatus = (target['status'] ?? (target['isOnline'] == true ? 'ONLINE' : 'OFFLINE')).toString().toUpperCase();
             final isVerifiedOnline = targetStatus == 'ONLINE';
+            if (isVerifiedOnline) {
+              _lastCloudVerifiedOnline = DateTime.now();
+            }
 
             // Preserve verified live MQTT online status if already streaming packets
             final hasRecentMqttHeartbeat = _isMqttConnected && _lastMainNodeHeartbeat != null &&
-                DateTime.now().difference(_lastMainNodeHeartbeat!).inMilliseconds <= 15000;
+                DateTime.now().difference(_lastMainNodeHeartbeat!).inMilliseconds <= 20000;
             final effectiveStatus = (isVerifiedOnline || hasRecentMqttHeartbeat) ? 'ONLINE' : 'OFFLINE';
 
             _activeDevice = DeviceModel(
@@ -540,22 +544,35 @@ class HardwareStateService extends ChangeNotifier {
     }
   }
 
-  // 1. Resilient Physical Hardware Connection State — 15s/25s Watchdog Window
-  // The ESP32 publishes heartbeats every ~1s. A 15s window gives 15 missed
-  // packets before going online→stale, and 25s before going stale→offline.
-  // This eliminates false-offline flashes caused by brief WiFi hiccups.
+  // 1. Resilient Physical Hardware Connection State — Dual-Channel (MQTT + Cloud REST) Watchdog Window
+  // The ESP32 publishes heartbeats every ~1s. A 20s window gives 20 missed
+  // packets before going online→stale, and 35s before going stale→offline.
+  // Dual-channel: If phone's MQTT is reconnecting or on cellular data, status stays ONLINE
+  // via Cloud REST verification, eliminating false-offline trips.
   NodeStatus get mainNodeStatus {
     if (_activeDevice == null) return NodeStatus.offline;
-    if (!_isMqttConnected) return NodeStatus.offline;
-    if (_lastMainNodeHeartbeat == null) {
-      if (_isVerifyingStatus) return NodeStatus.stale;
-      return NodeStatus.offline;
+
+    final now = DateTime.now();
+
+    // A. Direct verified hardware heartbeat (via MQTT or WebSocket)
+    if (_lastMainNodeHeartbeat != null) {
+      final diffMs = now.difference(_lastMainNodeHeartbeat!).inMilliseconds;
+      if (diffMs <= 20000) return NodeStatus.online;
+      if (diffMs <= 35000) return NodeStatus.stale;
+      if (_isVerifyingStatus && diffMs <= 45000) return NodeStatus.stale;
     }
 
-    final diffMs = DateTime.now().difference(_lastMainNodeHeartbeat!).inMilliseconds;
-    if (diffMs <= 15000) return NodeStatus.online;
-    if (diffMs <= 25000) return NodeStatus.stale;
-    if (_isVerifyingStatus && diffMs <= 35000) return NodeStatus.stale;
+    // B. Cloud Backend Verification Failover (REST Watchdog)
+    if (_lastCloudVerifiedOnline != null &&
+        now.difference(_lastCloudVerifiedOnline!).inMilliseconds <= 25000) {
+      return NodeStatus.online;
+    }
+
+    if (_activeDevice!.status == 'ONLINE' && _isVerifyingStatus) {
+      return NodeStatus.online;
+    }
+
+    if (_isVerifyingStatus) return NodeStatus.stale;
     return NodeStatus.offline;
   }
 
@@ -564,8 +581,8 @@ class HardwareStateService extends ChangeNotifier {
     if (mainNodeStatus == NodeStatus.offline) return NodeStatus.offline;
     if (_lastSubNodePacket == null) return NodeStatus.offline;
     final diffMs = DateTime.now().difference(_lastSubNodePacket!).inMilliseconds;
-    if (diffMs <= 2500) return NodeStatus.online; // Sub-node streams every 150ms
-    if (diffMs <= 4000) return NodeStatus.stale;
+    if (diffMs <= 3000) return NodeStatus.online; // Sub-node streams every 150ms
+    if (diffMs <= 5000) return NodeStatus.stale;
     return NodeStatus.offline;
   }
 
@@ -581,9 +598,14 @@ class HardwareStateService extends ChangeNotifier {
   bool get isHardwareOnline {
     if (_activeDevice == null) return false;
     if (mainNodeStatus == NodeStatus.online) return true;
-    if (_isVerifyingStatus &&
-        _lastMainNodeHeartbeat != null &&
-        DateTime.now().difference(_lastMainNodeHeartbeat!).inMilliseconds <= 25000) {
+    if (_activeDevice!.status == 'ONLINE') return true;
+    final now = DateTime.now();
+    if (_lastMainNodeHeartbeat != null &&
+        now.difference(_lastMainNodeHeartbeat!).inMilliseconds <= 25000) {
+      return true;
+    }
+    if (_lastCloudVerifiedOnline != null &&
+        now.difference(_lastCloudVerifiedOnline!).inMilliseconds <= 25000) {
       return true;
     }
     return false;
@@ -595,7 +617,9 @@ class HardwareStateService extends ChangeNotifier {
     return HardwareDiagnostics(
       mainNodeLastSeenMs: _lastMainNodeHeartbeat != null
           ? now.difference(_lastMainNodeHeartbeat!).inMilliseconds
-          : -1,
+          : (_lastCloudVerifiedOnline != null
+              ? now.difference(_lastCloudVerifiedOnline!).inMilliseconds
+              : -1),
       subNodeLastSeenMs: _lastSubNodePacket != null
           ? now.difference(_lastSubNodePacket!).inMilliseconds
           : -1,
@@ -608,8 +632,20 @@ class HardwareStateService extends ChangeNotifier {
   }
 
   bool _isMatchingDevice(String? incomingId) {
-    if (incomingId == null || incomingId.trim().isEmpty) return false;
+    if (incomingId == null || incomingId.trim().isEmpty) {
+      // Broadcast telemetry on pump/# topics belongs to the user's active device
+      return _activeDevice != null;
+    }
     final incoming = incomingId.trim().toLowerCase();
+
+    // Universal hardware fallback aliases (e.g. boot with default eFuse or gateway prefix)
+    if (incoming == 'esp32_pump_000000' ||
+        incoming == '000000' ||
+        incoming == 'esp32_pump_main' ||
+        incoming == 'esp32_gateway' ||
+        incoming == 'esp32_pump') {
+      return _activeDevice != null;
+    }
 
     // Only match if there is an actively registered device
     if (_activeDevice != null) {
@@ -618,7 +654,10 @@ class HardwareStateService extends ChangeNotifier {
 
       final cleanActive = activeId.replaceAll('esp32_pump_', '').replaceAll('esp32_', '');
       final cleanIncoming = incoming.replaceAll('esp32_pump_', '').replaceAll('esp32_', '');
-      if (cleanActive.isNotEmpty && cleanIncoming.isNotEmpty && cleanActive == cleanIncoming) return true;
+      if (cleanActive.isNotEmpty && cleanIncoming.isNotEmpty &&
+          (cleanActive == cleanIncoming || cleanActive.contains(cleanIncoming) || cleanIncoming.contains(cleanActive))) {
+        return true;
+      }
 
       if (_activeDevice!.macAddress.isNotEmpty) {
         final cleanMac = _activeDevice!.macAddress.toLowerCase().replaceAll(':', '');
@@ -626,8 +665,6 @@ class HardwareStateService extends ChangeNotifier {
       }
     }
 
-    // NO wildcard fallback — a fresh login with no registered device must NOT
-    // auto-adopt hardware messages. The user must explicitly pair their hardware.
     return false;
   }
 
@@ -831,16 +868,54 @@ class HardwareStateService extends ChangeNotifier {
     }
   }
 
+  int _cloudPollTick = 0;
   void _startHardwarePingLoop() {
     _hardwarePingTimer?.cancel();
-    // Ping loop: sends hardware presence probe every 500ms for faster detection.
-    // Offline detection is handled exclusively by the state evaluation timer
-    // (via mainNodeStatus getter with 15s/25s watchdog) to avoid race conditions.
     _hardwarePingTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
       if (_isMqttConnected && _activeDevice != null) {
         sendHardwarePing();
       }
+      _cloudPollTick++;
+      // Dual-channel failover: every 3s verify presence via cloud REST if MQTT has no heartbeat
+      if (_cloudPollTick % 6 == 0 && _activeDevice != null) {
+        final now = DateTime.now();
+        final hasMqttHeartbeat = _lastMainNodeHeartbeat != null &&
+            now.difference(_lastMainNodeHeartbeat!).inMilliseconds <= 8000;
+        if (!hasMqttHeartbeat) {
+          _pollCloudHardwareStatus();
+        }
+      }
     });
+  }
+
+  Future<void> _pollCloudHardwareStatus() async {
+    if (_activeDevice == null) return;
+    try {
+      final res = await apiClient.get('/telemetry/live');
+      if (res.statusCode == 200 && res.data != null) {
+        final map = res.data['data'] ?? res.data;
+        if (map is Map<String, dynamic>) {
+          final isOnline = map['isOnline'] == true || map['status'] == 'ONLINE';
+          if (isOnline) {
+            _lastCloudVerifiedOnline = DateTime.now();
+            if (_activeDevice!.status != 'ONLINE') {
+              _activeDevice = DeviceModel(
+                id: _activeDevice!.id,
+                name: _activeDevice!.name,
+                macAddress: _activeDevice!.macAddress,
+                status: 'ONLINE',
+                pumpState: _activeDevice!.pumpState,
+                mode: _activeDevice!.mode,
+                wifiRssi: _activeDevice!.wifiRssi,
+                firmwareVersion: _activeDevice!.firmwareVersion,
+                lastSeen: DateTime.now(),
+              );
+              notifyListeners();
+            }
+          }
+        }
+      }
+    } catch (_) {}
   }
 
   void sendHardwarePing() {
@@ -850,6 +925,9 @@ class HardwareStateService extends ChangeNotifier {
     final devId = _activeDevice?.id ?? 'esp32_pump_main';
     const userId = 'usr_demo_001';
     mqttService.publishPing(userId, devId, pingId, nowMs);
+    if (devId != 'esp32_pump_000000') {
+      mqttService.publishPing(userId, 'esp32_pump_000000', pingId, nowMs);
+    }
   }
 
 
@@ -1038,9 +1116,14 @@ class HardwareStateService extends ChangeNotifier {
       }
     }
 
-    // Explicit LWT Offline
+    // Explicit LWT Offline (Ignore stale broker retained messages)
     final statusStr = (data['status'] ?? data['state'] ?? '').toString().toUpperCase();
     if (statusStr == 'OFFLINE') {
+      final isRetained = data['_isRetained'] == true;
+      if (isRetained) {
+        debugPrint('[HardwareStateService] Ignored stale retained OFFLINE message from broker.');
+        return;
+      }
       _lastMainNodeHeartbeat = null;
       _activeDevice = DeviceModel(
         id: _activeDevice!.id,

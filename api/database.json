@@ -73,10 +73,28 @@
       "isOnline": false,
       "pumpRunning": false,
       "mode": "AUTO",
-      "waterLevelPct": 0,
+      "waterLevelPct": 82.5,
       "pairedAt": "2026-09-04T01:59:17.936Z",
-      "lastSeen": "2026-09-04T09:56:26.093Z",
-      "status": "OFFLINE"
+      "lastSeen": "2026-09-11T10:56:53.370Z",
+      "status": "OFFLINE",
+      "lastHeartbeat": 1789124213370
+    },
+    {
+      "id": "esp32_pump_000000",
+      "deviceId": "esp32_pump_000000",
+      "nodeId": "esp32_pump_000000",
+      "name": "Agricultural Borewell Pump",
+      "macAddress": "24:6F:28:94:B9:7E",
+      "userId": "karthiknataraj547@gmail.com",
+      "userEmail": "karthiknataraj547@gmail.com",
+      "isOnline": false,
+      "pumpRunning": false,
+      "mode": "AUTO",
+      "waterLevelPct": 82.5,
+      "pairedAt": "2026-09-04T01:59:17.936Z",
+      "lastSeen": "2026-09-11T10:56:53.370Z",
+      "status": "OFFLINE",
+      "lastHeartbeat": 1789124213370
     },
     {
       "id": "esp32_pump_94B97E",
@@ -93,13 +111,14 @@
       "mode": "AUTO",
       "firmwareVersion": "v2.1.8",
       "wifiRssi": -58,
-      "waterLevelPct": 78.5,
+      "waterLevelPct": 82.5,
       "pairedAt": "2026-09-04T01:59:09.315Z",
-      "lastSeen": "2026-09-11T10:00:00.000Z"
+      "lastSeen": "2026-09-11T10:56:53.370Z",
+      "lastHeartbeat": 1789124213370
     }
   ],
   "liveState": {
-    "pumpRunning": true,
+    "pumpRunning": false,
     "mode": "AUTO",
     "waterLevelPct": 82.5,
     "volumeLiters": 4125,
@@ -108,9 +127,21 @@
     "powerKw": 0,
     "tdsPpm": 0,
     "tempC": 0,
-    "lastHeartbeat": 0,
-    "lastSeen": 1788515786098,
-    "_wasOnline": false
+    "lastHeartbeat": 1789124213370,
+    "lastSeen": 1789124213370,
+    "_wasOnline": false,
+    "isOnline": true
   },
-  "telemetryHistory": []
+  "telemetryHistory": [
+    {
+      "timestamp": "2026-09-11T10:56:53.370Z",
+      "waterLevelPct": 82.5,
+      "volumeLiters": 4125,
+      "flowRateLpm": 0,
+      "powerKw": 0,
+      "tdsPpm": 0,
+      "tempC": 0,
+      "pumpRunning": false
+    }
+  ]
 }
