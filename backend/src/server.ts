@@ -62,24 +62,23 @@ function getVersionManifest() {
     }
   }
   return {
-    version: '2.1.9',
-    build_number: 23,
+    version: '2.2.0',
+    build_number: 24,
     release_date: '2026-09-11',
     min_supported_version: '1.0.0',
-    download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.1.9_build23.apk',
+    download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.0_build24.apk',
     website_url: 'https://water-pump-controller.vercel.app',
-    sha256: '28ed5419bbc483dfe87c1ce89777ee157a3ce8fda75d6423528b925ced1fd792',
-    title: 'HydroPulse v2.1.9 - Ultra-Low Latency Motor Actuation, Direct Hardware Sync & Instant Update Engine',
+    sha256: 'd8ce20d1888b45b004c777fb5b3a8f788b6d1415c20e8d701826b4ef0238d6c6',
+    title: 'HydroPulse v2.2.0 - Non-Volatile Mode Persistence, Deterministic Manual Override & Instant Actuation',
     changelog: [
-      'Ultra-Low Latency Motor Actuation: ESP32 switches pump relay in microseconds directly in mqttCallback, eliminating FreeRTOS queue and tick polling lag.',
-      'Zero-Blocking Hardware Execution: Removed 45ms artificial delay in relay driver and reduced FreeRTOS network polling to 5ms for 200 checks/second.',
-      'Immediate ACK & Status Push: Hardware broadcasts command ACK and state update instantly over MQTT in under 15ms roundtrip.',
-      'Non-Blocking Cloud REST Failover: Eliminated 2000ms synchronous HTTP freezes during MQTT operations with throttled failover sync.',
-      'Zero-Overhead Plaintext Fast-Path: Mobile app and web console dispatch instant raw plaintext commands alongside standard JSON telemetry.',
-      'Update Engine Optimization: Release v2.1.9 with build 23 broadcast across cloud MQTT channels and direct download delivery.'
+      'Non-Volatile Mode Persistence: ESP32 stores active operating mode (Manual/Auto) in NVS flash memory with checksum validation to survive resets and reconnections.',
+      'Deterministic Manual Override: Fixed auto-mode loop to strictly respect manual mode selection without reverting back automatically.',
+      'Direct Hardware Actuation: Motor Start and Stop buttons trigger instant relay switching directly in hardware with zero FreeRTOS tick delay.',
+      'Optimized In-App Updater: Automatic detection and silent background caching of HydroPulse v2.2.0 (Build 24).',
+      'Cloud & Edge Synchronization: Retained state synchronization across EMQX, HiveMQ, and Mosquitto cloud brokers.'
     ],
     is_critical: false,
-    file_size: 58508324
+    file_size: 58524704
   };
 }
 
