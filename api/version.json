@@ -5,7 +5,7 @@
     "min_supported_version": "1.0.0",
     "download_url": "https://water-pump-controller.vercel.app/releases/HydroPulse_v2.1.9_build23.apk",
     "website_url": "https://water-pump-controller.vercel.app",
-    "sha256": "28ed5419bbc483dfe87c1ce89777ee157a3ce8fda75d6423528b925ced1fd792",
+    "sha256": "c3a70882b510fb8cb5cf45373976bf6a335ded9f9e7d02923d6e3e719bdc4e0c",
     "title": "HydroPulse v2.1.9 - Ultra-Low Latency Motor Actuation, Direct Hardware Sync & Instant Update Engine",
     "changelog": [
         "Ultra-Low Latency Motor Actuation: ESP32 switches pump relay in microseconds directly in mqttCallback, eliminating FreeRTOS queue and tick polling lag.",
@@ -15,7 +15,7 @@
         "Zero-Overhead Plaintext Fast-Path: Mobile app and web console dispatch instant raw plaintext commands alongside standard JSON telemetry.",
         "Update Engine Optimization: Release v2.1.9 with build 23 broadcast across cloud MQTT channels and direct download delivery."
     ],
-    "is_critical": true,
-    "updatedAt": "2026-09-11T11:55:00.000Z",
+    "is_critical": false,
+    "updatedAt": "2026-09-11T13:15:00.000Z",
     "file_size": 58508324
 }

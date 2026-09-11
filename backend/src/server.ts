@@ -78,7 +78,7 @@ function getVersionManifest() {
       'Zero-Overhead Plaintext Fast-Path: Mobile app and web console dispatch instant raw plaintext commands alongside standard JSON telemetry.',
       'Update Engine Optimization: Release v2.1.9 with build 23 broadcast across cloud MQTT channels and direct download delivery.'
     ],
-    is_critical: true,
+    is_critical: false,
     file_size: 58508324
   };
 }

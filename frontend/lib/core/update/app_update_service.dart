@@ -69,6 +69,15 @@ class AppUpdateService {
   static int get currentBuildNumber => _instance._currentBuildNumber;
   bool _initialized = false;
 
+  // Snooze window to prevent intrusive repeated update dialogs
+  DateTime? _snoozedUntil;
+  bool get isSnoozed => _snoozedUntil != null && DateTime.now().isBefore(_snoozedUntil!);
+
+  void snoozeUpdates({Duration duration = const Duration(hours: 4)}) {
+    _snoozedUntil = DateTime.now().add(duration);
+    debugPrint('[AppUpdateService] Updates snoozed until $_snoozedUntil');
+  }
+
   // Global navigator key for showing dialog from anywhere (lifecycle, MQTT push, timers)
   GlobalKey<NavigatorState>? _navigatorKey;
   void setNavigatorKey(GlobalKey<NavigatorState> key) {
@@ -136,6 +145,11 @@ class AppUpdateService {
         return;
       }
 
+      if (isSnoozed && !info.isCritical) {
+        debugPrint('[AppUpdateService] Suppressing MQTT update prompt: updates snoozed');
+        return;
+      }
+
       if (isVersionNewer(info.version, currentVersion,
           remoteBuild: info.buildNumber, currentBuild: currentBuildNumber)) {
         final ctx = _globalContext;
@@ -148,20 +162,25 @@ class AppUpdateService {
     }
   }
 
-  /// Loads true version from the installed Android/iOS package
+  /// Loads true version from the installed Android/iOS package with monotonic floor
   Future<void> initVersion() async {
     if (_initialized) return;
     try {
       final pkg = await PackageInfo.fromPlatform();
-      if (pkg.version.isNotEmpty) {
-        _currentVersion = pkg.version;
-      }
       final parsedBuild = int.tryParse(pkg.buildNumber);
-      if (parsedBuild != null) {
+      
+      // Monotonic guard: never downgrade build number below AppConstants baseline
+      if (parsedBuild != null && parsedBuild > _currentBuildNumber) {
         _currentBuildNumber = parsedBuild;
       }
+      if (pkg.version.isNotEmpty) {
+        if (isVersionNewer(pkg.version, _currentVersion,
+            remoteBuild: _currentBuildNumber, currentBuild: AppConstants.appBuildNumber)) {
+          _currentVersion = pkg.version;
+        }
+      }
       _initialized = true;
-      debugPrint('[AppUpdateService] Native package version: v$_currentVersion+$_currentBuildNumber');
+      debugPrint('[AppUpdateService] Running version: v$_currentVersion+$_currentBuildNumber (baseline: v${AppConstants.appVersion}+${AppConstants.appBuildNumber})');
     } catch (e) {
       debugPrint('[AppUpdateService] PackageInfo note: $e');
     }
@@ -283,7 +302,7 @@ class AppUpdateService {
 
   /// Global update check: can be called from anywhere without explicit BuildContext
   Future<void> checkForUpdatesGlobally() async {
-    if (_isChecking || _isDialogShowing || _isDownloading || _isDownloadDialogShowing) return;
+    if (_isChecking || _isDialogShowing || _isDownloading || _isDownloadDialogShowing || isSnoozed) return;
     final latest = await fetchLatestVersion();
 
     if (latest != null &&
@@ -604,7 +623,10 @@ class AppUpdateService {
                 if (!info.isCritical) ...[
                   const SizedBox(height: 8),
                   TextButton(
-                    onPressed: () => Navigator.of(ctx).pop(),
+                    onPressed: () {
+                      snoozeUpdates();
+                      Navigator.of(ctx).pop();
+                    },
                     child: Text(
                       'Remind Me Later',
                       style: TextStyle(
@@ -764,6 +786,9 @@ class AppUpdateService {
                     isDownloadingLocal = false;
                     _isDownloading = false;
                   });
+
+                // Snooze automatic update prompts so user isn't interrupted while installing
+                snoozeUpdates(duration: const Duration(hours: 4));
 
                 // Launch native Android package installer
                 final result = await OpenFilex.open(
