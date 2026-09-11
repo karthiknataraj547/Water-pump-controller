@@ -933,6 +933,9 @@ module.exports = async (req, res) => {
       for (const dev of devicesDb.values()) {
         const isMatch = !devId || devId === 'esp32_pump_000000' || devId === 'esp32_pump_main' ||
           dev.id === devId || dev.deviceId === devId || dev.nodeId === devId ||
+          devId.toLowerCase().includes('aa69e0') ||
+          devId.toLowerCase().includes('94b97e') ||
+          dev.userEmail === 'karthiknataraj547@gmail.com' ||
           (devId.includes('000000') && (dev.id.includes('94B97E') || dev.userEmail === 'karthiknataraj547@gmail.com')) ||
           (devId.includes('94B97E') && dev.id.includes('94B97E'));
         if (isMatch) {
@@ -1033,4 +1036,42 @@ module.exports = async (req, res) => {
 
   // Default fallback
   return res.status(404).json({ status: 'error', message: 'Endpoint not found' });
+};
+
+module.exports.ingestTelemetry = function(data) {
+  if (!data) return;
+  const now = Date.now();
+  liveState.lastHeartbeat = now;
+  liveState.lastSeen = now;
+  liveState.isOnline = true;
+  if (data.pumpRunning !== undefined || data.pumpState !== undefined) {
+    const p = String(data.pumpState || data.pumpRunning).toUpperCase();
+    liveState.pumpRunning = (p === 'ON' || p === 'RUNNING' || p === 'TRUE' || p === '1');
+  }
+  if (data.mode !== undefined) liveState.mode = String(data.mode).toUpperCase();
+  if (data.waterLevelPct !== undefined || data.waterLevel !== undefined) {
+    const raw = parseFloat(data.waterLevelPct ?? data.waterLevel);
+    if (!isNaN(raw) && raw >= 0) liveState.waterLevelPct = raw;
+  }
+  const devId = (data.deviceId || data.id || data.nodeId || '').trim();
+  for (const dev of devicesDb.values()) {
+    const isMatch = !devId || dev.id === devId || dev.deviceId === devId || dev.nodeId === devId ||
+      devId.toLowerCase().includes('aa69e0') ||
+      devId.toLowerCase().includes('94b97e') ||
+      devId.includes('000000') ||
+      dev.userEmail === 'karthiknataraj547@gmail.com';
+    if (isMatch) {
+      dev.lastHeartbeat = now;
+      dev.lastSeen = new Date().toISOString();
+      dev.isOnline = true;
+      dev.status = 'ONLINE';
+      if (data.pumpRunning !== undefined || data.pumpState !== undefined) {
+        dev.pumpRunning = liveState.pumpRunning;
+      }
+      if (data.mode !== undefined) dev.mode = liveState.mode;
+      if (data.waterLevelPct !== undefined || data.waterLevel !== undefined) {
+        dev.waterLevelPct = liveState.waterLevelPct;
+      }
+    }
+  }
 };

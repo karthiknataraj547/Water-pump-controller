@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@dietrichgebert/ponytail": "^4.9.0",
+    "mqtt": "^5.15.2",
     "pm2": "^5.4.2"
   }
 }

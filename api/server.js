@@ -150,4 +150,54 @@ server.listen(currentPort, () => {
   console.log(`[Web App URL] http://localhost:${currentPort}`);
 });
 
+// ==============================================================================
+// Background MQTT Bridge for PM2 Service (Real Hardware Heartbeat Sync)
+// ==============================================================================
+let mqttClient = null;
+try {
+  const mqtt = require('mqtt');
+  const CLOUD_API_URL = process.env.CLOUD_API_URL || 'https://water-pump-controller.vercel.app/api/v1';
+  mqttClient = mqtt.connect('mqtt://broker.emqx.io:1883', {
+    clientId: 'pm2_server_bridge_' + Math.random().toString(16).slice(2, 8),
+    clean: true,
+    reconnectPeriod: 3000
+  });
+
+  mqttClient.on('connect', () => {
+    console.log('[PM2 MQTT Bridge] Connected to broker.emqx.io:1883');
+    mqttClient.subscribe(['pump/#', 'devices/#', 'hydropulse/#']);
+  });
+
+  let lastCloudSync = 0;
+  mqttClient.on('message', async (topic, message) => {
+    try {
+      const data = JSON.parse(message.toString());
+      if (!data) return;
+      const devId = (data.deviceId || data.id || data.nodeId || '').trim();
+      if (!devId && !topic.startsWith('pump/')) return;
+      if (data.status === 'OFFLINE' || data.state === 'OFFLINE') return;
+
+      if (apiHandler && typeof apiHandler.ingestTelemetry === 'function') {
+        apiHandler.ingestTelemetry(data);
+      }
+
+      const now = Date.now();
+      if (now - lastCloudSync >= 4000) {
+        lastCloudSync = now;
+        fetch(`${CLOUD_API_URL}/telemetry`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            source: 'hardware',
+            deviceId: devId || 'esp32_pump_AA69E0',
+            ...data
+          })
+        }).catch(() => {});
+      }
+    } catch (_) {}
+  });
+} catch (e) {
+  console.warn('[PM2 MQTT Bridge] Init notice:', e.message);
+}
+
 module.exports = server;

@@ -170,7 +170,11 @@ export class MqttService {
     try {
       const targetIds = [deviceId];
       if (deviceId.includes('000000') || deviceId === 'esp32_pump_main') {
-        targetIds.push('esp32_pump_94B97E');
+        targetIds.push('esp32_pump_94B97E', 'esp32_pump_AA69E0');
+      } else if (deviceId.includes('AA69E0')) {
+        targetIds.push('esp32_pump_94B97E', 'esp32_pump_000000');
+      } else if (deviceId.includes('94B97E')) {
+        targetIds.push('esp32_pump_AA69E0', 'esp32_pump_000000');
       }
       await prisma.device.updateMany({
         where: { id: { in: targetIds } },
@@ -194,7 +198,11 @@ export class MqttService {
       const isLwtOffline = data.state === 'OFFLINE' || data.status === 'OFFLINE';
       const targetIds = [deviceId];
       if (deviceId.includes('000000') || deviceId === 'esp32_pump_main') {
-        targetIds.push('esp32_pump_94B97E');
+        targetIds.push('esp32_pump_94B97E', 'esp32_pump_AA69E0');
+      } else if (deviceId.includes('AA69E0')) {
+        targetIds.push('esp32_pump_94B97E', 'esp32_pump_000000');
+      } else if (deviceId.includes('94B97E')) {
+        targetIds.push('esp32_pump_AA69E0', 'esp32_pump_000000');
       }
 
       await prisma.device.updateMany({

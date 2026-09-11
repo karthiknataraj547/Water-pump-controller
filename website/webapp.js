@@ -317,7 +317,16 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       if (userDevices && userDevices.length > 0) {
-        applyActiveDevice(userDevices[0]);
+        const savedDevId = localStorage.getItem('hydropulse_active_device_id');
+        let chosenDev = userDevices[0];
+        if (savedDevId) {
+          const match = userDevices.find(d => (d.id === savedDevId || d.deviceId === savedDevId));
+          if (match) chosenDev = match;
+        } else {
+          userDevices.sort((a, b) => new Date(b.pairedAt || b.lastSeen || 0) - new Date(a.pairedAt || a.lastSeen || 0));
+          chosenDev = userDevices[0];
+        }
+        applyActiveDevice(chosenDev);
         // Re-sync local device to backend so container retains it
         fetch(`${apiBaseUrl}/devices`, {
           method: 'POST',
@@ -326,7 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'Authorization': `Bearer ${authToken}`,
             'x-user-email': user.email || ''
           },
-          body: JSON.stringify(userDevices[0])
+          body: JSON.stringify(chosenDev)
         }).catch(() => {});
       } else {
         console.log('[Sync] Account has no paired hardware yet.');
@@ -2010,14 +2019,17 @@ document.addEventListener('DOMContentLoaded', () => {
             ? (userDevices[0].id || userDevices[0].nodeId || userDevices[0].deviceId)
             : 'esp32_pump_94B97E';
 
-          const incomingDevId = (data.deviceId || data.nodeId || data.id || '').toString().trim();
+          const incomingDevId = (data.deviceId || data.nodeId || data.id || '').toString().trim().toLowerCase();
+          const activeLower = (activeDevId || '').toLowerCase();
           const isMatch = !incomingDevId || !activeDevId || 
-            incomingDevId === activeDevId || 
+            incomingDevId === activeLower || 
             incomingDevId === 'esp32_pump_main' || 
-            activeDevId === 'esp32_pump_main' ||
+            activeLower === 'esp32_pump_main' ||
             incomingDevId.includes('000000') ||
-            activeDevId.includes('000000') ||
-            (incomingDevId.includes('94B97E') && activeDevId.includes('94B97E'));
+            activeLower.includes('000000') ||
+            incomingDevId.includes('aa69e0') ||
+            incomingDevId.includes('94b97e') ||
+            incomingDevId.startsWith('esp32_pump');
 
           if (!isMatch) {
             return;

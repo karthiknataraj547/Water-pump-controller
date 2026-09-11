@@ -338,7 +338,30 @@ class HardwareStateService extends ChangeNotifier {
             return;
           }
 
-          final target = userOwned.first as Map<String, dynamic>;
+          // Prioritize:
+          // 1. Device matching stored selected device ID
+          // 2. Most recently paired device (e.g. esp32_pump_AA69E0)
+          final storedDevId = await storage.read(key: AppConstants.keySelectedDeviceId);
+          Map<String, dynamic>? selectedMap;
+          if (storedDevId != null && storedDevId.isNotEmpty) {
+            for (final d in userOwned) {
+              if (d is Map<String, dynamic> &&
+                  (d['id'] == storedDevId || d['deviceId'] == storedDevId || d['nodeId'] == storedDevId)) {
+                selectedMap = d;
+                break;
+              }
+            }
+          }
+          if (selectedMap == null) {
+            userOwned.sort((a, b) {
+              if (a is! Map || b is! Map) return 0;
+              final aDate = DateTime.tryParse((a['pairedAt'] ?? a['lastSeen'] ?? '').toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
+              final bDate = DateTime.tryParse((b['pairedAt'] ?? b['lastSeen'] ?? '').toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
+              return bDate.compareTo(aDate);
+            });
+            selectedMap = userOwned.first as Map<String, dynamic>;
+          }
+          final target = selectedMap;
           final devId = (target['deviceId'] ?? target['id'] ?? target['nodeId'] ?? '').toString();
           if (devId.isNotEmpty) {
             final devName = (target['name'] ?? 'HydroPulse Gateway').toString();
@@ -643,7 +666,10 @@ class HardwareStateService extends ChangeNotifier {
         incoming == '000000' ||
         incoming == 'esp32_pump_main' ||
         incoming == 'esp32_gateway' ||
-        incoming == 'esp32_pump') {
+        incoming == 'esp32_pump' ||
+        incoming.contains('aa69e0') ||
+        incoming.contains('94b97e') ||
+        incoming.startsWith('esp32_pump_')) {
       return _activeDevice != null;
     }
 

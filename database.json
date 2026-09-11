@@ -63,6 +63,23 @@
   ],
   "devices": [
     {
+      "id": "esp32_pump_AA69E0",
+      "deviceId": "esp32_pump_AA69E0",
+      "nodeId": "esp32_pump_AA69E0",
+      "name": "PumpController-AA69E0",
+      "macAddress": "A0:A3:B3:AA:69:E2",
+      "userId": "usr_karthik_547",
+      "userEmail": "karthiknataraj547@gmail.com",
+      "isOnline": true,
+      "status": "ONLINE",
+      "lastHeartbeat": 1789125842043,
+      "pumpRunning": false,
+      "mode": "AUTO",
+      "waterLevelPct": 82.5,
+      "pairedAt": "2026-09-11T11:12:23.044Z",
+      "lastSeen": "2026-09-11T11:24:02.043Z"
+    },
+    {
       "id": "esp32_pump_94B97E",
       "deviceId": "esp32_pump_94B97E",
       "nodeId": "esp32_pump_94B97E",
@@ -70,14 +87,14 @@
       "macAddress": "24:6F:28:94:B9:7E",
       "userId": "karthiknataraj547@gmail.com",
       "userEmail": "karthiknataraj547@gmail.com",
-      "isOnline": false,
+      "isOnline": true,
       "pumpRunning": false,
       "mode": "AUTO",
       "waterLevelPct": 82.5,
       "pairedAt": "2026-09-04T01:59:17.936Z",
-      "lastSeen": "2026-09-11T10:56:53.370Z",
-      "status": "OFFLINE",
-      "lastHeartbeat": 1789124213370
+      "lastSeen": "2026-09-11T11:24:02.043Z",
+      "status": "ONLINE",
+      "lastHeartbeat": 1789125842043
     },
     {
       "id": "esp32_pump_000000",
@@ -87,14 +104,14 @@
       "macAddress": "24:6F:28:94:B9:7E",
       "userId": "karthiknataraj547@gmail.com",
       "userEmail": "karthiknataraj547@gmail.com",
-      "isOnline": false,
+      "isOnline": true,
       "pumpRunning": false,
       "mode": "AUTO",
       "waterLevelPct": 82.5,
       "pairedAt": "2026-09-04T01:59:17.936Z",
-      "lastSeen": "2026-09-11T10:56:53.370Z",
-      "status": "OFFLINE",
-      "lastHeartbeat": 1789124213370
+      "lastSeen": "2026-09-11T11:24:02.043Z",
+      "status": "ONLINE",
+      "lastHeartbeat": 1789125842043
     },
     {
       "id": "esp32_pump_94B97E",
@@ -104,8 +121,8 @@
       "macAddress": "24:6F:28:94:B9:7E",
       "userId": "usr_demo_001",
       "userEmail": "demo@hydropulse.io",
-      "isOnline": false,
-      "status": "OFFLINE",
+      "isOnline": true,
+      "status": "ONLINE",
       "pumpRunning": false,
       "pumpState": "OFF",
       "mode": "AUTO",
@@ -113,8 +130,8 @@
       "wifiRssi": -58,
       "waterLevelPct": 82.5,
       "pairedAt": "2026-09-04T01:59:09.315Z",
-      "lastSeen": "2026-09-11T10:56:53.370Z",
-      "lastHeartbeat": 1789124213370
+      "lastSeen": "2026-09-11T11:24:02.043Z",
+      "lastHeartbeat": 1789125842043
     }
   ],
   "liveState": {
@@ -127,9 +144,9 @@
     "powerKw": 0,
     "tdsPpm": 0,
     "tempC": 0,
-    "lastHeartbeat": 1789124213370,
-    "lastSeen": 1789124213370,
-    "_wasOnline": false,
+    "lastHeartbeat": 1789125842043,
+    "lastSeen": 1789125842043,
+    "_wasOnline": true,
     "isOnline": true
   },
   "telemetryHistory": [
