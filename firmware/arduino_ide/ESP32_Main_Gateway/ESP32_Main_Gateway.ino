@@ -34,6 +34,9 @@
 #include <esp_now.h>
 #include <esp_wifi.h>
 #include <esp_idf_version.h>
+#if __has_include(<esp_mac.h>)
+#include <esp_mac.h>
+#endif
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <Preferences.h>
@@ -361,7 +364,13 @@ bool connectWifi(const String &ssid, const String &pass) {
     // Refresh device ID from verified live MAC if previously uninitialized
     if (deviceId.endsWith("000000") || deviceId.length() == 0) {
       uint8_t liveMac[6] = {0};
-      if (esp_read_mac(liveMac, ESP_MAC_WIFI_STA) == ESP_OK && !(liveMac[3] == 0 && liveMac[4] == 0 && liveMac[5] == 0)) {
+      WiFi.macAddress(liveMac);
+      if (liveMac[3] == 0 && liveMac[4] == 0 && liveMac[5] == 0) {
+        uint64_t chipMac = ESP.getEfuseMac();
+        uint8_t* efuseBytes = (uint8_t*)(&chipMac);
+        for (int i = 0; i < 6; i++) liveMac[i] = efuseBytes[i];
+      }
+      if (!(liveMac[3] == 0 && liveMac[4] == 0 && liveMac[5] == 0)) {
         char devIdBuf[32];
         snprintf(devIdBuf, sizeof(devIdBuf), "%s%02X%02X%02X", DEFAULT_DEVICE_PREFIX, liveMac[3], liveMac[4], liveMac[5]);
         deviceId = String(devIdBuf);
@@ -1011,8 +1020,11 @@ void setup() {
 
   // Generate Unique Device ID from True Hardware eFuse MAC Address
   uint8_t mac[6] = {0};
-  if (esp_read_mac(mac, ESP_MAC_WIFI_STA) != ESP_OK || (mac[3] == 0 && mac[4] == 0 && mac[5] == 0)) {
-    WiFi.macAddress(mac);
+  WiFi.macAddress(mac);
+  if (mac[3] == 0 && mac[4] == 0 && mac[5] == 0) {
+    uint64_t chipMac = ESP.getEfuseMac();
+    uint8_t* efuseBytes = (uint8_t*)(&chipMac);
+    for (int i = 0; i < 6; i++) mac[i] = efuseBytes[i];
   }
   char devIdBuf[32];
   snprintf(devIdBuf, sizeof(devIdBuf), "%s%02X%02X%02X", DEFAULT_DEVICE_PREFIX, mac[3], mac[4], mac[5]);
