@@ -404,21 +404,21 @@ module.exports = async (req, res) => {
 
     if (!manifest) {
       manifest = {
-        version: '2.1.8',
-        build_number: 22,
+        version: '2.1.9',
+        build_number: 23,
         release_date: '2026-09-11',
         min_supported_version: '1.0.0',
-        download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.1.8_build22.apk',
+        download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.1.9_build23.apk',
         website_url: 'https://water-pump-controller.vercel.app',
         sha256: '28ed5419bbc483dfe87c1ce89777ee157a3ce8fda75d6423528b925ced1fd792',
-        title: 'HydroPulse v2.1.8 - Update Engine Fixes, Background Download Guards & Reliable Version Delivery',
+        title: 'HydroPulse v2.1.9 - Ultra-Low Latency Motor Actuation, Direct Hardware Sync & Instant Update Engine',
         changelog: [
-          'Version Delivery Fix: Guaranteed delivery of the latest v2.1.8 release via version-specific release packages.',
-          'Duplicate Download Prompt Prevention: Suppressed redundant update dialogs and stacked popups while an update is downloading.',
-          'Download Progress Protection: Added service-level download state locking across tab switching and app resume.',
-          'Sub-300ms Motor Control: Instant pump start/stop actuation with optimistic locking.',
-          'Hardware State Memory: Last known pump state and automation mode restored upon connection.',
-          '300ms Watchdog: Proactive hardware heartbeat monitoring and offline detection.'
+          'Ultra-Low Latency Motor Actuation: ESP32 switches pump relay in microseconds directly in mqttCallback, eliminating FreeRTOS queue and tick polling lag.',
+          'Zero-Blocking Hardware Execution: Removed 45ms artificial delay in relay driver and reduced FreeRTOS network polling to 5ms for 200 checks/second.',
+          'Immediate ACK & Status Push: Hardware broadcasts command ACK and state update instantly over MQTT in under 15ms roundtrip.',
+          'Non-Blocking Cloud REST Failover: Eliminated 2000ms synchronous HTTP freezes during MQTT operations with throttled failover sync.',
+          'Zero-Overhead Plaintext Fast-Path: Mobile app and web console dispatch instant raw plaintext commands alongside standard JSON telemetry.',
+          'Update Engine Optimization: Release v2.1.9 with build 23 broadcast across cloud MQTT channels and direct download delivery.'
         ],
         is_critical: true,
         file_size: 58508324

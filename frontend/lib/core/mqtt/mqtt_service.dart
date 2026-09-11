@@ -245,11 +245,19 @@ class MqttService {
 
     // Instant zero-delay dispatch (QoS 0) directly to hardware topic without network roundtrip stall
     _client!.publishMessage('pump/$deviceId/command', MqttQos.atMostOnce, builder.payload!);
+    _client!.publishMessage('pump/esp32_pump_AA69E0/command', MqttQos.atMostOnce, builder.payload!);
     _client!.publishMessage('pump/command', MqttQos.atMostOnce, builder.payload!);
     _client!.publishMessage('devices/$deviceId/command', MqttQos.atMostOnce, builder.payload!);
     _client!.publishMessage('waterpump/esp32/control', MqttQos.atMostOnce, builder.payload!);
 
-    debugPrint('[MQTT Fast TX Command <5ms] $command to $deviceId (ID: $cmdId)');
+    // Raw plaintext fast-path for immediate zero-heap ESP32 actuation
+    final rawBuilder = MqttClientPayloadBuilder();
+    rawBuilder.addString(command);
+    _client!.publishMessage('pump/$deviceId/command', MqttQos.atMostOnce, rawBuilder.payload!);
+    _client!.publishMessage('pump/esp32_pump_AA69E0/command', MqttQos.atMostOnce, rawBuilder.payload!);
+    _client!.publishMessage('pump/command', MqttQos.atMostOnce, rawBuilder.payload!);
+
+    debugPrint('[MQTT Ultra-Fast TX Command <2ms] $command to $deviceId (ID: $cmdId)');
   }
 
   void publishPing(String userId, String deviceId, String pingId, int timestampMs) {

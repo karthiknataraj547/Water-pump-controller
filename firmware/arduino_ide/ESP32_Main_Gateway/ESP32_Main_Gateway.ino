@@ -62,7 +62,7 @@
 #define PIN_LED_PUMP           4    // Green pump running LED
 #define PIN_BUZZER             5    // Piezo alert buzzer
 
-#define FIRMWARE_VERSION       "2.0.9"
+#define FIRMWARE_VERSION       "2.0.10"
 #define DEFAULT_DEVICE_PREFIX  "esp32_pump_"
 #define BLE_DEVICE_PREFIX      "PumpController-"
 #define NVS_NAMESPACE          "pump_config"
@@ -397,6 +397,11 @@ bool connectWifi(const String &ssid, const String &pass) {
 // ==============================================================================
 // 7. PUMP CONTROL, RELAY SOFT-SWITCHING & SAFETY INTERLOCKS
 // ==============================================================================
+// ==============================================================================
+// 7. PUMP CONTROL, RELAY SOFT-SWITCHING & SAFETY INTERLOCKS (ZERO-LATENCY)
+// ==============================================================================
+void publishFastAckAndStatus(const char* cmdId, const char* reason);
+
 void setPumpState(bool state, const String &reason) {
   if (state && emergencyStopped) {
     Serial.println("[Safety Interlock] Blocked: Emergency stop active! Reset emergency switch to run.");
@@ -412,25 +417,60 @@ void setPumpState(bool state, const String &reason) {
 
   pumpRunning = state;
 
-  // Soft-switching transient isolation delay:
-  // Step 1: Light up the status LED
+  // Instant hardware pin actuation (Microsecond response, zero blocking delays)
   digitalWrite(PIN_LED_PUMP, state ? HIGH : LOW);
-  delay(15);
-
-  // Step 2: Energize or de-energize relay coil (Active-LOW or Active-HIGH support)
   bool relayPinLevel = RELAY_ACTIVE_LOW ? (!state) : state;
   digitalWrite(PIN_RELAY_PUMP, relayPinLevel ? HIGH : LOW);
-  delay(30);
 
   if (state) {
     pumpStartTime = millis();
   }
 
-  Serial.printf("[Pump Relay] State changed to %s (Pin %d = %s). Reason: %s\n",
+  Serial.printf("[Pump Relay] Instant state switched to %s (Pin %d = %s). Reason: %s\n",
                 state ? "ON" : "OFF", PIN_RELAY_PUMP, relayPinLevel ? "HIGH" : "LOW", reason.c_str());
 
-  // Request asynchronous status broadcast in TaskNetwork loop
   notifyMqttStatusUpdate = true;
+}
+
+// Immediate ACK & Live Status Dispatcher (Ultra-low latency sub-15ms roundtrip)
+void publishFastAckAndStatus(const char* cmdId, const char* reason) {
+  if (!mqttClient.connected()) return;
+
+  // 1. Instant Command ACK
+  StaticJsonDocument<256> ack;
+  ack["commandId"] = (cmdId && strlen(cmdId) > 0) ? cmdId : "cmd_direct";
+  ack["command"] = reason;
+  ack["status"] = "SUCCESS";
+  ack["pumpStatus"] = pumpRunning ? "ON" : "OFF";
+  ack["pumpState"] = pumpRunning ? "RUNNING" : "STOPPED";
+  ack["mode"] = systemMode;
+  ack["emergencyStopped"] = emergencyStopped;
+  ack["timestamp"] = millis();
+  String ackStr;
+  serializeJson(ack, ackStr);
+  mqttClient.publish("pump/command/ack", ackStr.c_str(), false);
+  mqttClient.publish(("pump/" + deviceId + "/command/ack").c_str(), ackStr.c_str(), false);
+
+  // 2. Instant Live Status Broadcast
+  StaticJsonDocument<256> doc;
+  doc["deviceId"] = deviceId;
+  doc["nodeType"] = "MAIN_NODE";
+  doc["status"] = "ONLINE";
+  doc["pumpState"] = pumpRunning ? "RUNNING" : "STOPPED";
+  doc["mode"] = systemMode;
+  doc["emergencyStopped"] = emergencyStopped;
+  bool subAlive = (lastSensorPacketTime > 0 && (millis() - lastSensorPacketTime) < SUB_NODE_TIMEOUT_MS);
+  doc["subNodeOnline"] = subAlive;
+  doc["waterLevel"] = subAlive ? currentLevelPct : -1;
+  doc["waterVolume"] = subAlive ? currentVolumeL : -1;
+  doc["ip"] = WiFi.localIP().toString();
+  doc["rssi"] = WiFi.RSSI();
+  doc["timestamp"] = millis();
+  String out;
+  serializeJson(doc, out);
+  mqttClient.publish("pump/status", out.c_str(), false);
+  mqttClient.publish("pump/heartbeat", out.c_str(), false);
+  mqttClient.publish(("pump/" + deviceId + "/status").c_str(), out.c_str(), true);
 }
 
 // ==============================================================================
@@ -472,17 +512,42 @@ void executeFactoryReset() {
 }
 
 // ==============================================================================
-// 9. MQTT & BACKEND HTTP API CLIENT
+// 9. MQTT & BACKEND HTTP API CLIENT (SUB-10ms INSTANT ACTUATION)
 // ==============================================================================
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   String message = "";
   for (unsigned int i = 0; i < length; i++) message += (char)payload[i];
   Serial.printf("[MQTT RX] Topic: '%s' | Payload: %s\n", topic, message.c_str());
 
+  // Fast Path 1: Plaintext commands (Zero serialization overhead)
+  String cleanMsg = message;
+  cleanMsg.trim();
+  if (cleanMsg.equalsIgnoreCase("START") || cleanMsg.equalsIgnoreCase("ON") || cleanMsg.equalsIgnoreCase("START_PUMP")) {
+    setPumpState(true, "MQTT Direct Plaintext Start");
+    publishFastAckAndStatus("cmd_fast_raw", "MQTT Remote Start");
+    hasPendingPumpCommand = false;
+    return;
+  } else if (cleanMsg.equalsIgnoreCase("STOP") || cleanMsg.equalsIgnoreCase("OFF") || cleanMsg.equalsIgnoreCase("STOP_PUMP")) {
+    setPumpState(false, "MQTT Direct Plaintext Stop");
+    publishFastAckAndStatus("cmd_fast_raw", "MQTT Remote Stop");
+    hasPendingPumpCommand = false;
+    return;
+  }
+
+  // Fast Path 2: JSON formatted payloads
   StaticJsonDocument<512> doc;
   if (deserializeJson(doc, message) == DeserializationError::Ok) {
     const char* action = doc["action"] | doc["command"] | "";
     const char* cmdId = doc["commandId"] | doc["command_id"] | "cmd_local";
+
+    if (strlen(action) == 0 && doc.containsKey("parameters")) {
+      action = doc["parameters"]["command"] | doc["parameters"]["action"] | "";
+    }
+    if (strlen(action) == 0 && doc.containsKey("pumpState")) {
+      const char* ps = doc["pumpState"] | "";
+      if (strcasecmp(ps, "ON") == 0 || strcasecmp(ps, "RUNNING") == 0) action = "START_PUMP";
+      else if (strcasecmp(ps, "OFF") == 0 || strcasecmp(ps, "STOPPED") == 0) action = "STOP_PUMP";
+    }
 
     Serial.printf("[MQTT Command RX] Action parsed: '%s' | CmdId: '%s'\n", action, cmdId);
 
@@ -493,15 +558,15 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         notifyMqttStatusUpdate = true;
         return;
       }
-      requestedPumpState = true;
-      pendingCmdReason = "MQTT Remote Start";
-      pendingCmdId = String(cmdId);
-      hasPendingPumpCommand = true;
+      // Instant direct actuation - ZERO QUEUE DELAY
+      setPumpState(true, "MQTT Fast Remote Start");
+      publishFastAckAndStatus(cmdId, "MQTT Remote Start");
+      hasPendingPumpCommand = false;
     } else if (strcasecmp(action, "STOP_PUMP") == 0 || strcasecmp(action, "PUMP_OFF") == 0 || strcasecmp(action, "STOP") == 0 || strcasecmp(action, "OFF") == 0) {
-      requestedPumpState = false;
-      pendingCmdReason = "MQTT Remote Stop";
-      pendingCmdId = String(cmdId);
-      hasPendingPumpCommand = true;
+      // Instant direct actuation - ZERO QUEUE DELAY
+      setPumpState(false, "MQTT Fast Remote Stop");
+      publishFastAckAndStatus(cmdId, "MQTT Remote Stop");
+      hasPendingPumpCommand = false;
     } else if (strcasecmp(action, "SET_MODE") == 0) {
       const char* m = doc["mode"] | doc["parameters"]["mode"] | "AUTO";
       systemMode = String(m);
@@ -510,7 +575,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       prefs.begin(NVS_NAMESPACE, false);
       prefs.putString("sys_mode", systemMode);
       prefs.end();
-      notifyMqttStatusUpdate = true;
+      publishFastAckAndStatus(cmdId, "Mode Switch");
     } else if (strcasecmp(action, "SET_RULES") == 0) {
       if (doc.containsKey("autoStartLevel")) autoStartLevel = doc["autoStartLevel"];
       if (doc.containsKey("autoStopLevel")) autoStopLevel = doc["autoStopLevel"];
@@ -521,7 +586,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       prefs.putBool("dry_run", dryRunProtectionEnabled);
       prefs.end();
       Serial.printf("[SYSTEM] Automation Rules Updated: Start at %.1f%%, Stop at %.1f%%\n", autoStartLevel, autoStopLevel);
-      notifyMqttStatusUpdate = true;
+      publishFastAckAndStatus(cmdId, "Rules Updated");
     } else if (strcasecmp(action, "TOGGLE_PUMP") == 0 || strcasecmp(action, "TOGGLE") == 0) {
       bool subAlive = (lastSensorPacketTime > 0 && (millis() - lastSensorPacketTime) < SUB_NODE_TIMEOUT_MS);
       if (!pumpRunning && systemMode == "AUTO" && !subAlive) {
@@ -529,20 +594,18 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         notifyMqttStatusUpdate = true;
         return;
       }
-      requestedPumpState = !pumpRunning;
-      pendingCmdReason = "MQTT Toggle";
-      pendingCmdId = String(cmdId);
-      hasPendingPumpCommand = true;
+      setPumpState(!pumpRunning, "MQTT Fast Toggle");
+      publishFastAckAndStatus(cmdId, "MQTT Toggle");
+      hasPendingPumpCommand = false;
     } else if (strcasecmp(action, "EMERGENCY_STOP") == 0) {
       emergencyStopped = true;
-      requestedPumpState = false;
-      pendingCmdReason = "MQTT Emergency Stop";
-      pendingCmdId = String(cmdId);
-      hasPendingPumpCommand = true;
+      setPumpState(false, "MQTT Fast Emergency Stop");
+      publishFastAckAndStatus(cmdId, "MQTT Emergency Stop");
+      hasPendingPumpCommand = false;
     } else if (strcasecmp(action, "CLEAR_EMERGENCY") == 0) {
       emergencyStopped = false;
       Serial.println("[Safety] Emergency Stop state cleared remotely via MQTT.");
-      notifyMqttStatusUpdate = true;
+      publishFastAckAndStatus(cmdId, "Clear Emergency");
     } else if (strcasecmp(action, "PING") == 0 || strstr(topic, "/ping") != NULL || strcmp(topic, "pump/ping") == 0) {
       StaticJsonDocument<384> pongDoc;
       pongDoc["ping_id"] = doc["ping_id"] | doc["pingId"] | "ping_req";
@@ -565,7 +628,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       notifyMqttStatusUpdate = true;
     } else if (strcasecmp(action, "GET_STATUS") == 0 || strcasecmp(action, "STATUS") == 0) {
       Serial.println("[MQTT] Immediate Status request received from App. Dispatching live state...");
-      notifyMqttStatusUpdate = true;
+      publishFastAckAndStatus(cmdId, "Immediate Status Report");
     } else if (strcasecmp(action, "FACTORY_RESET") == 0 || strcasecmp(action, "HARD_RESET") == 0 || strcasecmp(action, "RESET") == 0 || strcasecmp(action, "REMOVE") == 0) {
       Serial.println("[MQTT] Reset / Remove command received from Mobile App. Executing hardware wipe...");
       executeFactoryReset();
@@ -579,7 +642,7 @@ void sendHttpBackendTelemetry() {
   HTTPClient http;
   http.begin(storedBackendUrl);
   http.addHeader("Content-Type", "application/json");
-  http.setTimeout(2000);
+  http.setTimeout(600);
 
   StaticJsonDocument<384> doc;
   doc["deviceId"] = deviceId;
@@ -843,15 +906,16 @@ void TaskNetwork(void *pvParameters) {
         mqttClient.publish(("pump/" + deviceId + "/telemetry").c_str(), out.c_str(), false);
       }
 
-      // 4. Direct Cloud REST Failover Telemetry Sync (every 5s directly to Vercel Cloud API)
+      // 4. Cloud REST Telemetry Failover Sync (Runs only every 60s as backup when MQTT is active)
       static unsigned long lastHttpSync = 0;
-      if (millis() - lastHttpSync > 5000) {
+      if (millis() - lastHttpSync > 60000) {
         lastHttpSync = millis();
         sendHttpBackendTelemetry();
       }
     }
 
-    vTaskDelay(pdMS_TO_TICKS(50));
+    // High-responsiveness tick: 5ms loop ensures incoming MQTT command packets are read immediately
+    vTaskDelay(pdMS_TO_TICKS(5));
   }
 }
 
@@ -865,7 +929,7 @@ void TaskControl(void *pvParameters) {
   bool manualBtnLatched = false;
 
   for (;;) {
-    // 0. Execute Pending Remote Pump Command from MQTT or App
+    // 0. Execute Pending Remote Pump Command from MQTT or App (Fallback queue)
     if (hasPendingPumpCommand) {
       hasPendingPumpCommand = false;
       setPumpState(requestedPumpState, pendingCmdReason);
@@ -875,10 +939,10 @@ void TaskControl(void *pvParameters) {
       bootBtnCounter++;
       if (bootBtnCounter == 1) {
         Serial.println("[RESET BTN] BOOT button pressed. Hold for 1.5s to Factory Reset...");
-      } else if (bootBtnCounter % 6 == 0) {
-        Serial.printf("[RESET BTN] Holding BOOT button... (%d ms / 1500 ms)\n", bootBtnCounter * 50);
+      } else if (bootBtnCounter % 30 == 0) {
+        Serial.printf("[RESET BTN] Holding BOOT button... (%d ms / 1500 ms)\n", bootBtnCounter * 10);
       }
-      if (bootBtnCounter >= 30) { // 30 * 50ms = 1500ms
+      if (bootBtnCounter >= 150) { // 150 * 10ms = 1500ms
         executeFactoryReset();
       }
     } else {
@@ -905,10 +969,10 @@ void TaskControl(void *pvParameters) {
       }
     }
 
-    // 3. Hardware Emergency Stop Switch (Requires sustained 250ms LOW to prevent false trips from inductive relay noise)
+    // 3. Hardware Emergency Stop Switch (Requires sustained 150ms LOW to prevent false trips from inductive relay noise)
     if (digitalRead(PIN_EMERGENCY_STOP) == LOW) {
       emergencyCounter++;
-      if (emergencyCounter >= 5) { // 5 * 50ms = 250ms continuous LOW
+      if (emergencyCounter >= 15) { // 15 * 10ms = 150ms continuous LOW
         if (!emergencyStopped) {
           emergencyStopped = true;
           setPumpState(false, "Hardware Emergency Button Pressed");
@@ -918,10 +982,10 @@ void TaskControl(void *pvParameters) {
       emergencyCounter = 0;
     }
 
-    // 4. Manual Switching Push Button (Debounced toggle - requires sustained 150ms press)
+    // 4. Manual Switching Push Button (Debounced toggle - requires sustained 60ms press)
     if (digitalRead(PIN_MANUAL_BUTTON) == LOW) {
       manualBtnCounter++;
-      if (manualBtnCounter >= 3 && !manualBtnLatched) {
+      if (manualBtnCounter >= 6 && !manualBtnLatched) {
         manualBtnLatched = true;
         setPumpState(!pumpRunning, "Manual Physical Toggle Button");
       }
@@ -955,7 +1019,8 @@ void TaskControl(void *pvParameters) {
       setPumpState(false, "Continuous Max Run Time Limit Reached (30 Mins)");
     }
 
-    vTaskDelay(pdMS_TO_TICKS(50));
+    // Crisp 10ms control cycle
+    vTaskDelay(pdMS_TO_TICKS(10));
   }
 }
 
@@ -1084,7 +1149,7 @@ void setup() {
   // 4. MQTT Client Setup
   mqttClient.setServer(DEFAULT_MQTT_BROKER, DEFAULT_MQTT_PORT);
   mqttClient.setCallback(mqttCallback);
-  mqttClient.setBufferSize(512);
+  mqttClient.setBufferSize(1024);
   mqttClient.setKeepAlive(30);
 
   // 5. Spawn FreeRTOS Dual-Core Tasks

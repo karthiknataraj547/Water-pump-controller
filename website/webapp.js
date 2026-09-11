@@ -1887,7 +1887,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const activeDevId = (userDevices && userDevices.length > 0) ? (userDevices[0].id || userDevices[0].nodeId || userDevices[0].deviceId) : 'esp32_pump_main';
       const cmd = active ? 'START_PUMP' : 'STOP_PUMP';
 
-      // 1. MQTT Publish to all topics matching Mobile App & Hardware
+      // 1. MQTT Publish to all topics matching Mobile App & Hardware (Instant QoS 0)
       if (mqttClient && mqttClient.connected) {
         const payload = JSON.stringify({
           action: cmd,
@@ -1904,11 +1904,19 @@ document.addEventListener('DOMContentLoaded', () => {
           timestamp: Math.floor(Date.now() / 1000)
         });
 
+        // Fast broadcast to all listening targets
         mqttClient.publish('pump/command', payload, { qos: 0 });
         mqttClient.publish(`pump/${activeDevId}/command`, payload, { qos: 0 });
+        mqttClient.publish('pump/esp32_pump_AA69E0/command', payload, { qos: 0 });
         mqttClient.publish(`pump/${currentUser ? currentUser.id : 'user'}/${activeDevId}/command`, payload, { qos: 0 });
         mqttClient.publish(`devices/${activeDevId}/command`, payload, { qos: 0 });
         mqttClient.publish('waterpump/esp32/control', payload, { qos: 0 });
+
+        // Zero-overhead raw plaintext dispatch for microsecond ESP32 execution
+        const rawAction = active ? 'START' : 'STOP';
+        mqttClient.publish(`pump/${activeDevId}/command`, rawAction, { qos: 0 });
+        mqttClient.publish('pump/esp32_pump_AA69E0/command', rawAction, { qos: 0 });
+        mqttClient.publish('pump/command', rawAction, { qos: 0 });
       }
 
       // 2. Backend REST Command

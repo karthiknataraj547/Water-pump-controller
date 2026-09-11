@@ -16,7 +16,7 @@
 // ==========================================
 // SYSTEM & TIMING CONFIGURATIONS
 // ==========================================
-#define FIRMWARE_VERSION       "2.0.9"
+#define FIRMWARE_VERSION       "2.0.10"
 #define DEFAULT_DEVICE_PREFIX  "esp32_pump_"
 #define BLE_DEVICE_PREFIX      "PumpController-"
 
