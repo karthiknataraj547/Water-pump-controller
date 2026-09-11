@@ -611,10 +611,11 @@ SensorTelemetryPacket cachedSensorPacket;
 portMUX_TYPE sensorMux = portMUX_INITIALIZER_UNLOCKED;
 
 #if defined(ESP_IDF_VERSION) && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
-void onEspNowDataRecv(const esp_now_recv_info_t *info, const uint8_t *incomingData, int len) {
+void onEspNowDataRecv(const esp_now_recv_info_t *info, const uint8_t *incomingData, int len)
 #else
-void onEspNowDataRecv(const uint8_t *mac_addr, const uint8_t *incomingData, int len) {
+void onEspNowDataRecv(const uint8_t *mac_addr, const uint8_t *incomingData, int len)
 #endif
+{
   if (len == sizeof(SensorTelemetryPacket)) {
     SensorTelemetryPacket packet;
     memcpy(&packet, incomingData, sizeof(packet));
