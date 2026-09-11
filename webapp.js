@@ -142,10 +142,9 @@ document.addEventListener('DOMContentLoaded', () => {
   renderBackground();
 
   // ==============================================================================
-  // 3. Centralized Authentication & Account Synchronization
+  // 3. Centralized Authentication & Account Synchronization (Strictly Cloud API, No Local Servers)
   const isVercelHost = window.location.hostname.endsWith('vercel.app');
-  const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-  const apiBaseUrl = (isLocalHost || isVercelHost) ? `${window.location.origin}/api/v1` : 'https://water-pump-controller.vercel.app/api/v1';
+  const apiBaseUrl = isVercelHost ? `${window.location.origin}/api/v1` : 'https://water-pump-controller.vercel.app/api/v1';
 
   let authToken = localStorage.getItem('hydropulse_auth_token') || null;
   let currentUser = null;

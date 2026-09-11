@@ -841,6 +841,13 @@ void TaskNetwork(void *pvParameters) {
         mqttClient.publish(("pump/" + deviceId + "/status").c_str(), out.c_str(), true);
         mqttClient.publish(("pump/" + deviceId + "/telemetry").c_str(), out.c_str(), false);
       }
+
+      // 4. Direct Cloud REST Failover Telemetry Sync (every 5s directly to Vercel Cloud API)
+      static unsigned long lastHttpSync = 0;
+      if (millis() - lastHttpSync > 5000) {
+        lastHttpSync = millis();
+        sendHttpBackendTelemetry();
+      }
     }
 
     vTaskDelay(pdMS_TO_TICKS(50));
