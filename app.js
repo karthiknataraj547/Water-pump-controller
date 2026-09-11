@@ -409,9 +409,9 @@ document.addEventListener('DOMContentLoaded', () => {
           }
 
           // All APK download links
-          const downloadLinks = document.querySelectorAll('a[href*="HydroPulse_WaterPumpController.apk"], .download-trigger, .nav-download-btn');
+          const downloadLinks = document.querySelectorAll('a[href*="HydroPulse"], .download-trigger, .nav-download-btn');
           downloadLinks.forEach(link => {
-            const targetUrl = data.download_url ? `${data.download_url}?v=${data.version}` : `releases/HydroPulse_WaterPumpController.apk?v=${data.version}`;
+            const targetUrl = data.download_url || `releases/HydroPulse_v${data.version}_build${data.build_number || 22}.apk`;
             link.setAttribute('href', targetUrl);
             const span = link.querySelector('span');
             if (span && span.textContent.includes('Download HydroPulse APK')) {

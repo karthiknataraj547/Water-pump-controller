@@ -390,22 +390,21 @@ module.exports = async (req, res) => {
 
     if (!manifest) {
       manifest = {
-        version: '2.1.6',
-        build_number: 20,
-        release_date: '2026-09-06',
+        version: '2.1.8',
+        build_number: 22,
+        release_date: '2026-09-11',
         min_supported_version: '1.0.0',
-        download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_WaterPumpController.apk',
+        download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.1.8_build22.apk',
         website_url: 'https://water-pump-controller.vercel.app',
-        sha256: 'f5430541d7cd831aedc1aa75a44d701de7e0fad2d5cf400a98ee8b119c5c003c',
-        title: 'HydroPulse v2.1.6 - <300ms Motor Latency, State Memory, Offline Flash Fix & Provisioning Flow',
+        sha256: '28ed5419bbc483dfe87c1ce89777ee157a3ce8fda75d6423528b925ced1fd792',
+        title: 'HydroPulse v2.1.8 - Update Engine Fixes, Background Download Guards & Reliable Version Delivery',
         changelog: [
-          'Sub-300ms Motor Control: Pump start/stop is now visually instant with debounce window reduced to 200ms.',
-          'Hardware State Memory: After MQTT reconnect, the app re-sends last known mode and pump state to the hardware automatically.',
-          'Offline Flash Fix: Refresh no longer flashes OFFLINE status — a 2000ms verification window prevents false drops.',
-          'Manual/Auto Mode Fix: Mode switching now also syncs to the REST backend immediately, eliminating flicker.',
-          'Fresh Login Provisioning: New user accounts now see the hardware pairing flow instead of a pre-existing device.',
-          'Backend Watchdog: Cloud backend now evaluates hardware online status every 300ms for accurate real-time detection.',
-          'Faster Ping Loop: Hardware presence probed every 500ms (from 1000ms) for quicker online detection.'
+          'Version Delivery Fix: Guaranteed delivery of the latest v2.1.8 release via version-specific release packages.',
+          'Duplicate Download Prompt Prevention: Suppressed redundant update dialogs and stacked popups while an update is downloading.',
+          'Download Progress Protection: Added service-level download state locking across tab switching and app resume.',
+          'Sub-300ms Motor Control: Instant pump start/stop actuation with optimistic locking.',
+          'Hardware State Memory: Last known pump state and automation mode restored upon connection.',
+          '300ms Watchdog: Proactive hardware heartbeat monitoring and offline detection.'
         ],
         is_critical: true,
         file_size: 58508324

@@ -414,13 +414,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (el.textContent.startsWith('v2.')) el.textContent = `v${data.version}`;
               });
 
-              const dlLinks = document.querySelectorAll('a[href*="HydroPulse_WaterPumpController.apk"], .btn-mobile-download');
+              const dlLinks = document.querySelectorAll('a[href*="HydroPulse"], .btn-mobile-download');
               dlLinks.forEach(link => {
-                const targetUrl = data.download_url ? `${data.download_url}?v=${data.version}` : `releases/HydroPulse_WaterPumpController.apk?v=${data.version}`;
+                const targetUrl = data.download_url || `releases/HydroPulse_v${data.version}_build${data.build_number || 22}.apk`;
                 link.setAttribute('href', targetUrl);
                 const sp = link.querySelector('span');
                 if (sp && sp.textContent.includes('Download Android APK')) {
-                  sp.textContent = `📥 Download Android APK v${data.version} (55.6 MB)`;
+                  sp.textContent = `📥 Download Android APK v${data.version}`;
                 }
               });
             }
