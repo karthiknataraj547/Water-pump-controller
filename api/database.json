@@ -61,19 +61,56 @@
       "createdAt": "2026-09-05T15:41:52.549Z"
     }
   ],
-  "devices": [],
+  "devices": [
+    {
+      "id": "esp32_pump_94B97E",
+      "deviceId": "esp32_pump_94B97E",
+      "nodeId": "esp32_pump_94B97E",
+      "name": "Agricultural Borewell Pump",
+      "macAddress": "24:6F:28:94:B9:7E",
+      "userId": "karthiknataraj547@gmail.com",
+      "userEmail": "karthiknataraj547@gmail.com",
+      "isOnline": false,
+      "pumpRunning": false,
+      "mode": "AUTO",
+      "waterLevelPct": 0,
+      "pairedAt": "2026-09-04T01:59:17.936Z",
+      "lastSeen": "2026-09-04T09:56:26.093Z",
+      "status": "OFFLINE"
+    },
+    {
+      "id": "esp32_pump_94B97E",
+      "deviceId": "esp32_pump_94B97E",
+      "nodeId": "esp32_pump_94B97E",
+      "name": "Agricultural Borewell Pump",
+      "macAddress": "24:6F:28:94:B9:7E",
+      "userId": "usr_demo_001",
+      "userEmail": "demo@hydropulse.io",
+      "isOnline": false,
+      "status": "OFFLINE",
+      "pumpRunning": false,
+      "pumpState": "OFF",
+      "mode": "AUTO",
+      "firmwareVersion": "v2.1.8",
+      "wifiRssi": -58,
+      "waterLevelPct": 78.5,
+      "pairedAt": "2026-09-04T01:59:09.315Z",
+      "lastSeen": "2026-09-11T10:00:00.000Z"
+    }
+  ],
   "liveState": {
-    "pumpRunning": false,
+    "pumpRunning": true,
     "mode": "AUTO",
-    "waterLevelPct": 0.0,
-    "volumeLiters": 0.0,
-    "totalCapacityLiters": 5000.0,
-    "flowRateLpm": 0.0,
-    "powerKw": 0.0,
+    "waterLevelPct": 82.5,
+    "volumeLiters": 4125,
+    "totalCapacityLiters": 5000,
+    "flowRateLpm": 0,
+    "powerKw": 0,
     "tdsPpm": 0,
-    "tempC": 0.0,
+    "tempC": 0,
     "lastHeartbeat": 0,
-    "lastSeen": 0
+    "lastSeen": 1788515786098,
+    "_wasOnline": false
   },
   "telemetryHistory": []
 }

@@ -144,7 +144,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==============================================================================
   // 3. Centralized Authentication & Account Synchronization
   const isVercelHost = window.location.hostname.endsWith('vercel.app');
-  const apiBaseUrl = isVercelHost ? `${window.location.origin}/api/v1` : 'https://water-pump-controller.vercel.app/api/v1';
+  const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const apiBaseUrl = (isLocalHost || isVercelHost) ? `${window.location.origin}/api/v1` : 'https://water-pump-controller.vercel.app/api/v1';
 
   let authToken = localStorage.getItem('hydropulse_auth_token') || null;
   let currentUser = null;
@@ -334,6 +335,45 @@ document.addEventListener('DOMContentLoaded', () => {
         if (nodeNameEl) nodeNameEl.textContent = 'No Hardware Linked';
         const nodeMacEl = document.getElementById('active-node-mac');
         if (nodeMacEl) nodeMacEl.textContent = 'Pair via Mobile App or Link Below';
+        const hwActiveDash = document.getElementById('hw-active-dashboard');
+        const hwNoneDash = document.getElementById('hw-none-dashboard');
+        if (hwActiveDash) hwActiveDash.classList.add('hidden');
+        if (hwNoneDash) hwNoneDash.classList.remove('hidden');
+      }
+
+      function quickLinkBorewell() {
+        const userEmail = (currentUser?.email || localStorage.getItem('hydropulse_user_email') || '').toLowerCase();
+        const borewellDev = {
+          id: 'esp32_pump_94B97E',
+          deviceId: 'esp32_pump_94B97E',
+          nodeId: 'esp32_pump_94B97E',
+          name: 'Agricultural Borewell Pump',
+          macAddress: '24:6F:28:94:B9:7E',
+          userEmail: userEmail,
+          userId: userEmail,
+          isOnline: true,
+          status: 'ONLINE',
+          pumpState: 'OFF',
+          mode: 'AUTO',
+          firmwareVersion: 'v2.1.8',
+          wifiRssi: -58
+        };
+        applyActiveDevice(borewellDev);
+        if (mqttClient && mqttClient.connected && userEmail) {
+          const str = JSON.stringify(borewellDev);
+          mqttClient.publish(`hydropulse/devices/${userEmail}`, str, { retain: true, qos: 1 });
+          mqttClient.publish(`devices/sync/${userEmail}`, str, { retain: true, qos: 1 });
+        }
+        fetch(`${apiBaseUrl}/devices`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`,
+            'x-user-email': userEmail
+          },
+          body: JSON.stringify(borewellDev)
+        }).catch(() => {});
+        alert('✓ Agricultural Borewell Pump (94B97E) linked successfully to your account!');
       }
 
       function promptManualPair() {
@@ -354,7 +394,7 @@ document.addEventListener('DOMContentLoaded', () => {
           status: 'OFFLINE',
           pumpState: 'OFF',
           mode: 'AUTO',
-          firmwareVersion: 'v2.1.2',
+          firmwareVersion: 'v2.1.8',
           wifiRssi: -65
         };
         applyActiveDevice(customDev);
@@ -374,6 +414,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }).catch(() => {});
         alert(`✓ Hardware ${customDev.name} (${customDev.id}) linked and synced!`);
       }
+
+      const btnGuideBorewell = document.getElementById('btn-guide-link-borewell');
+      if (btnGuideBorewell) btnGuideBorewell.onclick = quickLinkBorewell;
+      const btnQuickBorewell = document.getElementById('btn-quick-link-borewell');
+      if (btnQuickBorewell) btnQuickBorewell.onclick = quickLinkBorewell;
 
       const btnManualLink = document.getElementById('btn-manual-link-dialog');
       if (btnManualLink) btnManualLink.onclick = promptManualPair;
@@ -1950,14 +1995,30 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
           const data = JSON.parse(message.toString());
 
-          // Active device check: filter out packets if user has linked devices and incoming doesn't match
+          // 0. Live & Retained Hardware Node Synchronization across devices (Scoped strictly to user)
+          if (topic.startsWith('devices/sync') || topic.startsWith('hydropulse/devices') || (data && (data.macAddress || (data.deviceId && (data.name || data.userEmail))))) {
+            const currentEmail = (currentUser?.email || localStorage.getItem('hydropulse_user_email') || '').trim().toLowerCase();
+            const msgEmail = (data.userEmail || data.userId || '').trim().toLowerCase();
+            if ((currentEmail && msgEmail && msgEmail === currentEmail) || (currentEmail && topic.includes(currentEmail))) {
+              console.log('[MQTT] Received hardware sync packet from cloud broker for', currentEmail, data);
+              applyActiveDevice(data);
+            }
+          }
+
+          // Active device check: accept messages for active device or default pump
           const activeDevId = (userDevices && userDevices.length > 0)
             ? (userDevices[0].id || userDevices[0].nodeId || userDevices[0].deviceId)
-            : null;
+            : 'esp32_pump_94B97E';
 
           const incomingDevId = data.deviceId || data.nodeId || data.id;
-          if (!activeDevId || !incomingDevId || incomingDevId !== activeDevId) {
-            return; // Strict match: ignore packets without device ID or from other devices
+          const isMatch = !incomingDevId || !activeDevId || 
+            incomingDevId === activeDevId || 
+            incomingDevId === 'esp32_pump_main' || 
+            activeDevId === 'esp32_pump_main' ||
+            (incomingDevId.includes('94B97E') && activeDevId.includes('94B97E'));
+
+          if (!isMatch) {
+            return;
           }
 
           // Strict Offline Detection via LWT or status payload
@@ -1967,24 +2028,11 @@ document.addEventListener('DOMContentLoaded', () => {
           }
 
           lastHardwareHeartbeat = Date.now();
-          updateHardwareStatusBadge(true, 22);
+          updateHardwareStatusBadge(true, 18);
 
           // Sync Emergency Stop State from hardware/mobile
           if (data.emergencyStopped !== undefined) {
             updateEmergencyStopUI(Boolean(data.emergencyStopped));
-          }
-
-          // 0. Live & Retained Hardware Node Synchronization across devices (Strict User-Scoped)
-          if (topic.startsWith('devices/sync') || topic.startsWith('hydropulse/devices') || (data && (data.macAddress || (data.deviceId && (data.name || data.userEmail))))) {
-            const currentEmail = (currentUser?.email || localStorage.getItem('hydropulse_user_email') || '').trim().toLowerCase();
-            const msgEmail = (data.userEmail || data.userId || '').trim().toLowerCase();
-            if (currentEmail && msgEmail) {
-              const isMatch = (msgEmail === currentEmail);
-              if (isMatch) {
-                console.log('[MQTT] Received hardware sync packet from cloud broker for', currentEmail, data);
-                applyActiveDevice(data);
-              }
-            }
           }
 
           // 1. Motor Command Sync from Mobile App or Hardware

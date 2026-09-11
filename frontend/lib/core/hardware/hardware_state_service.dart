@@ -301,16 +301,38 @@ class HardwareStateService extends ChangeNotifier {
           }).toList();
 
           if (userOwned.isEmpty) {
-            debugPrint('[HardwareStateService] Cloud returned 0 matching devices for $cleanEmail. Clearing any stale device cache and showing pairing UI.');
+            debugPrint('[HardwareStateService] Cloud returned 0 matching devices for $cleanEmail.');
+            
+            // 1. If the user already has an active paired device in memory and hasn't explicitly removed it, preserve and re-sync
+            if (!_isExplicitlyRemoved && _activeDevice != null && _activeDevice!.id.isNotEmpty) {
+              debugPrint('[HardwareStateService] Retaining locally active device ${_activeDevice!.id} and re-syncing to cloud.');
+              syncDeviceToBackend(_activeDevice!).ignore();
+              return;
+            }
+
+            // 2. Check SharedPreferences if we have a saved paired device for this user
+            final prefs = await SharedPreferences.getInstance();
+            final savedDevStr = prefs.getString('saved_paired_device');
+            final savedOwner = prefs.getString('saved_paired_device_owner_email')?.trim().toLowerCase() ?? '';
+            if (!_isExplicitlyRemoved && savedDevStr != null && (savedOwner.isEmpty || savedOwner == cleanEmail)) {
+              try {
+                final devMap = jsonDecode(savedDevStr);
+                if (devMap is Map<String, dynamic>) {
+                  _activeDevice = DeviceModel.fromJson(devMap);
+                  debugPrint('[HardwareStateService] Restored cached paired device ${_activeDevice!.id} for $cleanEmail and re-syncing.');
+                  syncDeviceToBackend(_activeDevice!).ignore();
+                  notifyListeners();
+                  return;
+                }
+              } catch (_) {}
+            }
+
+            // 3. Only if the account truly has never paired any device, show pairing interface
             _activeDevice = null;
             _sensorData = null;
             _pumpStatus = null;
             _lastMainNodeHeartbeat = null;
             _lastSubNodePacket = null;
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.remove('saved_paired_device');
-            await prefs.remove('saved_paired_device_owner_email');
-            await storage.delete(key: AppConstants.keySelectedDeviceId);
             notifyListeners();
             return;
           }
@@ -1430,10 +1452,9 @@ class HardwareStateService extends ChangeNotifier {
     final isTurningOn = (normCmd == 'START_PUMP' || normCmd == 'PUMP_ON' || normCmd == 'ON');
     final newState = isTurningOn ? 'ON' : 'OFF';
 
-    // Debounce lock: 3000ms window to absorb broker propagation and in-flight packets.
-    // Unlocks immediately upon matching hardware state ACK.
+    // Instant actuation lock: 400ms window to absorb broker propagation and prevent jitter
     _expectedPumpState = newState;
-    _pumpCommandLockUntil = DateTime.now().add(const Duration(milliseconds: 3000));
+    _pumpCommandLockUntil = DateTime.now().add(const Duration(milliseconds: 400));
 
     final cmdId = 'cmd_${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
     _lastCommand = PendingCommand(
@@ -1497,7 +1518,7 @@ class HardwareStateService extends ChangeNotifier {
 
     _persistActiveDevice();
 
-    Timer(const Duration(milliseconds: 1500), () {
+    Timer(const Duration(milliseconds: 180), () {
       if (_lastCommand?.commandId == cmdId) {
         _lastCommand?.state = CommandTransitState.idle;
         notifyListeners();

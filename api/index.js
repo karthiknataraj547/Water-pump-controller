@@ -202,7 +202,10 @@ function loadState() {
           for (const u of parsed.users) usersDb.set(u.email, u);
         }
         if (parsed.devices && Array.isArray(parsed.devices)) {
-          for (const d of parsed.devices) devicesDb.set(d.id || d.deviceId, d);
+          for (const d of parsed.devices) {
+            const devKey = d.userEmail ? `${d.userEmail.toLowerCase()}_${d.id || d.deviceId}` : (d.id || d.deviceId);
+            devicesDb.set(devKey, d);
+          }
         }
         if (parsed.liveState) {
           Object.assign(liveState, parsed.liveState);
@@ -221,7 +224,10 @@ function loadState() {
         for (const u of parsed.users) usersDb.set(u.email, u);
       }
       if (parsed.devices && Array.isArray(parsed.devices)) {
-        for (const d of parsed.devices) devicesDb.set(d.id || d.deviceId, d);
+        for (const d of parsed.devices) {
+          const devKey = d.userEmail ? `${d.userEmail.toLowerCase()}_${d.id || d.deviceId}` : (d.id || d.deviceId);
+          devicesDb.set(devKey, d);
+        }
       }
       if (parsed.liveState) {
         Object.assign(liveState, parsed.liveState);
@@ -772,7 +778,8 @@ module.exports = async (req, res) => {
       pairedAt: new Date().toISOString(),
       lastSeen: new Date().toISOString()
     };
-    devicesDb.set(devId, newDevice);
+    const storageKey = targetEmail ? `${targetEmail}_${devId}` : devId;
+    devicesDb.set(storageKey, newDevice);
     saveState();
 
     return res.status(201).json({
@@ -791,15 +798,22 @@ module.exports = async (req, res) => {
     const targetUserId = (payload?.userId || body.userId || '').trim();
 
     const devId = req.query?.id || body.deviceId || body.id || (url.split('/').pop() !== 'devices' ? url.split('/').pop() : '');
-    if (devId && devicesDb.has(devId)) {
-      const existing = devicesDb.get(devId);
-      const isOwner = (!targetEmail && !targetUserId) ||
-        (existing.userEmail && existing.userEmail.toLowerCase() === targetEmail) ||
-        (existing.userId && existing.userId === targetUserId);
-
-      if (isOwner) {
-        devicesDb.delete(devId);
-        saveState();
+    const storageKey = targetEmail ? `${targetEmail}_${devId}` : devId;
+    
+    if (devicesDb.has(storageKey)) {
+      devicesDb.delete(storageKey);
+      saveState();
+    } else if (devId && devicesDb.has(devId)) {
+      devicesDb.delete(devId);
+      saveState();
+    } else {
+      // Look for match by id and email across map
+      for (const [k, d] of devicesDb.entries()) {
+        if ((d.id === devId || d.deviceId === devId) && (!targetEmail || d.userEmail?.toLowerCase() === targetEmail)) {
+          devicesDb.delete(k);
+          saveState();
+          break;
+        }
       }
     }
     return res.status(200).json({

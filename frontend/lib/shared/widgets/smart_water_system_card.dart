@@ -749,8 +749,8 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
       },
       pressedScale: 0.96,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 350),
-        curve: Curves.easeInOutCubic,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOutCubic,
         height: 52,
         decoration: BoxDecoration(
           color: widget.isPumpRunning ? AppTheme.danger : colorScheme.primary,
@@ -764,7 +764,7 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
           ],
         ),
         child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
+          duration: const Duration(milliseconds: 150),
           transitionBuilder: (child, anim) => FadeTransition(
             opacity: anim,
             child: ScaleTransition(scale: Tween(begin: 0.85, end: 1.0).animate(anim), child: child),
