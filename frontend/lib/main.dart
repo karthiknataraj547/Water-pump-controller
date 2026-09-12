@@ -23,29 +23,113 @@ import 'features/notifications/presentation/notifications_screen.dart';
 import 'shared/widgets/animated_pressable.dart';
 import 'core/update/app_update_service.dart';
 import 'core/notifications/push_notification_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 final authStateNotifier = ValueNotifier<String?>(null);
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
+const safeSecureStorage = FlutterSecureStorage(
+  aOptions: AndroidOptions(
+    encryptedSharedPreferences: true,
+    resetOnError: true,
+  ),
+);
+
+Future<String?> readStoredAccessToken() async {
+  try {
+    final token = await safeSecureStorage.read(key: AppConstants.keyAccessToken).timeout(
+      const Duration(milliseconds: 600),
+      onTimeout: () => null,
+    );
+    if (token != null && token.trim().isNotEmpty) {
+      return token.trim();
+    }
+  } catch (e) {
+    debugPrint('[Auth] FlutterSecureStorage read error: $e');
+  }
+
+  // Resilient fallback to SharedPreferences
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(AppConstants.keyAccessToken);
+    if (token != null && token.trim().isNotEmpty) {
+      return token.trim();
+    }
+  } catch (_) {}
+  return null;
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Set immersive status bar styling
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+    ),
+  );
+
+  // Safely determine initial token before router configuration
+  String? initialToken;
+  try {
+    initialToken = await readStoredAccessToken();
+  } catch (e) {
+    debugPrint('[Auth] Initial token lookup failure: $e');
+  }
+  authStateNotifier.value = initialToken;
+
   final router = GoRouter(
     navigatorKey: rootNavigatorKey,
-    initialLocation: '/dashboard',
+    initialLocation: (initialToken != null && initialToken.isNotEmpty) ? '/dashboard' : '/login',
     refreshListenable: authStateNotifier,
-    redirect: (context, state) async {
-      const storage = FlutterSecureStorage();
-      final token = await storage.read(key: AppConstants.keyAccessToken) ?? authStateNotifier.value;
+    redirect: (context, state) {
+      final token = authStateNotifier.value;
       final isLoggingIn = state.matchedLocation == '/login';
 
-      if (token == null && !isLoggingIn) {
+      if ((token == null || token.isEmpty) && !isLoggingIn) {
         return '/login';
       }
-      if (token != null && isLoggingIn) {
+      if (token != null && token.isNotEmpty && isLoggingIn) {
         return '/dashboard';
       }
       return null;
+    },
+    errorBuilder: (context, state) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF070B14),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.water_drop_rounded, color: Color(0xFF00E5FF), size: 56),
+                const SizedBox(height: 16),
+                const Text(
+                  'HydroPulse Loading Recovery',
+                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  state.error?.toString() ?? 'Routing recovery in progress',
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00E5FF),
+                    foregroundColor: Colors.black,
+                  ),
+                  onPressed: () => context.go('/login'),
+                  child: const Text('Open Login Screen'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
     },
     routes: [
       GoRoute(
@@ -169,10 +253,14 @@ void main() async {
 
   runApp(ProviderScope(child: HydroPulseApp(router: router)));
   WidgetsBinding.instance.addPostFrameCallback((_) {
-    hardwareStateService.initialize();
-    overflowAlertService.initialize();
-    appUpdateService.initialize(navigatorKey: rootNavigatorKey);
-    pushNotificationService.initialize();
+    try {
+      hardwareStateService.initialize();
+      overflowAlertService.initialize();
+      appUpdateService.initialize(navigatorKey: rootNavigatorKey);
+      pushNotificationService.initialize();
+    } catch (e) {
+      debugPrint('[Init] Post-frame services initialization notice: $e');
+    }
   });
 }
 

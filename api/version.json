@@ -5,17 +5,16 @@
     "min_supported_version": "1.0.0",
     "download_url": "https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.3_build27.apk",
     "website_url": "https://water-pump-controller.vercel.app",
-    "sha256": "27a8dff1ebac866073ead86bc6636167955989493322ae536f54317058657a00",
-    "title": "HydroPulse v2.2.3 - Sub-300ms Actuation, 1.5s Offline SLA & Verified Live Hardware MQTT Ping/Pong",
+    "sha256": "e3073c07da5554d7f3440836baab11ff032e3cb6dc5b3037b85ce7efe7955fa0",
+    "title": "HydroPulse v2.2.3 - Clean Startup Architecture & Release Keystore Alignment",
     "changelog": [
-        "Verified Live Hardware MQTT Ping/Pong: Backend actively tests physical hardware connectivity over HiveMQ before reporting status, completely eliminating mock or cached states.",
-        "Sub-300ms Actuation Round-Trip: Microsecond GPIO relay actuation directly in Core 0 mqttCallback with plaintext START_OK/STOP_OK and retained state sync.",
-        "Strict 1.5-Second Heartbeat SLA: 500ms dedicated heartbeats feed a strict 1500ms watchdog with immediate MQTT LWT availability trigger.",
-        "Persistent Connection Keepalive: Tuned MQTT keepalive to 5 seconds with non-blocking 1000ms reconnect loop (no delay() in control path).",
-        "Decoupled Multi-Node Tracking: Independent Main Node and Sub Node heartbeats eliminate online/offline flickering and preserve manual pump control.",
-        "Zero Blocking Delays: Relay switching and hardware state verification execute immediately upon command arrival."
+        "Fixed Blank Screen on Launch: Eliminated unhandled KeyStore async deadlock in router initialization, adding safe fallback and instant UI rendering.",
+        "Persistent Release Keystore: Configured persistent upload signing keystore to eliminate package conflict installation errors on Android devices.",
+        "Verified Live Hardware MQTT Ping/Pong: Backend actively tests physical hardware connectivity over HiveMQ before reporting status, completely eliminating mock states.",
+        "Sub-300ms Actuation Round-Trip: Microsecond GPIO relay actuation directly in Core 0 mqttCallback with plaintext START_OK/STOP_OK.",
+        "Strict 1.5-Second Heartbeat SLA: 500ms dedicated heartbeats feed a strict 1500ms watchdog with immediate MQTT LWT availability trigger."
     ],
     "is_critical": false,
-    "updatedAt": "2026-09-12T09:30:00.000Z",
-    "file_size": 58524708
+    "updatedAt": "2026-09-12T10:15:00.000Z",
+    "file_size": 58508324
 }
