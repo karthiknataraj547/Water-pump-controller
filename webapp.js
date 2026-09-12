@@ -2042,7 +2042,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
       mqttClient.on('message', (topic, message) => {
         try {
-          const data = JSON.parse(message.toString());
+          const rawStr = message.toString().trim();
+          const rawLower = rawStr.toLowerCase();
+
+          // Instant Offline/Online via LWT or availability topic
+          if (rawLower === 'offline' || (topic.endsWith('/availability') && rawLower === 'offline')) {
+            updateHardwareStatusBadge(false);
+            return;
+          }
+          if (rawLower === 'online' || (topic.endsWith('/availability') && rawLower === 'online')) {
+            lastHardwareHeartbeat = Date.now();
+            updateHardwareStatusBadge(true, 18);
+            return;
+          }
+
+          // Plaintext state ("ON" / "OFF")
+          if (topic.endsWith('/state/pump') || topic.endsWith('/state')) {
+            if (rawLower === 'on' || rawLower === 'off') {
+              lastHardwareHeartbeat = Date.now();
+              updateHardwareStatusBadge(true, 18);
+              setMotorRunning(rawLower === 'on', false);
+              return;
+            }
+          }
+
+          let data;
+          try {
+            data = JSON.parse(rawStr);
+          } catch (_) {
+            return;
+          }
 
           // 0. Live & Retained Hardware Node Synchronization across devices (Scoped strictly to user)
           if (topic.startsWith('devices/sync') || topic.startsWith('hydropulse/devices') || (data && (data.macAddress || (data.deviceId && (data.name || data.userEmail))))) {
@@ -2306,14 +2335,14 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchLive();
     restPollInterval = setInterval(fetchLive, 2500);
 
-    // Strict Hardware Watchdog (3000ms SLA, checking every 500ms)
+    // Strict Hardware Watchdog (1500ms SLA, checking every 300ms)
     setInterval(() => {
       if (isHardwareOnline && userDevices && userDevices.length > 0) {
-        if (Date.now() - lastHardwareHeartbeat > 3000) {
+        if (Date.now() - lastHardwareHeartbeat > 1500) {
           updateHardwareStatusBadge(false);
         }
       }
-    }, 500);
+    }, 300);
   }
 
   resizeTankCanvas();

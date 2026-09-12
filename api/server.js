@@ -171,12 +171,46 @@ try {
   let lastCloudSync = 0;
   mqttClient.on('message', async (topic, message) => {
     try {
-      const data = JSON.parse(message.toString());
+      const msgStr = message.toString().trim();
+      const rawLower = msgStr.toLowerCase();
+
+      // 1. Direct check for plaintext availability/offline/online
+      if (rawLower === 'offline' || (topic.endsWith('/availability') && rawLower === 'offline')) {
+        if (apiHandler && typeof apiHandler.ingestTelemetry === 'function') {
+          apiHandler.ingestTelemetry({ status: 'offline' });
+        }
+        return;
+      }
+      if (rawLower === 'online' || (topic.endsWith('/availability') && rawLower === 'online')) {
+        if (apiHandler && typeof apiHandler.ingestTelemetry === 'function') {
+          apiHandler.ingestTelemetry({ status: 'online' });
+        }
+        return;
+      }
+
+      // 2. Direct plaintext state ("ON" / "OFF")
+      if (topic.endsWith('/state/pump') || topic.endsWith('/state')) {
+        if (rawLower === 'on' || rawLower === 'off') {
+          if (apiHandler && typeof apiHandler.ingestTelemetry === 'function') {
+            apiHandler.ingestTelemetry({ pumpState: rawLower === 'on' ? 'RUNNING' : 'STOPPED' });
+          }
+          return;
+        }
+      }
+
+      // 3. JSON formatted payloads
+      let data;
+      try {
+        data = JSON.parse(msgStr);
+      } catch (_) {
+        return;
+      }
       if (!data) return;
+
       const devId = (data.deviceId || data.id || data.nodeId || '').trim();
       if (!devId && !topic.startsWith('pump/')) return;
-      const rawStr = message.toString().trim().toLowerCase();
-      if (rawStr === 'offline' || data.status === 'OFFLINE' || data.state === 'OFFLINE' || data.status === 'offline') {
+
+      if (data.status === 'OFFLINE' || data.state === 'OFFLINE' || data.status === 'offline') {
         if (apiHandler && typeof apiHandler.ingestTelemetry === 'function') {
           apiHandler.ingestTelemetry({ status: 'offline', deviceId: devId });
         }

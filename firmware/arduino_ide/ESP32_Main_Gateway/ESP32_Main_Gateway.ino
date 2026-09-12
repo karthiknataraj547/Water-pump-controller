@@ -62,7 +62,7 @@
 #define PIN_LED_PUMP           4    // Green pump running LED
 #define PIN_BUZZER             5    // Piezo alert buzzer
 
-#define FIRMWARE_VERSION       "2.0.10"
+#define FIRMWARE_VERSION       "2.2.2"
 #define DEFAULT_DEVICE_PREFIX  "esp32_pump_"
 #define BLE_DEVICE_PREFIX      "PumpController-"
 #define NVS_NAMESPACE          "pump_config"
@@ -70,8 +70,8 @@
 // Networking & Cloud Defaults
 #define DEFAULT_MQTT_BROKER    "broker.emqx.io"
 #define DEFAULT_MQTT_PORT      1883
-#define STATUS_REPORT_INTERVAL 1000     // 1 second dedicated Main Node heartbeat
-#define SUB_NODE_TIMEOUT_MS    2000     // 2s timeout for 150ms ESP8266 Sub Node streaming (fast failover)
+#define STATUS_REPORT_INTERVAL 500      // 500ms dedicated Main Node heartbeat for <300ms SLA
+#define SUB_NODE_TIMEOUT_MS    1500     // 1.5s timeout for 150ms ESP8266 Sub Node streaming (fast failover)
 #define MAX_RUN_TIME_LIMIT_MS  1800000  // 30 minutes continuous max runtime safety limit
 #define BACKEND_API_URL        "https://water-pump-controller.vercel.app/api/v1/telemetry" // Centralized Cloud API endpoint
 
@@ -485,6 +485,17 @@ void publishFastAckAndStatus(const char* cmdId, const char* reason, bool success
   mqttClient.publish(("pump/" + deviceId + "/command/ack").c_str(), ackStr.c_str(), false);
   mqttClient.publish(("pump/" + deviceId + "/ack").c_str(), ackStr.c_str(), false);
 
+  // Plaintext direct state topics (Retained = true for instant state on connect)
+  mqttClient.publish("pump/state/pump", pStatus, true);
+  mqttClient.publish(("pump/" + deviceId + "/state/pump").c_str(), pStatus, true);
+  mqttClient.publish("pump/state", pStatus, true);
+  mqttClient.publish(("pump/" + deviceId + "/state").c_str(), pStatus, true);
+
+  // Plaintext direct command ACK (START_OK / STOP_OK)
+  const char* plainAck = pumpRunning ? "START_OK" : "STOP_OK";
+  mqttClient.publish("pump/command/ack/plain", plainAck, false);
+  mqttClient.publish(("pump/" + deviceId + "/command/ack/plain").c_str(), plainAck, false);
+
   // 2. Instant Live Status Broadcast
   StaticJsonDocument<384> doc;
   doc["device_id"] = deviceId;
@@ -830,9 +841,9 @@ void TaskNetwork(void *pvParameters) {
     // Wi-Fi Connected: Solid blue network LED
     digitalWrite(PIN_LED_NETWORK, HIGH);
 
-    // MQTT Connection Management
+    // MQTT Connection Management (Non-blocking 1000ms reconnect retry)
     if (!mqttClient.connected()) {
-      if (millis() - lastMqttRetry > 3500) {
+      if (millis() - lastMqttRetry >= 1000) {
         lastMqttRetry = millis();
         const char* targetBroker = DEFAULT_MQTT_BROKER;
         mqttClient.setServer(targetBroker, DEFAULT_MQTT_PORT);
@@ -1281,11 +1292,12 @@ void setup() {
     Serial.println("[BLE] Saved Wi-Fi connected directly. BLE Provisioning bypassed.");
   }
 
-  // 4. MQTT Client Setup
+  // 4. MQTT Client Setup (Ultra-low latency keepalive & timeout)
   mqttClient.setServer(DEFAULT_MQTT_BROKER, DEFAULT_MQTT_PORT);
   mqttClient.setCallback(mqttCallback);
   mqttClient.setBufferSize(1024);
-  mqttClient.setKeepAlive(30);
+  mqttClient.setKeepAlive(5);
+  mqttClient.setSocketTimeout(3);
 
   // 5. Spawn FreeRTOS Dual-Core Tasks
   xTaskCreatePinnedToCore(TaskNetwork, "NetTask", 8192, NULL, 1, &TaskNetworkHandle, 0); // Core 0

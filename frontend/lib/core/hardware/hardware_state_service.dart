@@ -580,9 +580,9 @@ class HardwareStateService extends ChangeNotifier {
     }
   }
 
-  // 1. Strict Physical Hardware Connection State — 3.5s Heartbeat SLA
-  // The ESP32 publishes heartbeats every 1.0s. If unplugged or powered down,
-  // the app switches to OFFLINE within 3-4 seconds. No cached permanent online status.
+  // 1. Strict Physical Hardware Connection State — 1.5s Heartbeat SLA
+  // The ESP32 publishes heartbeats every 500ms. If unplugged or powered down,
+  // the app switches to OFFLINE within 1.5 - 1.8 seconds. No cached permanent online status.
   NodeStatus get mainNodeStatus {
     if (_activeDevice == null) return NodeStatus.offline;
 
@@ -591,14 +591,14 @@ class HardwareStateService extends ChangeNotifier {
     // A. Direct verified hardware heartbeat (via MQTT)
     if (_lastMainNodeHeartbeat != null) {
       final diffMs = now.difference(_lastMainNodeHeartbeat!).inMilliseconds;
-      if (diffMs <= 3500) return NodeStatus.online;
-      if (diffMs <= 5000) return NodeStatus.stale;
+      if (diffMs <= 1800) return NodeStatus.online;
+      if (diffMs <= 2500) return NodeStatus.stale;
       return NodeStatus.offline;
     }
 
-    // B. Cloud Backend Verification Failover (REST Watchdog within 3.5s)
+    // B. Cloud Backend Verification Failover (REST Watchdog within 2.5s)
     if (_lastCloudVerifiedOnline != null &&
-        now.difference(_lastCloudVerifiedOnline!).inMilliseconds <= 4000) {
+        now.difference(_lastCloudVerifiedOnline!).inMilliseconds <= 2500) {
       return NodeStatus.online;
     }
 
@@ -611,8 +611,8 @@ class HardwareStateService extends ChangeNotifier {
     if (mainNodeStatus == NodeStatus.offline) return NodeStatus.offline;
     if (_lastSubNodePacket == null) return NodeStatus.offline;
     final diffMs = DateTime.now().difference(_lastSubNodePacket!).inMilliseconds;
-    if (diffMs <= 3500) return NodeStatus.online;
-    if (diffMs <= 5000) return NodeStatus.stale;
+    if (diffMs <= 2000) return NodeStatus.online;
+    if (diffMs <= 3000) return NodeStatus.stale;
     return NodeStatus.offline;
   }
 

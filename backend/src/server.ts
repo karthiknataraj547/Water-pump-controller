@@ -62,20 +62,20 @@ function getVersionManifest() {
     }
   }
   return {
-    version: '2.2.1',
-    build_number: 25,
-    release_date: '2026-09-11',
+    version: '2.2.2',
+    build_number: 26,
+    release_date: '2026-09-12',
     min_supported_version: '1.0.0',
-    download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.1_build25.apk',
+    download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.2_build26.apk',
     website_url: 'https://water-pump-controller.vercel.app',
-    sha256: '05fb6d0620b4034332811e083df70f25536d688237dfded5ea6b1db1bfa4aa62',
-    title: 'HydroPulse v2.2.1 - Strict 3s Heartbeat SLA, Hardware Confirmed Start/Stop & Multi-Node Tracking',
+    sha256: '5fd7d501711e1b304904516f29a9aca46d5586764b9d46ebf274827ce7fce061',
+    title: 'HydroPulse v2.2.2 - Sub-300ms Actuation, 1.5s Offline SLA & Instant LWT State Sync',
     changelog: [
-      'Strict 3-Second Heartbeat SLA: High-frequency 1.0s heartbeats feed a strict 3000ms watchdog. Powering down or unplugging the ESP32 switches the mobile app & web console to OFFLINE within 3 seconds.',
-      'Hardware-Confirmed Start/Stop: Buttons never flip state optimistically. Relays actuate through a verified state machine (PUMP_OFF, PUMP_STARTING, PUMP_ON, PUMP_STOPPING, PUMP_ERROR) and only lock state upon receiving the ESP32 ACK packet.',
-      'Deterministic 5s Command Timeout: If the ESP32 hardware does not acknowledge actuation within 5000ms, the command aborts safely with timeout feedback instead of remaining stuck.',
-      'Decoupled Multi-Node Tracking: Main Node and Sub Node heartbeats are evaluated independently, allowing safe manual pump control if the tank sensor node goes offline.',
-      'Dual-Channel MQTT & REST Synchronization: Retained availability via Last Will & Testament across EMQX, HiveMQ, and Mosquitto brokers.'
+      'Sub-300ms Actuation Round-Trip: Immediate microsecond GPIO switching with plaintext START_OK/STOP_OK and retained state sync.',
+      'Strict 1.5-Second Heartbeat SLA: 500ms dedicated heartbeats feed a strict 1500ms watchdog with immediate MQTT LWT availability trigger.',
+      'Persistent Connection Keepalive: Tuned MQTT keepalive to 5 seconds with non-blocking 1000ms reconnect loop.',
+      'Decoupled Multi-Node Tracking: Main Node and Sub Node heartbeats monitored separately without online/offline state flickering.',
+      'Zero Blocking Delays: Direct execution in mqttCallback eliminates all delay loops in critical actuation path.'
     ],
     is_critical: false,
     file_size: 58524708
