@@ -59,7 +59,7 @@ Future<String?> readStoredAccessToken() async {
   return null;
 }
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Set immersive status bar styling
@@ -70,18 +70,9 @@ void main() async {
     ),
   );
 
-  // Safely determine initial token before router configuration
-  String? initialToken;
-  try {
-    initialToken = await readStoredAccessToken();
-  } catch (e) {
-    debugPrint('[Auth] Initial token lookup failure: $e');
-  }
-  authStateNotifier.value = initialToken;
-
   final router = GoRouter(
     navigatorKey: rootNavigatorKey,
-    initialLocation: (initialToken != null && initialToken.isNotEmpty) ? '/dashboard' : '/login',
+    initialLocation: '/login',
     refreshListenable: authStateNotifier,
     redirect: (context, state) {
       final token = authStateNotifier.value;
@@ -132,6 +123,13 @@ void main() async {
       );
     },
     routes: [
+      GoRoute(
+        path: '/',
+        redirect: (context, state) {
+          final token = authStateNotifier.value;
+          return (token != null && token.isNotEmpty) ? '/dashboard' : '/login';
+        },
+      ),
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
@@ -252,7 +250,16 @@ void main() async {
   );
 
   runApp(ProviderScope(child: HydroPulseApp(router: router)));
-  WidgetsBinding.instance.addPostFrameCallback((_) {
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    try {
+      final token = await readStoredAccessToken();
+      if (token != null && token.isNotEmpty) {
+        authStateNotifier.value = token;
+      }
+    } catch (e) {
+      debugPrint('[Auth] Initial token lookup failure: $e');
+    }
+
     try {
       hardwareStateService.initialize();
       overflowAlertService.initialize();
