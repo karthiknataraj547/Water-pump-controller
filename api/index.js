@@ -648,14 +648,14 @@ module.exports = async (req, res) => {
 
     if (!manifest) {
       manifest = {
-        version: '2.2.2',
-        build_number: 26,
+        version: '2.2.3',
+        build_number: 27,
         release_date: '2026-09-12',
         min_supported_version: '1.0.0',
-        download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.2_build26.apk',
+        download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.3_build27.apk',
         website_url: 'https://water-pump-controller.vercel.app',
-        sha256: '5fd7d501711e1b304904516f29a9aca46d5586764b9d46ebf274827ce7fce061',
-        title: 'HydroPulse v2.2.2 - Sub-300ms Actuation, 1.5s Offline SLA & Instant LWT State Sync',
+        sha256: '27a8dff1ebac866073ead86bc6636167955989493322ae536f54317058657a00',
+        title: 'HydroPulse v2.2.3 - Sub-300ms Actuation, 1.5s Offline SLA & Verified Live Hardware MQTT Ping/Pong',
         changelog: [
           'Sub-300ms Actuation Round-Trip: Immediate microsecond GPIO switching with plaintext START_OK/STOP_OK and retained state sync.',
           'Strict 1.5-Second Heartbeat SLA: 500ms dedicated heartbeats feed a strict 1500ms watchdog with immediate MQTT LWT availability trigger.',

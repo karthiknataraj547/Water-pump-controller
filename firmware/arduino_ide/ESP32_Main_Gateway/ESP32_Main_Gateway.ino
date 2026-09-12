@@ -62,7 +62,7 @@
 #define PIN_LED_PUMP           4    // Green pump running LED
 #define PIN_BUZZER             5    // Piezo alert buzzer
 
-#define FIRMWARE_VERSION       "2.2.2"
+#define FIRMWARE_VERSION       "2.2.3"
 #define DEFAULT_DEVICE_PREFIX  "esp32_pump_"
 #define BLE_DEVICE_PREFIX      "PumpController-"
 #define NVS_NAMESPACE          "pump_config"
@@ -603,6 +603,26 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     Serial.println("[MQTT Fast Path] System Mode changed and stored in NVS: AUTO");
     publishFastAckAndStatus("cmd_fast_raw", "Mode Switch to AUTO");
     return;
+  } else if (cleanMsg.equalsIgnoreCase("PING") || cleanMsg.equalsIgnoreCase("PULSE") || strstr(topic, "/ping") != NULL) {
+    StaticJsonDocument<256> pongDoc;
+    pongDoc["ping_id"] = "raw_ping";
+    pongDoc["deviceId"] = deviceId;
+    pongDoc["device_id"] = deviceId;
+    pongDoc["status"] = "ONLINE";
+    pongDoc["state"] = "ONLINE";
+    pongDoc["pumpState"] = pumpRunning ? "RUNNING" : "STOPPED";
+    pongDoc["mode"] = systemMode;
+    pongDoc["subNodeOnline"] = (lastSensorPacketTime > 0 && (millis() - lastSensorPacketTime) < SUB_NODE_TIMEOUT_MS);
+    pongDoc["uptime_ms"] = millis();
+    pongDoc["free_heap"] = ESP.getFreeHeap();
+    pongDoc["rssi"] = WiFi.RSSI();
+    pongDoc["timestamp"] = millis() / 1000;
+    String pongOut;
+    serializeJson(pongDoc, pongOut);
+    mqttClient.publish("pump/pong", pongOut.c_str(), false);
+    mqttClient.publish(("pump/" + deviceId + "/pong").c_str(), pongOut.c_str(), false);
+    notifyMqttStatusUpdate = true;
+    return;
   }
 
   // Fast Path 2: JSON formatted payloads
@@ -1040,7 +1060,7 @@ void TaskNetwork(void *pvParameters) {
         mqttClient.publish("pump/heartbeat", out.c_str(), false);
         mqttClient.publish("pump/telemetry", out.c_str(), false);
         mqttClient.publish(("pump/" + deviceId + "/heartbeat").c_str(), out.c_str(), false);
-        mqttClient.publish(("pump/main_node/heartbeat").c_str(), out.c_str(), false);
+        mqttClient.publish("pump/main_node/heartbeat", out.c_str(), false);
         mqttClient.publish(("devices/" + deviceId + "/heartbeat").c_str(), out.c_str(), false);
         mqttClient.publish(("pump/" + deviceId + "/status").c_str(), out.c_str(), true);
         mqttClient.publish(("pump/" + deviceId + "/telemetry").c_str(), out.c_str(), false);

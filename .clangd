@@ -5,6 +5,8 @@ CompileFlags:
     - -DESP32
     - -DARDUINO=10805
     - -w
+    - -ferror-limit=0
+    - -Wno-everything
 
 Diagnostics:
   Suppress:
