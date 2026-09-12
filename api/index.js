@@ -588,16 +588,31 @@ module.exports = async (req, res) => {
 
   // Parse JSON body if present
   let body = {};
+  let isMalformedJson = false;
   if (req.body) {
-    body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    if (typeof req.body === 'string') {
+      try { body = JSON.parse(req.body); }
+      catch { isMalformedJson = true; }
+    } else {
+      body = req.body;
+    }
   } else if ((method === 'POST' || method === 'PUT') && typeof req.on === 'function') {
     body = await new Promise((resolve) => {
       let data = '';
       req.on('data', chunk => { data += chunk; });
       req.on('end', () => {
-        try { resolve(JSON.parse(data || '{}')); }
-        catch { resolve({}); }
+        if (!data || data.trim() === '') return resolve({});
+        try { resolve(JSON.parse(data)); }
+        catch { isMalformedJson = true; resolve(null); }
       });
+    });
+  }
+
+  if (isMalformedJson || body === null) {
+    return res.status(400).json({
+      status: 'error',
+      code: 'MALFORMED_JSON',
+      message: 'Malformed or invalid JSON payload provided.'
     });
   }
 
@@ -938,6 +953,14 @@ module.exports = async (req, res) => {
     });
   }
 
+  // 6b. User Logout
+  if (method === 'POST' && (url.includes('/auth/logout') || url.includes('/api/v1/auth/logout'))) {
+    return res.status(200).json({
+      status: 'success',
+      message: 'Logged out successfully. Client session terminated.'
+    });
+  }
+
   // 7. Get User Devices
   // 7. Get User Devices (Shared across devices & accounts)
   if (method === 'GET' && (url.includes('/devices/claim-token') || url.includes('/claim-token'))) {
@@ -1048,7 +1071,7 @@ module.exports = async (req, res) => {
   }
 
   // 7b. Register / Pair / Claim New Device (Strict Multi-Tenant Database Storage)
-  if (method === 'POST' && (url.includes('/devices/claim') || url.includes('/devices/pair') || url.includes('/devices'))) {
+  if (method === 'POST' && !url.includes('/pump') && !url.includes('/command') && (url.includes('/devices/claim') || url.includes('/devices/pair') || url === '/devices' || url.startsWith('/devices?') || url === '/api/v1/devices' || url.startsWith('/api/v1/devices?'))) {
     const authHeader = req.headers['authorization'] || '';
     const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
     const payload = verifyToken(token);
@@ -1127,14 +1150,58 @@ module.exports = async (req, res) => {
 
   // 8. Pump Command Actuation (Supports Mobile App & Web App formats)
   if (method === 'POST' && (url.includes('/command') || url.includes('/pump'))) {
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
+    const payload = verifyToken(token);
+
+    if (!payload && !url.includes('/public/')) {
+      return res.status(401).json({
+        status: 'error',
+        code: 'UNAUTHORIZED',
+        message: 'Authentication required. Valid JWT bearer token is mandatory to control hardware pumps.'
+      });
+    }
+
+    // Determine target device if specified in URL or body
+    const devIdMatch = url.match(/\/devices\/([^\/]+)\/pump/);
+    const devId = devIdMatch ? devIdMatch[1] : (body.deviceId || body.id || null);
+
+    if (devId) {
+      const dev = findDevice(devId);
+      if (!dev) {
+        return res.status(404).json({
+          status: 'error',
+          code: 'DEVICE_NOT_FOUND',
+          message: `Pump controller device '${devId}' not registered.`
+        });
+      }
+      const isOnline = verifyHardwareOnline(dev);
+      if (!isOnline) {
+        return res.status(400).json({
+          status: 'error',
+          code: 'DEVICE_OFFLINE',
+          message: `Pump controller '${devId}' is currently offline. The command was not sent.`
+        });
+      }
+    }
+
     const cmd = (body.command || body.action || '').toUpperCase();
+    const validActions = ['START', 'STOP', 'START_PUMP', 'STOP_PUMP', 'PUMP_ON', 'PUMP_OFF', 'ON', 'OFF', 'EMERGENCY_STOP', 'SET_MODE'];
+    if (!validActions.includes(cmd)) {
+      return res.status(400).json({
+        status: 'error',
+        code: 'INVALID_ACTION',
+        message: `Invalid pump action '${cmd}'. Supported actions: START, STOP, SET_MODE, EMERGENCY_STOP.`
+      });
+    }
+
     const parameters = body.parameters || body.params || {};
 
-    if (cmd === 'START_PUMP' || cmd === 'PUMP_ON' || cmd === 'ON') {
+    if (cmd === 'START' || cmd === 'START_PUMP' || cmd === 'PUMP_ON' || cmd === 'ON') {
       liveState.pumpRunning = true;
       liveState.flowRateLpm = 18.5;
       liveState.powerKw = 1.45;
-    } else if (cmd === 'STOP_PUMP' || cmd === 'PUMP_OFF' || cmd === 'OFF' || cmd === 'EMERGENCY_STOP') {
+    } else if (cmd === 'STOP' || cmd === 'STOP_PUMP' || cmd === 'PUMP_OFF' || cmd === 'OFF' || cmd === 'EMERGENCY_STOP') {
       liveState.pumpRunning = false;
       liveState.flowRateLpm = 0.0;
       liveState.powerKw = 0.00;
