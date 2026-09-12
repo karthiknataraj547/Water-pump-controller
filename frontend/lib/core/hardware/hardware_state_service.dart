@@ -409,9 +409,9 @@ class HardwareStateService extends ChangeNotifier {
               lastSeen: DateTime.now(),
             );
 
-            // Do NOT wipe live MQTT telemetry! Only seed heartbeat if device is verified online and none recorded yet
-            if ((isVerifiedOnline || hasRecentMqttHeartbeat) && _lastMainNodeHeartbeat == null) {
-              _lastMainNodeHeartbeat = DateTime.now();
+            // Do NOT fabricate heartbeats from REST calls; true heartbeats must come from hardware over MQTT
+            if (!isVerifiedOnline && !hasRecentMqttHeartbeat) {
+              _lastMainNodeHeartbeat = null;
             }
 
             await prefs.setString('saved_paired_device', jsonEncode(_activeDevice!.toJson()));
@@ -694,7 +694,7 @@ class HardwareStateService extends ChangeNotifier {
   Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
     final savedHost = prefs.getString('mqtt_broker_host');
-    if (savedHost != 'broker.emqx.io') {
+    if (savedHost != 'broker.hivemq.com') {
       _brokerHost = AppConstants.mqttBrokerHost;
       await prefs.setString('mqtt_broker_host', _brokerHost);
     } else {
@@ -908,7 +908,8 @@ class HardwareStateService extends ChangeNotifier {
   Future<void> _pollCloudHardwareStatus() async {
     if (_activeDevice == null) return;
     try {
-      final res = await apiClient.get('/telemetry/live');
+      final devId = _activeDevice!.id;
+      final res = await apiClient.get('/devices/status', queryParameters: {'deviceId': devId});
       if (res.statusCode == 200 && res.data != null) {
         final map = res.data['data'] ?? res.data;
         if (map is Map<String, dynamic>) {
@@ -926,6 +927,22 @@ class HardwareStateService extends ChangeNotifier {
                 wifiRssi: _activeDevice!.wifiRssi,
                 firmwareVersion: _activeDevice!.firmwareVersion,
                 lastSeen: DateTime.now(),
+              );
+              notifyListeners();
+            }
+          } else {
+            _lastCloudVerifiedOnline = null;
+            if (_activeDevice!.status != 'OFFLINE') {
+              _activeDevice = DeviceModel(
+                id: _activeDevice!.id,
+                name: _activeDevice!.name,
+                macAddress: _activeDevice!.macAddress,
+                status: 'OFFLINE',
+                pumpState: _activeDevice!.pumpState,
+                mode: _activeDevice!.mode,
+                wifiRssi: _activeDevice!.wifiRssi,
+                firmwareVersion: _activeDevice!.firmwareVersion,
+                lastSeen: _activeDevice!.lastSeen,
               );
               notifyListeners();
             }

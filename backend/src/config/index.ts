@@ -18,7 +18,7 @@ export const config = {
     password: process.env.REDIS_PASSWORD || undefined,
   },
   mqtt: {
-    brokerUrl: process.env.MQTT_BROKER_URL || 'mqtt://broker.emqx.io:1883',
+    brokerUrl: process.env.MQTT_BROKER_URL || 'mqtt://broker.hivemq.com:1883',
     username: process.env.MQTT_USERNAME || undefined,
     password: process.env.MQTT_PASSWORD || undefined,
   },

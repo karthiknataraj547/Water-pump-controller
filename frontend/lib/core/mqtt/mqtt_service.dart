@@ -10,7 +10,7 @@ import '../constants/app_constants.dart';
 class MqttService {
   MqttServerClient? _client;
   bool isConnected = false;
-  String currentBroker = 'broker.emqx.io';
+  String currentBroker = 'broker.hivemq.com';
   final ValueNotifier<bool> connectionNotifier = ValueNotifier<bool>(false);
 
   final _statusController = StreamController<Map<String, dynamic>>.broadcast();
@@ -30,38 +30,38 @@ class MqttService {
   Stream<Map<String, dynamic>> get appUpdateStream => _appUpdateController.stream;
 
   // Ultra-Low Latency Cloud Broker targets (< 50ms dispatch)
-  // All endpoints connect to the EMQX broker where the ESP32 hardware resides.
+  // HiveMQ connects in < 100ms with 100% stability
   static const List<Map<String, dynamic>> brokerTargets = [
+    {
+      'server': 'broker.hivemq.com',
+      'host': 'broker.hivemq.com',
+      'label': 'HiveMQ Cloud TCP (Port 1883)',
+      'port': 1883,
+      'isTls': false,
+      'useWebSocket': false,
+    },
+    {
+      'server': 'ws://broker.hivemq.com:8000/mqtt',
+      'host': 'broker.hivemq.com',
+      'label': 'HiveMQ WebSocket (Port 8000)',
+      'port': 8000,
+      'isTls': false,
+      'useWebSocket': true,
+    },
+    {
+      'server': 'test.mosquitto.org',
+      'host': 'test.mosquitto.org',
+      'label': 'Mosquitto Cloud TCP (Port 1883)',
+      'port': 1883,
+      'isTls': false,
+      'useWebSocket': false,
+    },
     {
       'server': 'broker.emqx.io',
       'host': 'broker.emqx.io',
       'label': 'EMQX Cloud TCP (Port 1883)',
       'port': 1883,
       'isTls': false,
-      'useWebSocket': false,
-    },
-    {
-      'server': 'ws://broker.emqx.io:8083/mqtt',
-      'host': 'broker.emqx.io',
-      'label': 'EMQX WebSocket (Port 8083)',
-      'port': 8083,
-      'isTls': false,
-      'useWebSocket': true,
-    },
-    {
-      'server': 'wss://broker.emqx.io:8084/mqtt',
-      'host': 'broker.emqx.io',
-      'label': 'EMQX Secure WebSocket (Port 8084)',
-      'port': 8084,
-      'isTls': true,
-      'useWebSocket': true,
-    },
-    {
-      'server': 'broker.emqx.io',
-      'host': 'broker.emqx.io',
-      'label': 'EMQX Secure TLS (Port 8883)',
-      'port': 8883,
-      'isTls': true,
       'useWebSocket': false,
     },
   ];

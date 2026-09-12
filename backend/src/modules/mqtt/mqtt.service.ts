@@ -81,7 +81,7 @@ export class MqttService {
         });
 
         const now = Date.now();
-        const timeoutMs = 15000; // 15 seconds threshold (grace period of 2-3 missed heartbeats)
+        const timeoutMs = 2500; // 2.5s SLA timeout
 
         for (const dev of onlineDevices) {
           const lastSeenMs = dev.lastSeen ? new Date(dev.lastSeen).getTime() : 0;
@@ -105,7 +105,7 @@ export class MqttService {
       } catch (err) {
         logger.error('[Presence Sweeper Error]:', (err as Error).message);
       }
-    }, 5000);
+    }, 1000);
   }
 
   private async handleIncomingMessage(topic: string, message: string): Promise<void> {

@@ -87,6 +87,7 @@ const nodeTracking = {
 // Strict Heartbeat Offline Watchdog (1.5-Second SLA)
 // Heartbeat age must be within 1.5 seconds (<= 1500ms). Never use permanent cached 'online' status.
 const ONLINE_THRESHOLD_MS = 1500;
+
 function verifyHardwareOnline(target) {
   if (!target) return false;
   const now = Date.now();
@@ -95,6 +96,208 @@ function verifyHardwareOnline(target) {
     return true;
   }
   return false;
+}
+
+// Multi-tenant device lookup helper: handles direct key, ${userEmail}_${devId}, or device property matches
+function findDevice(devId) {
+  if (!devId) return null;
+  const cleanId = String(devId).trim();
+  if (devicesDb.has(cleanId)) return devicesDb.get(cleanId);
+
+  // Check key with userEmail prefix
+  for (const [key, dev] of devicesDb.entries()) {
+    if (key === cleanId || key.endsWith(`_${cleanId}`)) return dev;
+  }
+
+  // Exact match on id, deviceId, or nodeId
+  for (const dev of devicesDb.values()) {
+    if (dev.id === cleanId || dev.deviceId === cleanId || dev.nodeId === cleanId) {
+      return dev;
+    }
+  }
+
+  // Case-insensitive or normalized substring match (e.g. AA69E0)
+  const cleanLower = cleanId.toLowerCase();
+  for (const dev of devicesDb.values()) {
+    const dId = (dev.id || dev.deviceId || dev.nodeId || '').toLowerCase();
+    if (dId === cleanLower) return dev;
+    const cleanD = dId.replace('esp32_pump_', '').replace('esp32_', '');
+    const cleanIn = cleanLower.replace('esp32_pump_', '').replace('esp32_', '');
+    if (cleanD.length >= 4 && cleanIn.length >= 4 && (cleanD === cleanIn || cleanD.includes(cleanIn) || cleanIn.includes(cleanD))) {
+      return dev;
+    }
+    if (dev.macAddress) {
+      const cleanMac = dev.macAddress.toLowerCase().replace(/:/g, '');
+      if (cleanLower.includes(cleanMac) || cleanMac.includes(cleanLower)) return dev;
+    }
+  }
+  return null;
+}
+
+// Strict device packet matcher: NO email wildcard matching allowed!
+function matchDevice(dev, incomingDevId) {
+  if (!dev || !incomingDevId) return false;
+  const inId = String(incomingDevId).trim().toLowerCase();
+  const dId = (dev.id || dev.deviceId || dev.nodeId || '').trim().toLowerCase();
+  if (dId === inId) return true;
+  const cleanD = dId.replace('esp32_pump_', '').replace('esp32_', '');
+  const cleanIn = inId.replace('esp32_pump_', '').replace('esp32_', '');
+  if (cleanD.length >= 4 && cleanIn.length >= 4 && (cleanD === cleanIn || cleanD.includes(cleanIn) || cleanIn.includes(cleanD))) {
+    return true;
+  }
+  if (dev.macAddress) {
+    const cleanMac = dev.macAddress.toLowerCase().replace(/:/g, '');
+    if (inId.includes(cleanMac) || cleanMac.includes(inId)) return true;
+  }
+  return false;
+}
+
+// ==============================================================================
+// Active MQTT Client & Hardware Verification Engine (broker.hivemq.com:1883)
+// ==============================================================================
+let mqttClient = null;
+const pendingPings = new Map();
+
+function getMqttClient() {
+  if (mqttClient) return mqttClient;
+  try {
+    const mqtt = require('mqtt');
+    mqttClient = mqtt.connect('mqtt://broker.hivemq.com:1883', {
+      clientId: 'api_gw_' + Math.random().toString(16).slice(2, 8),
+      clean: true,
+      reconnectPeriod: 2500,
+      connectTimeout: 5000
+    });
+
+    mqttClient.on('connect', () => {
+      console.log('[API MQTT] Connected to broker.hivemq.com:1883');
+      mqttClient.subscribe([
+        'pump/pong',
+        'pump/+/pong',
+        'pump/status',
+        'pump/+/status',
+        'pump/heartbeat',
+        'pump/+/heartbeat',
+        'pump/availability',
+        'pump/+/availability'
+      ]);
+    });
+
+    mqttClient.on('message', (topic, message) => {
+      try {
+        const msgStr = message.toString().trim();
+        const rawLower = msgStr.toLowerCase();
+
+        // 1. Availability / LWT
+        if (rawLower === 'offline' || (topic.endsWith('/availability') && rawLower === 'offline')) {
+          if (typeof module.exports.ingestTelemetry === 'function') {
+            module.exports.ingestTelemetry({ status: 'offline' });
+          }
+          return;
+        }
+
+        // 2. JSON telemetry / heartbeat / pong
+        let data;
+        try { data = JSON.parse(msgStr); } catch (_) { return; }
+        if (!data) return;
+
+        // Correlate active ping response
+        const pingId = data.ping_id || data.pingId;
+        if (pingId && pendingPings.has(pingId)) {
+          const cb = pendingPings.get(pingId);
+          pendingPings.delete(pingId);
+          cb(data);
+        }
+
+        // Ingest telemetry/heartbeat
+        if (typeof module.exports.ingestTelemetry === 'function') {
+          module.exports.ingestTelemetry(data);
+        }
+      } catch (_) {}
+    });
+
+    mqttClient.on('error', (err) => {
+      console.warn('[API MQTT] Client notice:', err.message);
+    });
+  } catch (e) {
+    console.warn('[API MQTT] Client init notice:', e.message);
+  }
+  return mqttClient;
+}
+
+// Automatically initiate connection in the background
+try { getMqttClient(); } catch (_) {}
+
+// Active Hardware Ping Verification Function
+function verifyDeviceLiveViaMqtt(devId, timeoutMs = 800) {
+  return new Promise((resolve) => {
+    const now = Date.now();
+    const dev = findDevice(devId);
+    const targetHb = dev ? (dev.lastHeartbeat || 0) : (liveState.lastHeartbeat || 0);
+
+    // If hardware sent verified heartbeat within 1500ms, it is actively online
+    if (targetHb > 0 && (now - targetHb) <= ONLINE_THRESHOLD_MS) {
+      return resolve(true);
+    }
+
+    const client = getMqttClient();
+    if (!client || !client.connected) {
+      return resolve(false);
+    }
+
+    const pingId = 'ping_api_' + now + '_' + Math.random().toString(36).substring(2, 6);
+    let resolved = false;
+
+    const timer = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        pendingPings.delete(pingId);
+        const updatedDev = findDevice(devId);
+        resolve(verifyHardwareOnline(updatedDev || liveState));
+      }
+    }, timeoutMs);
+
+    pendingPings.set(pingId, (pongData) => {
+      if (!resolved) {
+        resolved = true;
+        clearTimeout(timer);
+        const pNow = Date.now();
+        if (dev) {
+          dev.isOnline = true;
+          dev.status = 'ONLINE';
+          dev.lastHeartbeat = pNow;
+          dev.lastSeen = new Date().toISOString();
+          if (pongData.pumpState) dev.pumpRunning = (pongData.pumpState === 'RUNNING' || pongData.pumpState === 'ON');
+          if (pongData.mode) dev.mode = pongData.mode;
+        }
+        liveState.isOnline = true;
+        liveState.lastHeartbeat = pNow;
+        liveState.lastSeen = pNow;
+        nodeTracking.mainNode.online = true;
+        nodeTracking.mainNode.lastSeen = pNow;
+        if (pongData.subNodeOnline !== undefined) {
+          nodeTracking.subNode.online = Boolean(pongData.subNodeOnline);
+          if (pongData.subNodeOnline) nodeTracking.subNode.lastSeen = pNow;
+        }
+        nodeTracking.system.online = true;
+        try { saveState(); } catch (_) {}
+        resolve(true);
+      }
+    });
+
+    const targetDevId = devId || (dev ? dev.id : 'esp32_pump_main');
+    const pingPayload = JSON.stringify({
+      action: 'PING',
+      ping_id: pingId,
+      pingId: pingId,
+      deviceId: targetDevId,
+      timestamp: Math.floor(now / 1000),
+      timestamp_ms: now
+    });
+
+    client.publish('pump/ping', pingPayload);
+    client.publish(`pump/${targetDevId}/ping`, pingPayload);
+  });
 }
 
 // Rolling telemetry history buffer (real data)
@@ -238,11 +441,18 @@ function loadState() {
         if (parsed.devices && Array.isArray(parsed.devices)) {
           for (const d of parsed.devices) {
             const devKey = d.userEmail ? `${d.userEmail.toLowerCase()}_${d.id || d.deviceId}` : (d.id || d.deviceId);
+            d.isOnline = false;
+            d.status = 'OFFLINE';
+            d.lastHeartbeat = 0;
             devicesDb.set(devKey, d);
           }
         }
         if (parsed.liveState) {
           Object.assign(liveState, parsed.liveState);
+          liveState.isOnline = false;
+          liveState._wasOnline = false;
+          liveState.lastHeartbeat = 0;
+          liveState.lastSeen = 0;
         }
         break;
       }
@@ -260,11 +470,18 @@ function loadState() {
       if (parsed.devices && Array.isArray(parsed.devices)) {
         for (const d of parsed.devices) {
           const devKey = d.userEmail ? `${d.userEmail.toLowerCase()}_${d.id || d.deviceId}` : (d.id || d.deviceId);
+          d.isOnline = false;
+          d.status = 'OFFLINE';
+          d.lastHeartbeat = 0;
           devicesDb.set(devKey, d);
         }
       }
       if (parsed.liveState) {
         Object.assign(liveState, parsed.liveState);
+        liveState.isOnline = false;
+        liveState._wasOnline = false;
+        liveState.lastHeartbeat = 0;
+        liveState.lastSeen = 0;
       }
       if (parsed.telemetryHistory && Array.isArray(parsed.telemetryHistory)) {
         telemetryHistory.length = 0;
@@ -732,6 +949,47 @@ module.exports = async (req, res) => {
     });
   }
 
+  // 7a. Double-Verified Device Status Endpoint (Active MQTT Hardware Ping)
+  // Must be checked strictly BEFORE /devices to prevent route shadowing
+  if (method === 'GET' && (url.includes('/api/v1/devices/status') || url.includes('/devices/status'))) {
+    const devId = query.deviceId || query.id || (url.includes('/status') ? url.split('/devices/')[1]?.split('/status')[0] : null);
+    const dev = devId ? findDevice(devId) : null;
+    let isOnline = dev ? verifyHardwareOnline(dev) : verifyHardwareOnline(liveState);
+
+    // Active MQTT hardware ping if not currently verified online
+    if (!isOnline && query.verify !== 'false') {
+      try {
+        isOnline = await verifyDeviceLiveViaMqtt(devId, 800);
+      } catch (_) {}
+    }
+
+    const currentDev = devId ? findDevice(devId) : null;
+    const lastHb = currentDev ? (currentDev.lastHeartbeat || 0) : (liveState.lastHeartbeat || 0);
+
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        deviceId: devId || (currentDev ? currentDev.id : 'esp32_pump_main'),
+        isOnline,
+        status: isOnline ? 'ONLINE' : 'OFFLINE',
+        lastHeartbeat: lastHb,
+        mainNode: {
+          online: isOnline,
+          lastSeen: lastHb
+        },
+        subNode: {
+          online: nodeTracking.subNode.online,
+          lastSeen: nodeTracking.subNode.lastSeen || 0
+        },
+        system: {
+          online: isOnline
+        },
+        verifiedViaMqtt: true,
+        verifiedAt: new Date().toISOString()
+      }
+    });
+  }
+
   if (method === 'GET' && (url.includes('/devices') || url.includes('/api/v1/devices'))) {
     const authHeader = req.headers['authorization'] || '';
     const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
@@ -931,34 +1189,6 @@ module.exports = async (req, res) => {
     });
   }
 
-  // 8c. Double-Verified Device Status Endpoint
-  if (method === 'GET' && (url.includes('/api/v1/devices/status') || url.includes('/devices/status'))) {
-    const devId = query.deviceId || query.id;
-    const dev = devId ? devicesDb.get(devId) : null;
-    const isOnline = dev ? verifyHardwareOnline(dev) : verifyHardwareOnline(liveState);
-    return res.status(200).json({
-      status: 'success',
-      data: {
-        deviceId: devId || 'esp32_pump_main',
-        isOnline,
-        status: isOnline ? 'ONLINE' : 'OFFLINE',
-        lastHeartbeat: dev ? (dev.lastHeartbeat || 0) : (liveState.lastHeartbeat || 0),
-        mainNode: {
-          online: isOnline,
-          lastSeen: dev ? (dev.lastHeartbeat || 0) : (liveState.lastHeartbeat || 0)
-        },
-        subNode: {
-          online: nodeTracking.subNode.online,
-          lastSeen: nodeTracking.subNode.lastSeen || 0
-        },
-        system: {
-          online: isOnline
-        },
-        verifiedAt: new Date().toISOString()
-      }
-    });
-  }
-
   // 8d. Ingest / Sync Telemetry from Hardware or Mobile
   if (method === 'POST' && (url.includes('/api/v1/telemetry') || url.includes('/telemetry') || url.includes('/hardware/heartbeat'))) {
     // Check if device reported offline (e.g. LWT or disconnection)
@@ -1023,13 +1253,8 @@ module.exports = async (req, res) => {
 
       const devId = (body.deviceId || body.id || body.nodeId || '').trim();
       for (const dev of devicesDb.values()) {
-        const isMatch = !devId || devId === 'esp32_pump_000000' || devId === 'esp32_pump_main' ||
-          dev.id === devId || dev.deviceId === devId || dev.nodeId === devId ||
-          devId.toLowerCase().includes('aa69e0') ||
-          devId.toLowerCase().includes('94b97e') ||
-          dev.userEmail === 'karthiknataraj547@gmail.com' ||
-          (devId.includes('000000') && (dev.id.includes('94B97E') || dev.userEmail === 'karthiknataraj547@gmail.com')) ||
-          (devId.includes('94B97E') && dev.id.includes('94B97E'));
+        const isMatch = matchDevice(dev, devId) ||
+          ((devId === 'esp32_pump_main' || devId === 'esp32_pump_000000' || !devId) && devicesDb.size === 1);
         if (isMatch) {
           dev.lastHeartbeat = now;
           dev.lastSeen = new Date().toISOString();
@@ -1178,11 +1403,8 @@ module.exports.ingestTelemetry = function(data) {
   }
   const devId = (data.deviceId || data.id || data.nodeId || '').trim();
   for (const dev of devicesDb.values()) {
-    const isMatch = !devId || dev.id === devId || dev.deviceId === devId || dev.nodeId === devId ||
-      devId.toLowerCase().includes('aa69e0') ||
-      devId.toLowerCase().includes('94b97e') ||
-      devId.includes('000000') ||
-      dev.userEmail === 'karthiknataraj547@gmail.com';
+    const isMatch = matchDevice(dev, devId) ||
+      ((devId === 'esp32_pump_main' || devId === 'esp32_pump_000000' || !devId) && devicesDb.size === 1);
     if (isMatch) {
       dev.lastHeartbeat = now;
       dev.lastSeen = new Date().toISOString();

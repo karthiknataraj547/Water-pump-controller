@@ -68,7 +68,7 @@
 #define NVS_NAMESPACE          "pump_config"
 
 // Networking & Cloud Defaults
-#define DEFAULT_MQTT_BROKER    "broker.emqx.io"
+#define DEFAULT_MQTT_BROKER    "broker.hivemq.com"
 #define DEFAULT_MQTT_PORT      1883
 #define STATUS_REPORT_INTERVAL 500      // 500ms dedicated Main Node heartbeat for <300ms SLA
 #define SUB_NODE_TIMEOUT_MS    1500     // 1.5s timeout for 150ms ESP8266 Sub Node streaming (fast failover)
@@ -845,15 +845,21 @@ void TaskNetwork(void *pvParameters) {
     if (!mqttClient.connected()) {
       if (millis() - lastMqttRetry >= 1000) {
         lastMqttRetry = millis();
-        const char* targetBroker = DEFAULT_MQTT_BROKER;
+        static const char* CLOUD_BROKERS[] = { DEFAULT_MQTT_BROKER, "test.mosquitto.org", "broker.emqx.io" };
+        static const int NUM_BROKERS = 3;
+        static int currentBrokerIdx = 0;
+        static int consecutiveFailures = 0;
+
+        const char* targetBroker = CLOUD_BROKERS[currentBrokerIdx];
         mqttClient.setServer(targetBroker, DEFAULT_MQTT_PORT);
 
         String clientId = deviceId + "_" + String(random(1000, 9999));
         String lwtPayload = "{\"device_id\":\"" + deviceId + "\",\"deviceId\":\"" + deviceId + "\",\"status\":\"offline\",\"isOnline\":false,\"pump\":false,\"pumpRunning\":false,\"pumpState\":\"STOPPED\",\"subNodeOnline\":false,\"waterLevel\":-1,\"timestamp\":" + String(millis() / 1000) + "}";
 
-        Serial.printf("[MQTT] Connecting to EMQX Cloud '%s:1883' with LWT...\n", targetBroker);
+        Serial.printf("[MQTT] Connecting to Cloud Broker '%s:1883' with LWT...\n", targetBroker);
         if (mqttClient.connect(clientId.c_str(), ("pump/" + deviceId + "/availability").c_str(), 1, true, "offline")) {
-          Serial.printf("[MQTT] Connected to EMQX Broker: %s!\n", targetBroker);
+          consecutiveFailures = 0;
+          Serial.printf("[MQTT] Connected to Broker: %s!\n", targetBroker);
 
           // Publish availability & status immediately on connect
           mqttClient.publish(("pump/" + deviceId + "/availability").c_str(), "online", true);
@@ -899,9 +905,15 @@ void TaskNetwork(void *pvParameters) {
           mqttClient.publish("pump/heartbeat", initOut.c_str(), false);
           mqttClient.publish(("pump/" + deviceId + "/status").c_str(), initOut.c_str(), true); // retain: true clears LWT OFFLINE
           mqttClient.publish(("pump/" + deviceId + "/heartbeat").c_str(), initOut.c_str(), false);
-          Serial.printf("[MQTT] Broadcasted live ONLINE status for %s\n", deviceId.c_str());
+          Serial.printf("[MQTT] Broadcasted live ONLINE status for %s on %s\n", deviceId.c_str(), targetBroker);
         } else {
-          Serial.printf("[MQTT] EMQX connect failed (State: %d). Retrying in 3.5s...\n", mqttClient.state());
+          consecutiveFailures++;
+          if (consecutiveFailures >= 3) {
+            currentBrokerIdx = (currentBrokerIdx + 1) % NUM_BROKERS;
+            consecutiveFailures = 0;
+            Serial.printf("[MQTT] Switched to failover broker: %s\n", CLOUD_BROKERS[currentBrokerIdx]);
+          }
+          Serial.printf("[MQTT] Connect failed to %s (State: %d). Retrying in 1s...\n", targetBroker, mqttClient.state());
         }
       }
     } else {

@@ -68,7 +68,7 @@ function getVersionManifest() {
     min_supported_version: '1.0.0',
     download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.2_build26.apk',
     website_url: 'https://water-pump-controller.vercel.app',
-    sha256: '5fd7d501711e1b304904516f29a9aca46d5586764b9d46ebf274827ce7fce061',
+    sha256: 'bdb52bd42d587313687195c4f935d1fcebbe0f9ad63ad8743b2df2fc41c5c078',
     title: 'HydroPulse v2.2.2 - Sub-300ms Actuation, 1.5s Offline SLA & Instant LWT State Sync',
     changelog: [
       'Sub-300ms Actuation Round-Trip: Immediate microsecond GPIO switching with plaintext START_OK/STOP_OK and retained state sync.',
