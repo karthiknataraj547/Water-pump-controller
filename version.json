@@ -5,7 +5,7 @@
   "min_supported_version": "1.0.0",
   "download_url": "https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.4_build28.apk",
   "website_url": "https://water-pump-controller.vercel.app",
-  "sha256": "7c27dc40f6f84456c6d5fad2051f3f0b1cda3a881e9d45644edd0d055f98ceae",
+  "sha256": "9645c34b7eff2e523ae85d2ae90f94d77187212900214ac30a514a1a0358526b",
   "title": "HydroPulse v2.2.4 - Multi-Identifier Auth, Zero Mock Device & Database Persistence",
   "changelog": [
     "Database Authentication & Re-Login Fix: Added multi-identifier resolution supporting Email, User ID, and Username with case-insensitivity.",
