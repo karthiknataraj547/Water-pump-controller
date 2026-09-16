@@ -36,13 +36,14 @@ const server = http.createServer(async (req, res) => {
   // 1. Route API requests to api/index.js
   if (
     pathname.startsWith('/api/') ||
-    pathname === '/auth/login' ||
-    pathname === '/auth/register' ||
-    pathname === '/command' ||
-    pathname === '/telemetry' ||
+    pathname.startsWith('/auth/') ||
+    pathname === '/auth' ||
+    pathname.startsWith('/command') ||
+    pathname.startsWith('/telemetry') ||
     pathname.startsWith('/devices') ||
     pathname.startsWith('/pumps/') ||
-    pathname.startsWith('/automation/')
+    pathname.startsWith('/automation/') ||
+    pathname.startsWith('/hardware/')
   ) {
     // Wrap req / res to provide express/vercel compatibility
     req.query = parsedUrl.query || {};

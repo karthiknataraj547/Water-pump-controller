@@ -23,8 +23,22 @@ function hashPassword(password, salt) {
 }
 
 function verifyPassword(password, storedHash, salt) {
+  if (!password || !storedHash || !salt) return false;
   const { hash } = hashPassword(password, salt);
   return hash === storedHash;
+}
+
+function findUser(identifier) {
+  if (!identifier) return null;
+  const clean = String(identifier).trim().toLowerCase();
+  if (usersDb.has(clean)) return usersDb.get(clean);
+
+  for (const u of usersDb.values()) {
+    if (u.email && u.email.trim().toLowerCase() === clean) return u;
+    if (u.id && u.id.trim().toLowerCase() === clean) return u;
+    if (u.username && u.username.trim().toLowerCase() === clean) return u;
+  }
+  return null;
 }
 
 function generateToken(userId, email) {
@@ -427,7 +441,8 @@ function loadState() {
   const candidatePaths = [
     BUNDLED_DB_PATH,
     path.join(process.cwd(), 'api', 'database.json'),
-    path.join(process.cwd(), 'database.json')
+    path.join(process.cwd(), 'database.json'),
+    path.join(__dirname, '..', 'database.json')
   ];
 
   for (const p of candidatePaths) {
@@ -436,11 +451,14 @@ function loadState() {
         const content = fs.readFileSync(p, 'utf8');
         const parsed = JSON.parse(content);
         if (parsed.users && Array.isArray(parsed.users)) {
-          for (const u of parsed.users) usersDb.set(u.email, u);
+          for (const u of parsed.users) {
+            if (u.email) usersDb.set(u.email.toLowerCase().trim(), u);
+            if (u.id) usersDb.set(u.id.toLowerCase().trim(), u);
+          }
         }
         if (parsed.devices && Array.isArray(parsed.devices)) {
           for (const d of parsed.devices) {
-            const devKey = d.userEmail ? `${d.userEmail.toLowerCase()}_${d.id || d.deviceId}` : (d.id || d.deviceId);
+            const devKey = d.userEmail ? `${d.userEmail.toLowerCase().trim()}_${d.id || d.deviceId}` : (d.id || d.deviceId);
             d.isOnline = false;
             d.status = 'OFFLINE';
             d.lastHeartbeat = 0;
@@ -459,17 +477,20 @@ function loadState() {
     } catch {}
   }
 
-  // 3. Merge hot container updates from ephemeral store
+  // 2. Merge hot container updates from ephemeral store
   try {
     if (fs.existsSync(STORE_PATH)) {
       const content = fs.readFileSync(STORE_PATH, 'utf8');
       const parsed = JSON.parse(content);
       if (parsed.users && Array.isArray(parsed.users)) {
-        for (const u of parsed.users) usersDb.set(u.email, u);
+        for (const u of parsed.users) {
+          if (u.email) usersDb.set(u.email.toLowerCase().trim(), u);
+          if (u.id) usersDb.set(u.id.toLowerCase().trim(), u);
+        }
       }
       if (parsed.devices && Array.isArray(parsed.devices)) {
         for (const d of parsed.devices) {
-          const devKey = d.userEmail ? `${d.userEmail.toLowerCase()}_${d.id || d.deviceId}` : (d.id || d.deviceId);
+          const devKey = d.userEmail ? `${d.userEmail.toLowerCase().trim()}_${d.id || d.deviceId}` : (d.id || d.deviceId);
           d.isOnline = false;
           d.status = 'OFFLINE';
           d.lastHeartbeat = 0;
@@ -496,9 +517,11 @@ function loadState() {
 }
 
 function saveState() {
+  const uniqueUsers = Array.from(new Set(usersDb.values()));
+  const uniqueDevices = Array.from(new Set(devicesDb.values()));
   const payload = {
-    users: Array.from(usersDb.values()),
-    devices: Array.from(devicesDb.values()),
+    users: uniqueUsers,
+    devices: uniqueDevices,
     liveState,
     telemetryHistory: telemetryHistory.slice(-50)
   };
@@ -663,23 +686,22 @@ module.exports = async (req, res) => {
 
     if (!manifest) {
       manifest = {
-        version: '2.2.3',
-        build_number: 27,
-        release_date: '2026-09-12',
+        version: '2.2.4',
+        build_number: 28,
+        release_date: '2026-09-16',
         min_supported_version: '1.0.0',
-        download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.3_build27.apk',
+        download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.4_build28.apk',
         website_url: 'https://water-pump-controller.vercel.app',
-        sha256: '27a8dff1ebac866073ead86bc6636167955989493322ae536f54317058657a00',
-        title: 'HydroPulse v2.2.3 - Sub-300ms Actuation, 1.5s Offline SLA & Verified Live Hardware MQTT Ping/Pong',
+        sha256: '7c27dc40f6f84456c6d5fad2051f3f0b1cda3a881e9d45644edd0d055f98ceae',
+        title: 'HydroPulse v2.2.4 - Multi-Identifier Auth, Zero Mock Device & Database Persistence',
         changelog: [
-          'Sub-300ms Actuation Round-Trip: Immediate microsecond GPIO switching with plaintext START_OK/STOP_OK and retained state sync.',
-          'Strict 1.5-Second Heartbeat SLA: 500ms dedicated heartbeats feed a strict 1500ms watchdog with immediate MQTT LWT availability trigger.',
-          'Persistent Connection Keepalive: Tuned MQTT keepalive to 5 seconds with non-blocking 1000ms reconnect loop.',
-          'Decoupled Multi-Node Tracking: Main Node and Sub Node heartbeats monitored separately without online/offline state flickering.',
-          'Zero Blocking Delays: Direct execution in mqttCallback eliminates all delay loops in critical actuation path.'
+          'Database Authentication & Re-Login Fix: Added multi-identifier resolution supporting Email, User ID, and Username with case-insensitivity.',
+          'Strict Zero-Mock Hardware State: Brand-new user accounts initialize with zero devices; devices only attach upon explicit user pairing.',
+          'Pristine Baseline Registry: Reset database files to clean unmapped baseline with zero pre-populated mock hardware.',
+          'Dynamic API Routing: Intelligent same-origin routing for local, self-hosted, and cloud deployments.'
         ],
         is_critical: false,
-        file_size: 58524708
+        file_size: 58524740
       };
     }
 
@@ -752,7 +774,8 @@ module.exports = async (req, res) => {
     const salt = crypto.randomBytes(16).toString('hex');
     const hash = hashPassword(password, salt).hash;
 
-    let user = usersDb.get(cleanEmail);
+    loadState();
+    let user = findUser(cleanEmail);
     let statusCode = 201;
     if (user) {
       // Upsert: update existing credentials and profile to prevent deadlocks
@@ -761,6 +784,8 @@ module.exports = async (req, res) => {
       user.firstName = cleanFirstName;
       user.lastName = cleanLastName || cleanFirstName;
       user.updatedAt = new Date().toISOString();
+      usersDb.set(cleanEmail, user);
+      if (user.id) usersDb.set(user.id.toLowerCase().trim(), user);
       statusCode = 200;
     } else {
       user = {
@@ -774,6 +799,7 @@ module.exports = async (req, res) => {
         createdAt: new Date().toISOString()
       };
       usersDb.set(cleanEmail, user);
+      usersDb.set(user.id.toLowerCase().trim(), user);
     }
     saveState();
 
@@ -853,26 +879,28 @@ module.exports = async (req, res) => {
     });
   }
 
-  // 4. User Login
+  // 4. User Login (Supports Email, User ID, or Username)
   if (method === 'POST' && (url.includes('/auth/login') || url.includes('/api/v1/auth/login'))) {
-    const { email, password } = body;
-    if (!email || !password) {
-      return res.status(400).json({ status: 'error', message: 'Email and password are required.' });
+    const identifier = (body.email || body.username || body.userId || body.id || body.user || body.identifier || '').trim().toLowerCase();
+    const password = body.password || '';
+
+    if (!identifier || !password) {
+      return res.status(400).json({ status: 'error', message: 'User ID / Email and password are required.' });
     }
 
-    const cleanEmail = email.trim().toLowerCase();
-    let user = usersDb.get(cleanEmail);
+    let user = findUser(identifier);
 
     if (!user) {
       loadState();
-      user = usersDb.get(cleanEmail);
+      user = findUser(identifier);
     }
 
     if (!user) {
       return res.status(401).json({ status: 'error', message: 'Account not found. Please create an account via the registration page first.' });
     }
 
-    const isValid = verifyPassword(password, user.passwordHash, user.salt);
+    const isValid = verifyPassword(password, user.passwordHash, user.salt) ||
+                    verifyPassword(password.trim(), user.passwordHash, user.salt);
     if (!isValid) {
       return res.status(401).json({ status: 'error', message: 'Invalid email address or password.' });
     }
@@ -885,7 +913,7 @@ module.exports = async (req, res) => {
       data: {
         user: {
           id: user.id,
-          email: cleanEmail,
+          email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
           role: user.role
@@ -905,7 +933,7 @@ module.exports = async (req, res) => {
     if (!decoded) {
       return res.status(401).json({ status: 'error', message: 'Invalid or expired refresh token.' });
     }
-    const user = usersDb.get(decoded.email);
+    const user = findUser(decoded.email || decoded.userId);
     if (!user) {
       return res.status(401).json({ status: 'error', message: 'User not found.' });
     }
@@ -930,7 +958,7 @@ module.exports = async (req, res) => {
       return res.status(401).json({ status: 'error', message: 'Unauthorized session' });
     }
 
-    const user = usersDb.get(decoded.email);
+    const user = findUser(decoded.email || decoded.userId);
     if (!user) {
       return res.status(404).json({ status: 'error', message: 'User profile not found.' });
     }

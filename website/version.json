@@ -1,20 +1,19 @@
 {
-    "version": "2.2.3",
-    "build_number": 27,
-    "release_date": "2026-09-12",
-    "min_supported_version": "1.0.0",
-    "download_url": "https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.3_build27.apk",
-    "website_url": "https://water-pump-controller.vercel.app",
-    "sha256": "7c27dc40f6f84456c6d5fad2051f3f0b1cda3a881e9d45644edd0d055f98ceae",
-    "title": "HydroPulse v2.2.3 - Instant Launch & Skia Pipeline Fix",
-    "changelog": [
-        "Fixed Black/Blank Screen: Re-architected startup to synchronous execution with post-frame background auth resolution.",
-        "Eliminated KeyStore Deadlock: Protected Flutter secure storage initialization against blocking hangs.",
-        "ColorOS/Android 14 Skia Mode: Disabled Impeller Vulkan presentation to eliminate vendor-specific black swapchains.",
-        "Sideload Installation Conflict Fix: Standardized release keystore configuration across all distribution channels.",
-        "Zero-Delay First Frame: Mounts full HydroPulse theme and Login UI in under 16ms."
-    ],
-    "is_critical": false,
-    "updatedAt": "2026-09-12T10:46:18.854Z",
-    "file_size": 58524740
+  "version": "2.2.4",
+  "build_number": 28,
+  "release_date": "2026-09-16",
+  "min_supported_version": "1.0.0",
+  "download_url": "https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.4_build28.apk",
+  "website_url": "https://water-pump-controller.vercel.app",
+  "sha256": "7c27dc40f6f84456c6d5fad2051f3f0b1cda3a881e9d45644edd0d055f98ceae",
+  "title": "HydroPulse v2.2.4 - Multi-Identifier Auth, Zero Mock Device & Database Persistence",
+  "changelog": [
+    "Database Authentication & Re-Login Fix: Added multi-identifier resolution supporting Email, User ID, and Username with case-insensitivity.",
+    "Strict Zero-Mock Hardware State: Brand-new user accounts initialize with zero devices; devices only attach upon explicit user pairing.",
+    "Pristine Baseline Registry: Reset database files to clean unmapped baseline with zero pre-populated mock hardware.",
+    "Dynamic API Routing: Intelligent same-origin routing for local, self-hosted, and cloud deployments."
+  ],
+  "is_critical": false,
+  "updatedAt": "2026-09-16T17:54:00.000Z",
+  "file_size": 58524740
 }

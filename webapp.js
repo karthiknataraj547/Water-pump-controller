@@ -142,9 +142,11 @@ document.addEventListener('DOMContentLoaded', () => {
   renderBackground();
 
   // ==============================================================================
-  // 3. Centralized Authentication & Account Synchronization (Strictly Cloud API, No Local Servers)
-  const isVercelHost = window.location.hostname.endsWith('vercel.app');
-  const apiBaseUrl = isVercelHost ? `${window.location.origin}/api/v1` : 'https://water-pump-controller.vercel.app/api/v1';
+  // 3. Centralized Authentication & Account Synchronization
+  const isHttp = window.location.protocol === 'http:' || window.location.protocol === 'https:';
+  const apiBaseUrl = (isHttp && window.location.origin && window.location.origin !== 'null')
+    ? `${window.location.origin}/api/v1`
+    : 'https://water-pump-controller.vercel.app/api/v1';
 
   let authToken = localStorage.getItem('hydropulse_auth_token') || null;
   let currentUser = null;
@@ -152,8 +154,10 @@ document.addEventListener('DOMContentLoaded', () => {
   try {
     const cached = localStorage.getItem('hydropulse_current_user');
     if (cached) currentUser = JSON.parse(cached);
-    const cachedDevs = localStorage.getItem('hydropulse_user_devices');
-    if (cachedDevs) userDevices = JSON.parse(cachedDevs);
+    if (currentUser) {
+      const cachedDevs = localStorage.getItem('hydropulse_user_devices');
+      if (cachedDevs) userDevices = JSON.parse(cachedDevs);
+    }
   } catch {}
 
   const authView = document.getElementById('auth-view');
@@ -288,6 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (sApi) sApi.textContent = `${apiBaseUrl} (Central Sync Active)`;
 
       // Fetch user's devices from the centralized backend to check for hardware
+      userDevices = [];
       try {
         const queryEmail = user.email ? `?email=${encodeURIComponent(user.email)}` : '';
         const devRes = await fetch(`${apiBaseUrl}/devices${queryEmail}`, {
@@ -298,21 +303,24 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         if (devRes.ok) {
           const devJson = await devRes.json();
-          if (devJson.data && Array.isArray(devJson.data) && devJson.data.length > 0) {
-            userDevices = devJson.data;
-            localStorage.setItem('hydropulse_user_devices', JSON.stringify(userDevices));
+          if (devJson.data && Array.isArray(devJson.data)) {
+            const myEmail = (user.email || '').trim().toLowerCase();
+            const myUserId = (user.id || '').trim();
+            userDevices = devJson.data.filter(d => {
+              const dEmail = (d.userEmail || '').trim().toLowerCase();
+              const dUser = (d.userId || '').trim();
+              return (myEmail && dEmail === myEmail) || (myUserId && dUser === myUserId);
+            });
+            if (userDevices.length > 0) {
+              localStorage.setItem('hydropulse_user_devices', JSON.stringify(userDevices));
+            } else {
+              localStorage.removeItem('hydropulse_user_devices');
+              localStorage.removeItem('hydropulse_active_device_id');
+            }
           }
         }
       } catch (e) {
         console.warn('[Sync] Devices fetch notice:', e);
-      }
-
-      // If backend returned empty on cold start but we have locally cached devices, preserve them!
-      if (!userDevices || userDevices.length === 0) {
-        try {
-          const cachedDevs = localStorage.getItem('hydropulse_user_devices');
-          if (cachedDevs) userDevices = JSON.parse(cachedDevs);
-        } catch {}
       }
 
       if (userDevices && userDevices.length > 0) {
@@ -326,23 +334,22 @@ document.addEventListener('DOMContentLoaded', () => {
           chosenDev = userDevices[0];
         }
         applyActiveDevice(chosenDev);
-        // Re-sync local device to backend so container retains it
-        fetch(`${apiBaseUrl}/devices`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`,
-            'x-user-email': user.email || ''
-          },
-          body: JSON.stringify(chosenDev)
-        }).catch(() => {});
       } else {
-        console.log('[Sync] Account has no paired hardware yet.');
+        localStorage.removeItem('hydropulse_user_devices');
+        localStorage.removeItem('hydropulse_active_device_id');
+        console.log('[Sync] Account has no paired hardware. Clean zero-device state active.');
         updateHardwareStatusBadge(false, 0);
         const nodeNameEl = document.getElementById('active-node-name');
         if (nodeNameEl) nodeNameEl.textContent = 'No Hardware Linked';
         const nodeMacEl = document.getElementById('active-node-mac');
-        if (nodeMacEl) nodeMacEl.textContent = 'Pair via Mobile App or Link Below';
+        if (nodeMacEl) nodeMacEl.textContent = 'No hardware paired to this account';
+        const topbarChip = document.getElementById('topbar-device-chip') || document.querySelector('.topbar-device-chip');
+        if (topbarChip) {
+          topbarChip.textContent = 'No Device';
+          topbarChip.title = 'No hardware paired to this account';
+        }
+        const sHw = document.getElementById('settings-hw-id');
+        if (sHw) sHw.textContent = 'No hardware linked to this account';
         const hwActiveDash = document.getElementById('hw-active-dashboard');
         const hwNoneDash = document.getElementById('hw-none-dashboard');
         if (hwActiveDash) hwActiveDash.classList.add('hidden');
@@ -510,11 +517,11 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       hideAlert();
 
-      const email = document.getElementById('signin-email').value.trim().toLowerCase();
+      const identifier = document.getElementById('signin-email').value.trim();
       const password = document.getElementById('signin-password').value;
 
-      if (!email || !password) {
-        showAlert('Please enter both your email address and password.');
+      if (!identifier || !password) {
+        showAlert('Please enter both your User ID / email address and password.');
         return;
       }
 
@@ -523,17 +530,26 @@ document.addEventListener('DOMContentLoaded', () => {
         let response = await fetch(`${apiBaseUrl}/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
+          body: JSON.stringify({ email: identifier, identifier, password })
         });
 
         let json = await response.json().catch(() => ({}));
 
-        // Self-Healing: If backend container reset and says "Account not found", check client account cache or primary admin
+        // Self-Healing: If backend container reset and says "Account not found", check client account cache
         if (response.status === 401 && (json.message?.includes('not found') || json.message?.includes('Account not found'))) {
           let clientAcc = null;
           try {
             const rawAccs = JSON.parse(localStorage.getItem('hydropulse_client_accounts') || '{}');
-            clientAcc = rawAccs[email];
+            const cleanKey = identifier.toLowerCase();
+            clientAcc = rawAccs[cleanKey];
+            if (!clientAcc) {
+              for (const acc of Object.values(rawAccs)) {
+                if (acc.email?.toLowerCase() === cleanKey || acc.userId?.toLowerCase() === cleanKey || acc.id?.toLowerCase() === cleanKey) {
+                  clientAcc = acc;
+                  break;
+                }
+              }
+            }
           } catch {}
 
           if (clientAcc && clientAcc.password === password) {
@@ -544,7 +560,7 @@ document.addEventListener('DOMContentLoaded', () => {
               body: JSON.stringify({
                 firstName: clientAcc.firstName || 'HydroPulse',
                 lastName: clientAcc.lastName || 'User',
-                email: email,
+                email: clientAcc.email || identifier,
                 password: password
               })
             });
@@ -559,12 +575,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (response.ok && json.status === 'success' && json.data && json.data.user) {
           try {
             const rawAccs = JSON.parse(localStorage.getItem('hydropulse_client_accounts') || '{}');
-            rawAccs[email] = {
-              email,
+            const userEmail = (json.data.user.email || identifier).toLowerCase();
+            const accObj = {
+              email: userEmail,
+              userId: json.data.user.id || '',
+              id: json.data.user.id || '',
               firstName: json.data.user.firstName || 'User',
               lastName: json.data.user.lastName || '',
               password
             };
+            rawAccs[userEmail] = accObj;
+            if (json.data.user.id) {
+              rawAccs[json.data.user.id.toLowerCase()] = accObj;
+            }
             localStorage.setItem('hydropulse_client_accounts', JSON.stringify(rawAccs));
           } catch {}
           completeAuthentication(json.data.user, json.data.tokens?.accessToken);
