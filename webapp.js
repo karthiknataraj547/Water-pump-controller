@@ -535,61 +535,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let json = await response.json().catch(() => ({}));
 
-        // Self-Healing: If backend container reset and says "Account not found", check client account cache
-        if (response.status === 401 && (json.message?.includes('not found') || json.message?.includes('Account not found'))) {
-          let clientAcc = null;
-          try {
-            const rawAccs = JSON.parse(localStorage.getItem('hydropulse_client_accounts') || '{}');
-            const cleanKey = identifier.toLowerCase();
-            clientAcc = rawAccs[cleanKey];
-            if (!clientAcc) {
-              for (const acc of Object.values(rawAccs)) {
-                if (acc.email?.toLowerCase() === cleanKey || acc.userId?.toLowerCase() === cleanKey || acc.id?.toLowerCase() === cleanKey) {
-                  clientAcc = acc;
-                  break;
-                }
-              }
-            }
-          } catch {}
-
-          if (clientAcc && clientAcc.password === password) {
-            // Transparently re-register with the backend container
-            const reRegRes = await fetch(`${apiBaseUrl}/auth/register`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                firstName: clientAcc.firstName || 'HydroPulse',
-                lastName: clientAcc.lastName || 'User',
-                email: clientAcc.email || identifier,
-                password: password
-              })
-            });
-            const reRegJson = await reRegRes.json().catch(() => ({}));
-            if ((reRegRes.ok || reRegRes.status === 201 || reRegRes.status === 200) && reRegJson.data?.user) {
-              completeAuthentication(reRegJson.data.user, reRegJson.data.tokens?.accessToken);
-              return;
-            }
-          }
-        }
-
         if (response.ok && json.status === 'success' && json.data && json.data.user) {
-          try {
-            const rawAccs = JSON.parse(localStorage.getItem('hydropulse_client_accounts') || '{}');
-            const userEmail = (json.data.user.email || identifier).toLowerCase();
-            const accObj = {
-              email: userEmail,
-              userId: json.data.user.id || '',
-              id: json.data.user.id || '',
-              firstName: json.data.user.firstName || 'User',
-              lastName: json.data.user.lastName || '',
-              password
-            };
-            rawAccs[userEmail] = accObj;
-            if (json.data.user.id) {
-              rawAccs[json.data.user.id.toLowerCase()] = accObj;
-            }
-            localStorage.setItem('hydropulse_client_accounts', JSON.stringify(rawAccs));
-          } catch {}
           completeAuthentication(json.data.user, json.data.tokens?.accessToken);
         } else {
           showAlert(json.message || 'Access Denied: Account not found or incorrect credentials. Please register your account first.');
@@ -786,11 +732,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const json = await response.json().catch(() => ({}));
         if ((response.status === 200 || response.status === 201) && json.status === 'success' && json.data && json.data.user) {
-          try {
-            const rawAccs = JSON.parse(localStorage.getItem('hydropulse_client_accounts') || '{}');
-            rawAccs[email] = { email, firstName, lastName, password };
-            localStorage.setItem('hydropulse_client_accounts', JSON.stringify(rawAccs));
-          } catch {}
           showAlert('✓ Account created successfully! Launching HydroPulse console...', true);
           completeAuthentication(json.data.user, json.data.tokens?.accessToken);
         } else {

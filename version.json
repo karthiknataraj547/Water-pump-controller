@@ -5,15 +5,15 @@
   "min_supported_version": "1.0.0",
   "download_url": "https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.4_build28.apk",
   "website_url": "https://water-pump-controller.vercel.app",
-  "sha256": "9645c34b7eff2e523ae85d2ae90f94d77187212900214ac30a514a1a0358526b",
-  "title": "HydroPulse v2.2.4 - Multi-Identifier Auth, Zero Mock Device & Database Persistence",
+  "sha256": "75d315429ce6610e83c1641b73cb24a76c73795efa51350c1998929f2fbd4e5e",
+  "title": "HydroPulse v2.2.4 - Strict Server-Side Authentication & Database Persistence",
   "changelog": [
-    "Database Authentication & Re-Login Fix: Added multi-identifier resolution supporting Email, User ID, and Username with case-insensitivity.",
+    "Strict Server-Side Database Auth: Direct registration and authentication with database server as single source of truth; no local offline credential storage.",
+    "Real-time Broker-Backed Synchronization: AES-256-GCM encrypted persistence across serverless cold starts and server databases.",
     "Strict Zero-Mock Hardware State: Brand-new user accounts initialize with zero devices; devices only attach upon explicit user pairing.",
-    "Pristine Baseline Registry: Reset database files to clean unmapped baseline with zero pre-populated mock hardware.",
-    "Dynamic API Routing: Intelligent same-origin routing for local, self-hosted, and cloud deployments."
+    "Pristine Baseline Registry: Database baseline with zero pre-populated mock hardware."
   ],
   "is_critical": false,
-  "updatedAt": "2026-09-16T17:54:00.000Z",
-  "file_size": 58524740
+  "updatedAt": "2026-09-17T00:15:00.000Z",
+  "file_size": 58508356
 }

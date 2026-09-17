@@ -1,8 +1,20 @@
 {
-  "users": [],
+  "users": [
+    {
+      "id": "usr_1789583210126_231",
+      "email": "karthiknataraj547@gmail.com",
+      "passwordHash": "dac3dd584f73ca53e385dc19a747b55b02d88cb79f7af19c7c37b569e50eb6d3bfe19a5b73a0ef345971cadc0bc8f22326808bfb2ce4dbe865ca866b30c9e737",
+      "salt": "a41f7adaaee0b6f440912faa7f60c47e",
+      "firstName": "Karthik",
+      "lastName": "N",
+      "role": "USER",
+      "createdAt": "2026-09-16T18:26:50.126Z",
+      "updatedAt": "2026-09-17T18:17:23.958Z"
+    }
+  ],
   "devices": [],
   "liveState": {
-    "pumpRunning": false,
+    "pumpRunning": true,
     "mode": "MANUAL",
     "waterLevelPct": 72,
     "volumeLiters": 3600,
@@ -11,8 +23,8 @@
     "powerKw": 0,
     "tdsPpm": 142,
     "tempC": 24.2,
-    "lastHeartbeat": 0,
-    "lastSeen": 0,
+    "lastHeartbeat": 1789669045457,
+    "lastSeen": 1789669045457,
     "_wasOnline": false,
     "isOnline": false
   },
@@ -57,5 +69,6 @@
       "tempC": 24.2,
       "pumpRunning": true
     }
-  ]
+  ],
+  "timestamp": 1789669047265
 }

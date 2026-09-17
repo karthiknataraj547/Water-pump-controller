@@ -169,6 +169,38 @@ function matchDevice(dev, incomingDevId) {
 // ==============================================================================
 // Active MQTT Client & Hardware Verification Engine (broker.hivemq.com:1883)
 // ==============================================================================
+const DB_SYNC_TOPIC = 'hydropulse/v2/system/db_sync';
+const DB_CRYPTO_KEY = crypto.scryptSync('hydropulse_super_secret_db_2026', 'hydropulse_salt', 32);
+
+function encryptDatabasePayload(text) {
+  try {
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', DB_CRYPTO_KEY, iv);
+    let enc = cipher.update(text, 'utf8', 'hex');
+    enc += cipher.final('hex');
+    const tag = cipher.getAuthTag().toString('hex');
+    return `${iv.toString('hex')}:${tag}:${enc}`;
+  } catch (_) {
+    return null;
+  }
+}
+
+function decryptDatabasePayload(blob) {
+  try {
+    if (!blob || typeof blob !== 'string') return null;
+    const parts = blob.split(':');
+    if (parts.length !== 3) return null;
+    const [ivH, tagH, encH] = parts;
+    const decipher = crypto.createDecipheriv('aes-256-gcm', DB_CRYPTO_KEY, Buffer.from(ivH, 'hex'));
+    decipher.setAuthTag(Buffer.from(tagH, 'hex'));
+    let dec = decipher.update(encH, 'hex', 'utf8');
+    dec += decipher.final('utf8');
+    return dec;
+  } catch (_) {
+    return null;
+  }
+}
+
 let mqttClient = null;
 const pendingPings = new Map();
 
@@ -193,13 +225,39 @@ function getMqttClient() {
         'pump/heartbeat',
         'pump/+/heartbeat',
         'pump/availability',
-        'pump/+/availability'
+        'pump/+/availability',
+        DB_SYNC_TOPIC
       ]);
     });
 
     mqttClient.on('message', (topic, message) => {
       try {
         const msgStr = message.toString().trim();
+
+        // 0. Database Cloud State Synchronization (Retained)
+        if (topic === DB_SYNC_TOPIC) {
+          const decStr = decryptDatabasePayload(msgStr);
+          if (decStr) {
+            try {
+              const parsed = JSON.parse(decStr);
+              if (parsed.users && Array.isArray(parsed.users)) {
+                for (const u of parsed.users) {
+                  if (u.email) usersDb.set(u.email.toLowerCase().trim(), u);
+                  if (u.id) usersDb.set(u.id.toLowerCase().trim(), u);
+                }
+              }
+              if (parsed.devices && Array.isArray(parsed.devices)) {
+                for (const d of parsed.devices) {
+                  const devKey = d.userEmail ? `${d.userEmail.toLowerCase().trim()}_${d.id || d.deviceId}` : (d.id || d.deviceId);
+                  devicesDb.set(devKey, d);
+                }
+              }
+              saveState(false);
+            } catch (_) {}
+          }
+          return;
+        }
+
         const rawLower = msgStr.toLowerCase();
 
         // 1. Availability / LWT
@@ -429,15 +487,12 @@ function flushDatabaseState() {
     tempC: 0.0,
     lastSeen: 0
   };
-  saveState();
+  saveState(true);
   console.log('[Store] Full database flush complete. All user accounts and devices cleared.');
 }
 
 function loadState() {
-  usersDb.clear();
-  devicesDb.clear();
-
-  // 1. Load permanent baseline database from bundled file
+  // 1. Merge permanent baseline database without wiping existing in-memory users!
   const candidatePaths = [
     BUNDLED_DB_PATH,
     path.join(process.cwd(), 'api', 'database.json'),
@@ -452,25 +507,27 @@ function loadState() {
         const parsed = JSON.parse(content);
         if (parsed.users && Array.isArray(parsed.users)) {
           for (const u of parsed.users) {
-            if (u.email) usersDb.set(u.email.toLowerCase().trim(), u);
-            if (u.id) usersDb.set(u.id.toLowerCase().trim(), u);
+            if (u.email && !usersDb.has(u.email.toLowerCase().trim())) {
+              usersDb.set(u.email.toLowerCase().trim(), u);
+            }
+            if (u.id && !usersDb.has(u.id.toLowerCase().trim())) {
+              usersDb.set(u.id.toLowerCase().trim(), u);
+            }
           }
         }
         if (parsed.devices && Array.isArray(parsed.devices)) {
           for (const d of parsed.devices) {
             const devKey = d.userEmail ? `${d.userEmail.toLowerCase().trim()}_${d.id || d.deviceId}` : (d.id || d.deviceId);
-            d.isOnline = false;
-            d.status = 'OFFLINE';
-            d.lastHeartbeat = 0;
-            devicesDb.set(devKey, d);
+            if (!devicesDb.has(devKey)) {
+              d.isOnline = false;
+              d.status = 'OFFLINE';
+              d.lastHeartbeat = 0;
+              devicesDb.set(devKey, d);
+            }
           }
         }
-        if (parsed.liveState) {
+        if (parsed.liveState && (!liveState.waterLevelPct || liveState.waterLevelPct === 0)) {
           Object.assign(liveState, parsed.liveState);
-          liveState.isOnline = false;
-          liveState._wasOnline = false;
-          liveState.lastHeartbeat = 0;
-          liveState.lastSeen = 0;
         }
         break;
       }
@@ -491,18 +548,11 @@ function loadState() {
       if (parsed.devices && Array.isArray(parsed.devices)) {
         for (const d of parsed.devices) {
           const devKey = d.userEmail ? `${d.userEmail.toLowerCase().trim()}_${d.id || d.deviceId}` : (d.id || d.deviceId);
-          d.isOnline = false;
-          d.status = 'OFFLINE';
-          d.lastHeartbeat = 0;
           devicesDb.set(devKey, d);
         }
       }
-      if (parsed.liveState) {
+      if (parsed.liveState && (!liveState.waterLevelPct || liveState.waterLevelPct === 0)) {
         Object.assign(liveState, parsed.liveState);
-        liveState.isOnline = false;
-        liveState._wasOnline = false;
-        liveState.lastHeartbeat = 0;
-        liveState.lastSeen = 0;
       }
       if (parsed.telemetryHistory && Array.isArray(parsed.telemetryHistory)) {
         telemetryHistory.length = 0;
@@ -513,24 +563,23 @@ function loadState() {
     console.warn('[Store] Ephemeral state load notice:', err.message);
   }
 
-  saveState();
+  saveState(false);
 }
 
-function saveState() {
+function saveState(publishCloud = true) {
   const uniqueUsers = Array.from(new Set(usersDb.values()));
   const uniqueDevices = Array.from(new Set(devicesDb.values()));
   const payload = {
     users: uniqueUsers,
     devices: uniqueDevices,
     liveState,
-    telemetryHistory: telemetryHistory.slice(-50)
+    telemetryHistory: telemetryHistory.slice(-50),
+    timestamp: Date.now()
   };
   const jsonStr = JSON.stringify(payload, null, 2);
   try {
     fs.writeFileSync(STORE_PATH, jsonStr, 'utf8');
-  } catch (err) {
-    // Ephemeral container notice
-  }
+  } catch (_) {}
 
   const candidatePaths = [
     BUNDLED_DB_PATH,
@@ -543,7 +592,20 @@ function saveState() {
       if (fs.existsSync(p)) {
         fs.writeFileSync(p, jsonStr, 'utf8');
       }
-    } catch {}
+    } catch (_) {}
+  }
+
+  // Synchronize state across instances via retained MQTT
+  if (publishCloud) {
+    try {
+      const client = getMqttClient();
+      if (client && client.connected) {
+        const encBlob = encryptDatabasePayload(jsonStr);
+        if (encBlob) {
+          client.publish(DB_SYNC_TOPIC, encBlob, { retain: true, qos: 1 });
+        }
+      }
+    } catch (_) {}
   }
 }
 
@@ -692,16 +754,17 @@ module.exports = async (req, res) => {
         min_supported_version: '1.0.0',
         download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.4_build28.apk',
         website_url: 'https://water-pump-controller.vercel.app',
-        sha256: '9645c34b7eff2e523ae85d2ae90f94d77187212900214ac30a514a1a0358526b',
-        title: 'HydroPulse v2.2.4 - Multi-Identifier Auth, Zero Mock Device & Database Persistence',
+        sha256: '75d315429ce6610e83c1641b73cb24a76c73795efa51350c1998929f2fbd4e5e',
+        title: 'HydroPulse v2.2.4 - Strict Server-Side Authentication & Database Persistence',
         changelog: [
-          'Database Authentication & Re-Login Fix: Added multi-identifier resolution supporting Email, User ID, and Username with case-insensitivity.',
+          'Strict Server-Side Database Auth: Direct registration and authentication with database server as single source of truth; no local offline credential storage.',
+          'Real-time Broker-Backed Synchronization: AES-256-GCM encrypted persistence across serverless cold starts and server databases.',
           'Strict Zero-Mock Hardware State: Brand-new user accounts initialize with zero devices; devices only attach upon explicit user pairing.',
-          'Pristine Baseline Registry: Reset database files to clean unmapped baseline with zero pre-populated mock hardware.',
-          'Dynamic API Routing: Intelligent same-origin routing for local, self-hosted, and cloud deployments.'
+          'Pristine Baseline Registry: Database baseline with zero pre-populated mock hardware.'
         ],
         is_critical: false,
-        file_size: 58524740
+        updatedAt: '2026-09-17T00:15:00.000Z',
+        file_size: 58508356
       };
     }
 

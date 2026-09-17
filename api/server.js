@@ -4,11 +4,31 @@
  */
 
 const http = require('http');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
 
 const apiHandler = require('./index.js');
+
+const DB_SYNC_TOPIC = 'hydropulse/v2/system/db_sync';
+const DB_CRYPTO_KEY = crypto.scryptSync('hydropulse_super_secret_db_2026', 'hydropulse_salt', 32);
+
+function decryptDatabasePayload(blob) {
+  try {
+    if (!blob || typeof blob !== 'string') return null;
+    const parts = blob.split(':');
+    if (parts.length !== 3) return null;
+    const [ivH, tagH, encH] = parts;
+    const decipher = crypto.createDecipheriv('aes-256-gcm', DB_CRYPTO_KEY, Buffer.from(ivH, 'hex'));
+    decipher.setAuthTag(Buffer.from(tagH, 'hex'));
+    let dec = decipher.update(encH, 'hex', 'utf8');
+    dec += decipher.final('utf8');
+    return dec;
+  } catch (_) {
+    return null;
+  }
+}
 
 const PORT = process.env.PORT || 3000;
 const ROOT_DIR = path.resolve(__dirname, '..');
@@ -219,6 +239,28 @@ try {
   mqttClient.on('message', async (topic, message) => {
     try {
       const msgStr = message.toString().trim();
+
+      // 0. Database Cloud State Synchronization (Retained) -> Persist to local database.json & api/database.json
+      if (topic === DB_SYNC_TOPIC) {
+        const decStr = decryptDatabasePayload(msgStr);
+        if (decStr) {
+          try {
+            const parsed = JSON.parse(decStr);
+            const formatted = JSON.stringify(parsed, null, 2);
+            const dbPaths = [
+              path.join(ROOT_DIR, 'database.json'),
+              path.join(ROOT_DIR, 'api', 'database.json')
+            ];
+            for (const p of dbPaths) {
+              try {
+                fs.writeFileSync(p, formatted, 'utf8');
+              } catch (_) {}
+            }
+          } catch (_) {}
+        }
+        return;
+      }
+
       const rawLower = msgStr.toLowerCase();
 
       // 1. Direct check for plaintext availability/offline/online

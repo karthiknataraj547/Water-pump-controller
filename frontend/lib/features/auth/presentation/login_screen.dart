@@ -214,8 +214,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         await storage.write(key: AppConstants.keyUserName, value: fullName);
         await storage.write(key: AppConstants.keyAccessToken, value: finalToken);
         await storage.write(key: AppConstants.keyRefreshToken, value: finalRefresh);
-        await storage.write(key: 'auth_pwd_$email', value: password);
-        await storage.write(key: 'auth_name_$email', value: fullName);
 
         // Reset device state cleanly for new user account
         await hardwareStateService.clearDeviceForNewLogin();
@@ -306,8 +304,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         await storage.write(key: AppConstants.keyUserName, value: resolvedName);
         await storage.write(key: AppConstants.keyAccessToken, value: finalToken);
         await storage.write(key: AppConstants.keyRefreshToken, value: finalRefresh);
-        await storage.write(key: 'auth_pwd_$email', value: password);
-        await storage.write(key: 'auth_name_$email', value: resolvedName);
 
         // Reset device state cleanly for logging in user
         await hardwareStateService.clearDeviceForNewLogin();
@@ -324,52 +320,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         return;
       }
     } on DioException catch (e) {
-      // Self-Healing: If backend returned 401 "Account not found" due to serverless cold restart
-      if (e.response?.statusCode == 401) {
-        const storage = FlutterSecureStorage();
-        final savedPwd = await storage.read(key: 'auth_pwd_$email');
-        final savedName = await storage.read(key: 'auth_name_$email');
-        if (savedPwd != null && savedPwd == password) {
-          final recoveryName = savedName ?? 'HydroPulse User';
-          final parts = recoveryName.split(' ');
-          final fName = parts.isNotEmpty ? parts.first : 'User';
-          final lName = parts.length > 1 ? parts.sublist(1).join(' ') : 'Client';
-
-          try {
-            final reReg = await apiClient.post('/auth/register', data: {
-              'firstName': fName,
-              'lastName': lName,
-              'email': email,
-              'password': password,
-            });
-
-            if ((reReg.statusCode == 201 || reReg.statusCode == 200) && reReg.data != null && reReg.data['status'] == 'success') {
-              final data = reReg.data['data'];
-              final tokens = data?['tokens'];
-              final finalToken = tokens?['accessToken'] ?? 'jwt_rec_${DateTime.now().millisecondsSinceEpoch}';
-              final finalRefresh = tokens?['refreshToken'] ?? 'jwt_refresh_${DateTime.now().millisecondsSinceEpoch}';
-
-              await storage.write(key: AppConstants.keyUserEmail, value: email);
-              await storage.write(key: AppConstants.keyUserName, value: recoveryName);
-              await storage.write(key: AppConstants.keyAccessToken, value: finalToken);
-              await storage.write(key: AppConstants.keyRefreshToken, value: finalRefresh);
-              await storage.write(key: 'auth_pwd_$email', value: password);
-              await storage.write(key: 'auth_name_$email', value: recoveryName);
-
-              await hardwareStateService.clearDeviceForNewLogin();
-              await hardwareStateService.fetchUserDevicesFromBackend();
-              authStateNotifier.value = finalToken;
-
-              if (mounted) {
-                setState(() => _isLoading = false);
-                context.go('/dashboard');
-              }
-              return;
-            }
-          } catch (_) {}
-        }
-      }
-
       String msg = 'Invalid email address or password.';
       if (e.response?.data != null && e.response?.data is Map && e.response?.data['message'] != null) {
         msg = e.response?.data['message'];

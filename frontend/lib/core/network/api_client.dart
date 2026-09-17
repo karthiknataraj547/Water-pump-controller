@@ -37,6 +37,10 @@ class ApiClient {
             }
           }
           options.baseUrl = AppConstants.activeApiBaseUrl;
+          if (options.path.startsWith('/') && options.baseUrl.endsWith('/api/v1')) {
+            options.path = '/api/v1${options.path}';
+            options.baseUrl = options.baseUrl.substring(0, options.baseUrl.length - 7);
+          }
 
           final token = await storage.read(key: AppConstants.keyAccessToken);
           if (token != null && token.isNotEmpty) {
