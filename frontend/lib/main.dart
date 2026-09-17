@@ -651,7 +651,7 @@ class _AnimatedShiftingBottomBar extends StatelessWidget {
 // ============================================================================
 // NO GATEWAY LINKED VIEW (RENDERED WHEN NO HARDWARE IS ADDED)
 // ============================================================================
-class _NoGatewayLinkedView extends StatelessWidget {
+class _NoGatewayLinkedView extends StatefulWidget {
   final bool isDark;
   final ColorScheme colorScheme;
 
@@ -661,9 +661,52 @@ class _NoGatewayLinkedView extends StatelessWidget {
     required this.colorScheme,
   }) : super(key: key);
 
+  @override
+  State<_NoGatewayLinkedView> createState() => _NoGatewayLinkedViewState();
+}
+
+class _NoGatewayLinkedViewState extends State<_NoGatewayLinkedView> {
+  String _userName = 'HydroPulse User';
+  String _userEmail = '';
+  String _initials = 'HP';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserAccount();
+  }
+
+  Future<void> _loadUserAccount() async {
+    try {
+      final name = await safeSecureStorage.read(key: AppConstants.keyUserName);
+      final email = await safeSecureStorage.read(key: AppConstants.keyUserEmail);
+      if (mounted) {
+        setState(() {
+          if (name != null && name.trim().isNotEmpty) {
+            _userName = name.trim();
+          } else if (email != null && email.isNotEmpty) {
+            final prefix = email.split('@')[0];
+            _userName = prefix.replaceAll(RegExp(r'[\._-]'), ' ');
+            if (_userName.isNotEmpty) {
+              _userName = '${_userName[0].toUpperCase()}${_userName.substring(1)}';
+            }
+          }
+          if (email != null && email.isNotEmpty) {
+            _userEmail = email.trim();
+          }
+          final parts = _userName.trim().split(RegExp(r'\s+'));
+          if (parts.length >= 2 && parts[0].isNotEmpty && parts[1].isNotEmpty) {
+            _initials = '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+          } else if (_userName.isNotEmpty) {
+            _initials = _userName.substring(0, _userName.length >= 2 ? 2 : 1).toUpperCase();
+          }
+        });
+      }
+    } catch (_) {}
+  }
+
   Future<void> _handleLogout(BuildContext context) async {
-    const storage = FlutterSecureStorage();
-    await storage.deleteAll();
+    await safeSecureStorage.deleteAll();
     await hardwareStateService.onUserLogout();
     authStateNotifier.value = null;
     if (context.mounted) {
@@ -674,42 +717,65 @@ class _NoGatewayLinkedView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final isDark = widget.isDark;
+    final colorScheme = widget.colorScheme;
+    final cardBg = isDark ? AppTheme.darkCard : AppTheme.lightCard;
+    final cardBorder = isDark ? AppTheme.darkCardBorder : AppTheme.lightCardBorder;
 
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-        child: Column(
-          children: [
-            // Top Bar with Logo, Theme toggle & Logout
-            Row(
+      child: Column(
+        children: [
+          // 1. Top Bar with Brand, Settings shortcut, Theme toggle & Logout
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
                     Container(
-                      width: 36,
-                      height: 36,
+                      width: 38,
+                      height: 38,
                       decoration: BoxDecoration(
                         color: colorScheme.primary.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Icon(Icons.water_drop_rounded, color: colorScheme.primary, size: 20),
+                      child: Icon(Icons.water_drop_rounded, color: colorScheme.primary, size: 22),
                     ),
                     const SizedBox(width: 10),
-                    Text(
-                      'HydroPulse IoT',
-                      style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'HydroPulse IoT',
+                          style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                        Text(
+                          'Cloud Console v${AppConstants.appVersion}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white54 : Colors.black45,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
                 Row(
                   children: [
                     IconButton(
+                      icon: const Icon(Icons.settings_outlined, size: 22),
+                      tooltip: 'Settings & Account',
+                      onPressed: () => context.push('/settings'),
+                    ),
+                    IconButton(
                       icon: Icon(
                         isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
                         color: isDark ? AppTheme.warning : colorScheme.primary,
                         size: 22,
                       ),
+                      tooltip: 'Toggle Theme',
                       onPressed: () => ThemeNotifier.instance.toggleTheme(),
                     ),
                     IconButton(
@@ -721,114 +787,376 @@ class _NoGatewayLinkedView extends StatelessWidget {
                 ),
               ],
             ),
+          ),
 
-            const Spacer(),
-
-            // Animated Gateway Radar Graphics
-            Container(
-              width: 110,
-              height: 110,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colorScheme.primary.withOpacity(0.12),
-                border: Border.all(
-                  color: colorScheme.primary.withOpacity(0.35),
-                  width: 2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: colorScheme.primary.withOpacity(0.25),
-                    blurRadius: 36,
-                    spreadRadius: 4,
+          // 2. Scrollable Body containing Add Hardware banner + Basic Settings Cards
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // --- HERO: ADD HARDWARE / GATEWAY BANNER ---
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20.0),
+                    decoration: BoxDecoration(
+                      color: cardBg,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: cardBorder, width: 0.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 72,
+                          height: 72,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: colorScheme.primary.withOpacity(0.12),
+                            border: Border.all(color: colorScheme.primary.withOpacity(0.3), width: 1.5),
+                          ),
+                          child: Center(
+                            child: Icon(Icons.sensors_off_rounded, size: 36, color: colorScheme.primary),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No Hardware Gateway Linked',
+                          style: textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.2,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Connect your ESP32 pump controller over BLE to monitor real-time water levels and manage automation. You can also view account, update, and app settings below.',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                            height: 1.4,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 18),
+                        AnimatedPressable(
+                          onTap: () => context.push('/provisioning'),
+                          child: Container(
+                            height: 46,
+                            decoration: BoxDecoration(
+                              color: colorScheme.primary,
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: colorScheme.primary.withOpacity(0.3),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            alignment: Alignment.center,
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.bluetooth_searching_rounded, color: Colors.white, size: 20),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Add Device (Pair Hardware)',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
+
+                  const SizedBox(height: 18),
+
+                  // Section Title
+                  Text(
+                    'BASIC SETTINGS & SYSTEM INFO',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                      color: isDark ? Colors.white54 : Colors.black45,
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // --- 1. ACCOUNT CARD ---
+                  Container(
+                    padding: const EdgeInsets.all(16.0),
+                    decoration: BoxDecoration(
+                      color: cardBg,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: cardBorder, width: 0.5),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: colorScheme.primary.withOpacity(0.12),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  _initials,
+                                  style: TextStyle(
+                                    color: colorScheme.primary,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _userName,
+                                    style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _userEmail.isNotEmpty ? _userEmail : 'Authenticated User',
+                                    style: textTheme.bodySmall?.copyWith(fontSize: 11),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AppTheme.accent.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text(
+                                'ACTIVE',
+                                style: TextStyle(
+                                  color: AppTheme.accent,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Divider(color: cardBorder, height: 1),
+                        const SizedBox(height: 10),
+                        _buildSettingRow('Account Status', 'Active • Server Database Synced', context),
+                        _buildSettingRow('Security', 'Encrypted JWT Bearer Session', context),
+                        _buildSettingRow('Hardware Status', '0 Nodes Linked (Awaiting Pair)', context),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: colorScheme.primary,
+                              side: BorderSide(color: colorScheme.primary.withOpacity(0.4), width: 1),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                            ),
+                            icon: const Icon(Icons.person_outline_rounded, size: 16),
+                            label: const Text('Manage Account & Preferences', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                            onPressed: () => context.push('/settings'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  // --- 2. APP UPDATE CARD ---
+                  Container(
+                    padding: const EdgeInsets.all(16.0),
+                    decoration: BoxDecoration(
+                      color: cardBg,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: cardBorder, width: 0.5),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.accent.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.system_update_rounded, color: AppTheme.accent, size: 20),
+                                ),
+                                const SizedBox(width: 10),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('App Version & Updates', style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                                    Text('Built-in OTA Update Engine', style: textTheme.bodySmall?.copyWith(fontSize: 10)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AppTheme.accent.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'v${AppUpdateService.currentVersion} • B${AppUpdateService.currentBuildNumber}',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.accent,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Divider(color: cardBorder, height: 1),
+                        const SizedBox(height: 10),
+                        _buildSettingRow('Installed Version', 'v${AppUpdateService.currentVersion}', context),
+                        _buildSettingRow('Build Number', '${AppUpdateService.currentBuildNumber}', context),
+                        _buildSettingRow('Channel', 'Official Production Cloud', context),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: colorScheme.primary,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                            ),
+                            icon: const Icon(Icons.refresh_rounded, size: 16),
+                            label: const Text('Check for Updates', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                            onPressed: () {
+                              appUpdateService.checkForUpdates(context, isManual: true);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  // --- 3. APP INFORMATION & SYSTEM CARD ---
+                  Container(
+                    padding: const EdgeInsets.all(16.0),
+                    decoration: BoxDecoration(
+                      color: cardBg,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: cardBorder, width: 0.5),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: colorScheme.primary.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(Icons.info_outline_rounded, color: colorScheme.primary, size: 20),
+                            ),
+                            const SizedBox(width: 10),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('App Information', style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                                Text('Platform, Cloud Gateway & Protocols', style: textTheme.bodySmall?.copyWith(fontSize: 10)),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Divider(color: cardBorder, height: 1),
+                        const SizedBox(height: 10),
+                        _buildSettingRow('Cloud Gateway', 'water-pump-controller.vercel.app', context),
+                        _buildSettingRow('IoT MQTT Broker', 'broker.hivemq.com (Port 1883)', context),
+                        _buildSettingRow('Architecture', 'FreeRTOS ESP32 • Flutter Cross-Platform', context),
+                        _buildSettingRow('Network Link', 'Central Cloud Server Active', context),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: isDark ? Colors.white70 : Colors.black87,
+                              side: BorderSide(color: cardBorder, width: 1),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                            ),
+                            icon: const Icon(Icons.tune_rounded, size: 16),
+                            label: const Text('Open Full Settings & Diagnostics', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                            onPressed: () => context.push('/settings'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
                 ],
               ),
-              child: Center(
-                child: Icon(
-                  Icons.sensors_off_rounded,
-                  size: 52,
-                  color: colorScheme.primary,
-                ),
-              ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
 
-            const SizedBox(height: 28),
-
-            Text(
-              'You have not connected any device',
-              style: textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.3,
-              ),
-              textAlign: TextAlign.center,
+  Widget _buildSettingRow(String label, String value, BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3.5),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: textTheme.bodySmall?.copyWith(fontSize: 11)),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600, fontSize: 11),
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
             ),
-            const SizedBox(height: 10),
-            Text(
-              'Link your ESP32 pump controller and tank sensors to monitor real-time water levels, actuators, and autonomous rules.',
-              style: textTheme.bodyMedium?.copyWith(
-                color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
-                height: 1.4,
-              ),
-              textAlign: TextAlign.center,
-            ),
-
-            const SizedBox(height: 32),
-
-            // Primary Button: Add Device
-            AnimatedPressable(
-              onTap: () => context.push('/provisioning'),
-              child: Container(
-                height: 52,
-                decoration: BoxDecoration(
-                  color: colorScheme.primary,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: colorScheme.primary.withOpacity(0.35),
-                      blurRadius: 20,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                alignment: Alignment.center,
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.add_rounded, color: Colors.white, size: 22),
-                    SizedBox(width: 8),
-                    Text(
-                      'Add Device',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const Spacer(),
-
-            // Help note
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.info_outline_rounded, size: 14, color: isDark ? Colors.white38 : Colors.black38),
-                const SizedBox(width: 6),
-                Text(
-                  'Make sure your ESP32 Main Node has power and BLE is ready.',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isDark ? Colors.white38 : Colors.black38,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

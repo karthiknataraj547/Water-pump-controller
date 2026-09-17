@@ -18,9 +18,9 @@ console.log('Source APK Size:', stats.size, 'bytes');
 console.log('Source APK SHA-256:', sha256);
 
 const targetPaths = [
-  path.join(rootDir, 'releases', 'HydroPulse_v2.2.4_build28.apk'),
+  path.join(rootDir, 'releases', 'HydroPulse_v2.2.5_build29.apk'),
   path.join(rootDir, 'releases', 'HydroPulse_WaterPumpController.apk'),
-  path.join(rootDir, 'website', 'releases', 'HydroPulse_v2.2.4_build28.apk'),
+  path.join(rootDir, 'website', 'releases', 'HydroPulse_v2.2.5_build29.apk'),
   path.join(rootDir, 'website', 'releases', 'HydroPulse_WaterPumpController.apk')
 ];
 
@@ -33,19 +33,19 @@ targetPaths.forEach((dest) => {
 
 // Update version.json manifests
 const versionManifest = {
-  version: '2.2.4',
-  build_number: 28,
+  version: '2.2.5',
+  build_number: 29,
   release_date: '2026-09-17',
   min_supported_version: '1.0.0',
-  download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.4_build28.apk',
+  download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.5_build29.apk',
   website_url: 'https://water-pump-controller.vercel.app',
   sha256: sha256,
-  title: 'HydroPulse v2.2.4 - Strict Cloud Server API & Database Persistence',
+  title: 'HydroPulse v2.2.5 - Unpaired Console Settings, In-App OTA & Direct Server Auth',
   changelog: [
-    'Strict Cloud Server API: Locked mobile app and web console directly to production cloud API; removed all localhost endpoint fallbacks.',
-    'Strict Server-Side Database Auth: Direct registration and authentication with database server as single source of truth; no local offline credential storage.',
-    'Real-time Broker-Backed Synchronization: AES-256-GCM encrypted persistence across serverless cold starts and server databases.',
-    'Strict Zero-Mock Hardware State: Brand-new user accounts initialize with zero devices; devices only attach upon explicit user pairing.'
+    'Unpaired State System Settings: Full access to Account Profile, App Update Engine, and App Information even before adding/pairing hardware.',
+    'Top-Bar Settings & Config: Direct quick-navigation to Settings from any dashboard or unpaired screen.',
+    'Dynamic Installed Version: Automatic reflection of true platform version across all OTA and settings views.',
+    'Strict Cloud Server API: Locked mobile app and web console directly to production cloud API; removed all localhost endpoint fallbacks.'
   ],
   is_critical: false,
   updatedAt: new Date().toISOString(),

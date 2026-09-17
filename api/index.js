@@ -748,23 +748,23 @@ module.exports = async (req, res) => {
 
     if (!manifest) {
       manifest = {
-        version: '2.2.4',
-        build_number: 28,
-        release_date: '2026-09-16',
+        version: '2.2.5',
+        build_number: 29,
+        release_date: '2026-09-17',
         min_supported_version: '1.0.0',
-        download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.4_build28.apk',
+        download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.5_build29.apk',
         website_url: 'https://water-pump-controller.vercel.app',
-        sha256: '07a08e95be2e4bea3e2047fb2559b78a6a654c24507c62b5ab73fc5c42e401ce',
-        title: 'HydroPulse v2.2.4 - Strict Cloud Server API & Database Persistence',
+        sha256: '7991378ca04900557417161387ce9ce3ba1bba03df4a06332c5570c5f1117a0a',
+        title: 'HydroPulse v2.2.5 - Unpaired Console Settings, In-App OTA & Direct Server Auth',
         changelog: [
-          'Strict Cloud Server API: Locked mobile app and web console directly to production cloud API; removed all localhost endpoint fallbacks.',
-          'Strict Server-Side Database Auth: Direct registration and authentication with database server as single source of truth; no local offline credential storage.',
-          'Real-time Broker-Backed Synchronization: AES-256-GCM encrypted persistence across serverless cold starts and server databases.',
-          'Strict Zero-Mock Hardware State: Brand-new user accounts initialize with zero devices; devices only attach upon explicit user pairing.'
+          'Unpaired State System Settings: Full access to Account Profile, App Update Engine, and App Information even before adding/pairing hardware.',
+          'Top-Bar Settings & Config: Direct quick-navigation to Settings from any dashboard or unpaired screen.',
+          'Dynamic Installed Version: Automatic reflection of true platform version across all OTA and settings views.',
+          'Strict Cloud Server API: Locked mobile app and web console directly to production cloud API; removed all localhost endpoint fallbacks.'
         ],
         is_critical: false,
-        updatedAt: '2026-09-17T18:30:00.000Z',
-        file_size: 58508356
+        updatedAt: '2026-09-17T18:40:00.000Z',
+        file_size: 58524740
       };
     }
 

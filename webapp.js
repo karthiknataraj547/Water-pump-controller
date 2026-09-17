@@ -494,7 +494,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             alert(`HydroPulse Update Engine:\nLatest Release: v${data.version} (Build ${data.build_number || 12})\nRelease Date: ${data.release_date}\nTitle: ${data.title}\nStatus: System is synchronized with the latest release.`);
           } catch (_) {
-            alert('HydroPulse Update Engine:\nInstalled Client: v2.1.2 (Build 15)\nStatus: Running latest official release with in-app OTA and direct package installer support.');
+            alert('HydroPulse Update Engine:\nInstalled Client: v2.2.5 (Build 29)\nStatus: Running latest official release with in-app OTA and direct package installer support.');
           }
         };
       }
