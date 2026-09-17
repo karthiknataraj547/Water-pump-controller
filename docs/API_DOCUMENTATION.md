@@ -1,6 +1,6 @@
 # REST API Documentation
 
-Base URL: `http://localhost:4000/api/v1` (or your production cloud domain)
+Base URL: `https://water-pump-controller.vercel.app/api/v1`
 
 All authenticated endpoints require an `Authorization: Bearer <access_token>` header.
 

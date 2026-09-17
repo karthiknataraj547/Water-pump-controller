@@ -19,24 +19,10 @@ class ApiClient {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          // Check for custom backend URL from storage if not already loaded
-          final customUrl = await storage.read(key: AppConstants.keyCustomApiBaseUrl);
-          if (customUrl != null &&
-              customUrl.isNotEmpty &&
-              !customUrl.contains('localhost') &&
-              !customUrl.contains('127.0.0.1') &&
-              !customUrl.contains('10.0.2.2')) {
-            AppConstants.activeApiBaseUrl = customUrl;
-          } else {
-            AppConstants.activeApiBaseUrl = AppConstants.cloudApiBaseUrl;
-            if (customUrl != null &&
-                (customUrl.contains('localhost') ||
-                 customUrl.contains('127.0.0.1') ||
-                 customUrl.contains('10.0.2.2'))) {
-              await storage.delete(key: AppConstants.keyCustomApiBaseUrl);
-            }
-          }
-          options.baseUrl = AppConstants.activeApiBaseUrl;
+          // Strictly enforce production cloud API base URL (No local host overrides)
+          AppConstants.activeApiBaseUrl = AppConstants.cloudApiBaseUrl;
+          await storage.delete(key: AppConstants.keyCustomApiBaseUrl);
+          options.baseUrl = AppConstants.cloudApiBaseUrl;
           if (options.path.startsWith('/') && options.baseUrl.endsWith('/api/v1')) {
             options.path = '/api/v1${options.path}';
             options.baseUrl = options.baseUrl.substring(0, options.baseUrl.length - 7);

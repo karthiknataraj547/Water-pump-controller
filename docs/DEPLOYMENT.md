@@ -30,9 +30,9 @@ docker compose up -d --build
 docker compose ps
 ```
 
-Services exposed:
-- **Backend REST API**: `http://localhost:4000`
-- **Mosquitto MQTT**: `localhost:1883` (TCP) and `localhost:9001` (WebSockets)
+- **Production Cloud REST API**: `https://water-pump-controller.vercel.app/api/v1`
+- **Backend REST API (Local)**: `http://localhost:4000`
+- **Mosquitto MQTT**: `broker.hivemq.com:1883` / `localhost:1883` (TCP) and `localhost:9001` (WebSockets)
 - **PostgreSQL Database**: `localhost:5432`
 - **Redis**: `localhost:6379`
 

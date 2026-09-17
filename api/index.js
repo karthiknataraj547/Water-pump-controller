@@ -667,7 +667,7 @@ module.exports = async (req, res) => {
     });
   }
 
-  const parsedUrl = new URL(url, 'http://localhost');
+  const parsedUrl = new URL(url, 'https://water-pump-controller.vercel.app');
   const searchParamsObj = Object.fromEntries(parsedUrl.searchParams.entries());
   const query = Object.assign({}, searchParamsObj, req.query || {});
 
@@ -754,16 +754,16 @@ module.exports = async (req, res) => {
         min_supported_version: '1.0.0',
         download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.4_build28.apk',
         website_url: 'https://water-pump-controller.vercel.app',
-        sha256: '75d315429ce6610e83c1641b73cb24a76c73795efa51350c1998929f2fbd4e5e',
-        title: 'HydroPulse v2.2.4 - Strict Server-Side Authentication & Database Persistence',
+        sha256: '07a08e95be2e4bea3e2047fb2559b78a6a654c24507c62b5ab73fc5c42e401ce',
+        title: 'HydroPulse v2.2.4 - Strict Cloud Server API & Database Persistence',
         changelog: [
+          'Strict Cloud Server API: Locked mobile app and web console directly to production cloud API; removed all localhost endpoint fallbacks.',
           'Strict Server-Side Database Auth: Direct registration and authentication with database server as single source of truth; no local offline credential storage.',
           'Real-time Broker-Backed Synchronization: AES-256-GCM encrypted persistence across serverless cold starts and server databases.',
-          'Strict Zero-Mock Hardware State: Brand-new user accounts initialize with zero devices; devices only attach upon explicit user pairing.',
-          'Pristine Baseline Registry: Database baseline with zero pre-populated mock hardware.'
+          'Strict Zero-Mock Hardware State: Brand-new user accounts initialize with zero devices; devices only attach upon explicit user pairing.'
         ],
         is_critical: false,
-        updatedAt: '2026-09-17T00:15:00.000Z',
+        updatedAt: '2026-09-17T18:30:00.000Z',
         file_size: 58508356
       };
     }
