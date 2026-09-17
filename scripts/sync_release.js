@@ -18,9 +18,9 @@ console.log('Source APK Size:', stats.size, 'bytes');
 console.log('Source APK SHA-256:', sha256);
 
 const targetPaths = [
-  path.join(rootDir, 'releases', 'HydroPulse_v2.2.3_build27.apk'),
+  path.join(rootDir, 'releases', 'HydroPulse_v2.2.4_build28.apk'),
   path.join(rootDir, 'releases', 'HydroPulse_WaterPumpController.apk'),
-  path.join(rootDir, 'website', 'releases', 'HydroPulse_v2.2.3_build27.apk'),
+  path.join(rootDir, 'website', 'releases', 'HydroPulse_v2.2.4_build28.apk'),
   path.join(rootDir, 'website', 'releases', 'HydroPulse_WaterPumpController.apk')
 ];
 
@@ -33,20 +33,19 @@ targetPaths.forEach((dest) => {
 
 // Update version.json manifests
 const versionManifest = {
-  version: '2.2.3',
-  build_number: 27,
-  release_date: '2026-09-12',
+  version: '2.2.4',
+  build_number: 28,
+  release_date: '2026-09-17',
   min_supported_version: '1.0.0',
-  download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.3_build27.apk',
+  download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.4_build28.apk',
   website_url: 'https://water-pump-controller.vercel.app',
   sha256: sha256,
-  title: 'HydroPulse v2.2.3 - Instant Launch & Skia Pipeline Fix',
+  title: 'HydroPulse v2.2.4 - Strict Cloud Server API & Database Persistence',
   changelog: [
-    'Fixed Black/Blank Screen: Re-architected startup to synchronous execution with post-frame background auth resolution.',
-    'Eliminated KeyStore Deadlock: Protected Flutter secure storage initialization against blocking hangs.',
-    'ColorOS/Android 14 Skia Mode: Disabled Impeller Vulkan presentation to eliminate vendor-specific black swapchains.',
-    'Sideload Installation Conflict Fix: Standardized release keystore configuration across all distribution channels.',
-    'Zero-Delay First Frame: Mounts full HydroPulse theme and Login UI in under 16ms.'
+    'Strict Cloud Server API: Locked mobile app and web console directly to production cloud API; removed all localhost endpoint fallbacks.',
+    'Strict Server-Side Database Auth: Direct registration and authentication with database server as single source of truth; no local offline credential storage.',
+    'Real-time Broker-Backed Synchronization: AES-256-GCM encrypted persistence across serverless cold starts and server databases.',
+    'Strict Zero-Mock Hardware State: Brand-new user accounts initialize with zero devices; devices only attach upon explicit user pairing.'
   ],
   is_critical: false,
   updatedAt: new Date().toISOString(),
