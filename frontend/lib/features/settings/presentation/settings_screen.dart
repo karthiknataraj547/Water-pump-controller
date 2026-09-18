@@ -838,11 +838,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   isNewer ? 'Download & Install Update' : 'Check for Updates',
                   style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
                 ),
-                onPressed: () {
-                  if (isNewer) {
+                onPressed: () async {
+                  if (isNewer && _latestVersionInfo != null) {
                     appUpdateService.showUpdateDialog(context, _latestVersionInfo!);
                   } else {
-                    _checkUpdateInfo(isManual: true);
+                    await _checkUpdateInfo(isManual: true);
+                    if (mounted && _latestVersionInfo != null) {
+                      appUpdateService.showUpdateDialog(context, _latestVersionInfo!);
+                    }
                   }
                 },
               ),
@@ -856,9 +859,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
               ),
               icon: const Icon(Icons.open_in_browser_rounded, size: 16),
-              label: const Text('Website APK', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              label: const Text('Download APK', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
               onPressed: () async {
-                final uri = Uri.parse('https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.6_build30.apk');
+                final target = _latestVersionInfo?.downloadUrl ?? 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.8_build32.apk';
+                final uri = Uri.parse(target);
                 if (await canLaunchUrl(uri)) {
                   await launchUrl(uri, mode: LaunchMode.externalApplication);
                 }

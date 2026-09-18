@@ -688,7 +688,7 @@ module.exports = async (req, res) => {
   }
 
   // 2. In-App Version & OTA Manifest
-  if (url.includes('/api/v1/app/version') || url.includes('/app/version') || url.includes('/api/version') || url === '/version' || url.endsWith('/version.json')) {
+  if (url.includes('/api/v1/version') || url.includes('/api/v1/app/version') || url.includes('/app/version') || url.includes('/api/version') || url === '/version' || url.endsWith('/version.json')) {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
     let manifest;
     try {

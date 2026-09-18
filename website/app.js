@@ -411,16 +411,27 @@ document.addEventListener('DOMContentLoaded', () => {
           // Announcement bar download button
           const annBtn = document.querySelector('.top-announcement-bar a[download]');
           if (annBtn && data.version) {
-            annBtn.setAttribute('href', data.download_url || `releases/HydroPulse_v${data.version}_build${data.build_number || 30}.apk`);
-            annBtn.setAttribute('download', `HydroPulse_v${data.version}_build${data.build_number || 30}.apk`);
+            annBtn.setAttribute('href', data.download_url || `releases/HydroPulse_v${data.version}_build${data.build_number || 32}.apk`);
+            annBtn.setAttribute('download', `HydroPulse_v${data.version}_build${data.build_number || 32}.apk`);
             annBtn.textContent = `📥 Download APK (v${data.version})`;
           }
 
+          const annText = document.querySelector('.top-announcement-bar span:nth-child(2)');
+          if (annText && data.version) {
+            annText.innerHTML = `🚀 <strong>HydroPulse v${data.version} (Build ${data.build_number || 32})</strong> is Live! Complete Industrial UI Redesign & Precision Telemetry Deck.`;
+          }
+
+          const landingOtaVer = document.getElementById('landing-ota-version');
+          if (landingOtaVer && data.version) {
+            landingOtaVer.textContent = `v${data.version} (Build ${data.build_number || 32})`;
+          }
+
           // All APK download links
-          const downloadLinks = document.querySelectorAll('a[href*="HydroPulse"], .download-trigger, .nav-download-btn');
+          const downloadLinks = document.querySelectorAll('a[href*="HydroPulse"], .download-trigger, .nav-download-btn, #modal-btn-download');
           downloadLinks.forEach(link => {
-            const targetUrl = data.download_url || `releases/HydroPulse_v${data.version}_build${data.build_number || 30}.apk`;
+            const targetUrl = data.download_url || `releases/HydroPulse_v${data.version}_build${data.build_number || 32}.apk`;
             link.setAttribute('href', targetUrl);
+            link.setAttribute('download', `HydroPulse_v${data.version}_build${data.build_number || 32}.apk`);
             const span = link.querySelector('span');
             if (span && span.textContent.includes('Download HydroPulse APK')) {
               span.textContent = `Download HydroPulse APK (v${data.version})`;
@@ -431,6 +442,53 @@ document.addEventListener('DOMContentLoaded', () => {
       .catch(() => {});
   }
   syncWebsiteVersion();
+
+  // 7. Interactive Website OTA Update Engine Modal
+  const updateModal = document.getElementById('update-engine-modal');
+  function openWebsiteUpdateModal(data) {
+    if (!updateModal) return;
+    if (data) {
+      const mVer = document.getElementById('modal-latest-version');
+      if (mVer && data.version) mVer.textContent = `v${data.version} (Build ${data.build_number || 32})`;
+      const mList = document.getElementById('modal-changelog-list');
+      if (mList && Array.isArray(data.changelog) && data.changelog.length > 0) {
+        mList.innerHTML = data.changelog.map(item => `<li>${item}</li>`).join('');
+      }
+      const mSha = document.getElementById('modal-sha256');
+      if (mSha && data.sha256) mSha.textContent = data.sha256;
+      const mBtn = document.getElementById('modal-btn-download');
+      if (mBtn && data.download_url) {
+        mBtn.setAttribute('href', data.download_url);
+        mBtn.setAttribute('download', `HydroPulse_v${data.version}_build${data.build_number || 32}.apk`);
+        mBtn.innerHTML = `<span>📥 Download APK v${data.version}</span>`;
+      }
+    }
+    updateModal.classList.remove('hidden');
+  }
+
+  function closeWebsiteUpdateModal() {
+    if (updateModal) updateModal.classList.add('hidden');
+  }
+
+  const btnWebsiteCheckUpdates = document.getElementById('btn-website-check-updates');
+  if (btnWebsiteCheckUpdates) {
+    btnWebsiteCheckUpdates.onclick = () => {
+      fetch(`version.json?t=${Date.now()}`)
+        .then(r => r.json())
+        .then(data => openWebsiteUpdateModal(data))
+        .catch(() => openWebsiteUpdateModal(null));
+    };
+  }
+
+  const btnCloseModal = document.getElementById('btn-close-update-modal');
+  const btnDismissModal = document.getElementById('btn-modal-dismiss-update');
+  if (btnCloseModal) btnCloseModal.onclick = closeWebsiteUpdateModal;
+  if (btnDismissModal) btnDismissModal.onclick = closeWebsiteUpdateModal;
+  if (updateModal) {
+    updateModal.onclick = (e) => {
+      if (e.target === updateModal) closeWebsiteUpdateModal();
+    };
+  }
 
   // Initialize
   drawQrPlaceholder();

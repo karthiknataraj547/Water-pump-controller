@@ -279,10 +279,11 @@
             <span class="nav-item-text">Settings</span>
             <span class="nav-item-active-bar"></span>
           </button>
-          <button class="nav-item-btn" id="btn-sidebar-updates" type="button" title="View In-App Updates & Releases">
+          <button class="nav-item-btn" data-tab="updates" id="btn-sidebar-updates" type="button" title="View In-App Updates & Releases">
             <span class="nav-item-icon">🚀</span>
             <span class="nav-item-text">OTA Updates</span>
             <span class="sys-chip green" id="sidebar-update-chip" style="margin-left: auto; font-size: 9px; padding: 2px 6px;">v2.2.8</span>
+            <span class="nav-item-active-bar"></span>
           </button>
         </nav>
 
@@ -857,6 +858,67 @@
               </section>
             </div>
 
+            <!-- TAB 5: DEDICATED IN-APP OTA UPDATE ENGINE -->
+            <div class="tab-pane hidden" id="tab-pane-updates">
+              <section class="system-card app-update-settings-card" style="margin-bottom: 20px;">
+                <div class="sys-card-header">
+                  <div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span class="sys-chip green" id="ota-tab-chip">OTA ENGINE ACTIVE</span>
+                      <span style="font-size: 11px; color: #00E5FF; font-weight: 700;">● Vercel Edge CDN Connected</span>
+                    </div>
+                    <h3 class="sys-heading" style="margin-top: 6px;">HydroPulse Client App & Firmware Update Engine</h3>
+                    <span class="sys-sub">High-Speed Over-The-Air Binary Distribution & SHA-256 Integrity Verification</span>
+                  </div>
+                  <button class="btn-primary-action" id="btn-tab-check-updates" style="padding: 8px 16px; font-size: 12px; font-weight: 700; cursor: pointer;">
+                    🔄 Check for Updates Now
+                  </button>
+                </div>
+
+                <div class="settings-list">
+                  <div class="st-row">
+                    <span class="st-key">Active Release Version</span>
+                    <span class="st-val" style="color: #00E5FF; font-weight: 800; font-size: 15px;" id="ota-tab-version">v2.2.8 (Build 32)</span>
+                  </div>
+                  <div class="st-row">
+                    <span class="st-key">Release Classification</span>
+                    <span class="st-val" style="color: #10b981; font-weight: 700;">Official Production Release (Stable)</span>
+                  </div>
+                  <div class="st-row">
+                    <span class="st-key">Package Architecture</span>
+                    <span class="st-val">Android Standalone APK (arm64-v8a / armeabi-v7a)</span>
+                  </div>
+                  <div class="st-row">
+                    <span class="st-key">File Size</span>
+                    <span class="st-val">55.72 MB • Direct CDN Download</span>
+                  </div>
+                  <div class="st-row">
+                    <span class="st-key">Binary SHA-256 Checksum</span>
+                    <span class="st-val mono" id="ota-tab-sha256" style="font-size: 11px; word-break: break-all;">1bdbebbd702b7fc2bd359f87234e39d9ec5e836f35a81ee1618892d8053b53e8</span>
+                  </div>
+                  <div class="st-row">
+                    <span class="st-key">Release Changelog</span>
+                    <div style="font-size: 12.5px; line-height: 1.7; color: var(--text-secondary, #94a3b8); margin-top: 6px;">
+                      <div>• <strong>Hardware Provisioning & Cloud Auto-Sync:</strong> Fixed post-provisioning hardware discovery and multi-tenant binding. Added instant 1-click Quick-Link and manual ESP32 AA69E0 gateway pairing.</div>
+                      <div>• <strong>Realistic IoT Online/Offline SLA:</strong> Upgraded heartbeat threshold to robust 30s active / 60s stale timing, eliminating false offline flapping.</div>
+                      <div>• <strong>Modular Backend Security Middleware Pipeline:</strong> Embedded Helmet HTTP security headers, prototype pollution defense, XSS neutralization, and HMAC-SHA256 JWT auth guard.</div>
+                      <div>• <strong>Tiered Rate Limiter:</strong> Sliding-window brute force defense (10 attempts/5m), hardware claim throttling, and actuator protection.</div>
+                      <div>• <strong>Complete Industrial UI Overhaul:</strong> Obsidian deep slate (#090D14) theme with precision fluid reservoir visualizer.</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="settings-action-bar" style="display: flex; gap: 12px; margin-top: 24px; flex-wrap: wrap;">
+                  <a href="releases/HydroPulse_v2.2.8_build32.apk" class="btn-primary-action" download="HydroPulse_v2.2.8_build32.apk" id="ota-tab-btn-download" style="text-decoration: none; padding: 12px 22px; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px;">
+                    <span>📥 Download Android APK (v2.2.8)</span>
+                  </a>
+                  <button class="btn-secondary-action" id="btn-ota-show-modal" style="padding: 12px 20px; font-size: 13px; font-weight: 600;">
+                    <span>📋 View Integrity Details & Notes</span>
+                  </button>
+                </div>
+              </section>
+            </div>
+
           </div>
         </div>
 
@@ -877,6 +939,10 @@
           <button class="m-nav-item" data-tab="settings">
             <span class="m-nav-icon">🛡️</span>
             <span class="m-nav-label">Settings</span>
+          </button>
+          <button class="m-nav-item" data-tab="updates">
+            <span class="m-nav-icon">🚀</span>
+            <span class="m-nav-label">Updates</span>
           </button>
         </nav>
       </main>

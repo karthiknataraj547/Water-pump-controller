@@ -1792,7 +1792,7 @@ input:checked + .slider-round:before { transform: translateX(18px); }
   margin-top: 2px;
 }
 
-/* Modal BottomSheet */
+/* Modal BottomSheet & Center Modals */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -1802,6 +1802,24 @@ input:checked + .slider-round:before { transform: translateX(18px); }
   display: flex;
   align-items: flex-end;
   justify-content: center;
+}
+
+#update-engine-modal {
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 20px;
+}
+
+.update-modal-card {
+  margin: auto;
+  animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+@keyframes modalPop {
+  0% { transform: scale(0.92); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 .modal-bottom-sheet {

@@ -438,6 +438,32 @@
             <div class="spec-chip">⚡ Architecture: <strong>arm64-v8a / armeabi-v7a</strong></div>
           </div>
 
+          <!-- Real-Time In-App OTA Update Engine Showcase Banner -->
+          <div class="ota-engine-showcase-panel" style="background: linear-gradient(135deg, rgba(0, 229, 255, 0.08), rgba(0, 114, 255, 0.05)); border: 1.5px solid rgba(0, 229, 255, 0.35); border-radius: 16px; padding: 18px 22px; margin-top: 18px; margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 24px;">🚀</span>
+                <div>
+                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <strong style="font-size: 15px; color: var(--text-primary, #0F172A);">HydroPulse In-App OTA Update Engine</strong>
+                    <span style="background: #059669; color: #fff; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 12px;">ACTIVE & SYNCED</span>
+                  </div>
+                  <span style="font-size: 12px; color: #64748b;">Instant OTA detection, HiveMQ real-time broadcast channel, and sub-second package delivery.</span>
+                </div>
+              </div>
+              <button class="btn btn-secondary" id="btn-website-check-updates" type="button" style="padding: 8px 16px; font-size: 12px; font-weight: 700; cursor: pointer; border-color: rgba(0, 229, 255, 0.5);">
+                ⚡ Launch Update Engine Dialog
+              </button>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; font-size: 11.5px; background: rgba(255,255,255,0.7); border-radius: 10px; padding: 10px 14px; border: 1px solid rgba(0,229,255,0.15);">
+              <div><strong style="color:#0284c7;">Current Release:</strong> <span id="landing-ota-version">v2.2.8 (Build 32)</span></div>
+              <div><strong style="color:#0284c7;">CDN Status:</strong> <span>Vercel Edge Global</span></div>
+              <div><strong style="color:#0284c7;">Integrity:</strong> <span class="mono" style="font-size: 10px;">SHA-256 Verified</span></div>
+              <div><strong style="color:#0284c7;">Direct Install:</strong> <span>Android 8.0+ Ready</span></div>
+            </div>
+          </div>
+
           <div class="release-notes-banner" style="margin-top: 18px; margin-bottom: 22px; padding: 18px 20px; background: rgba(255, 255, 255, 0.85); border: 1.5px solid rgba(186, 230, 253, 0.9); border-radius: 14px; box-shadow: 0 4px 14px rgba(2, 132, 199, 0.08);">
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
               <span style="background: #059669; color: #fff; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 6px;">NEW IN v2.2.8</span>
@@ -494,6 +520,54 @@
       </div>
     </div>
   </footer>
+
+  <!-- Interactive App Update Engine Modal Dialog -->
+  <div class="modal-overlay hidden" id="update-engine-modal">
+    <div class="modal-card update-modal-card" style="max-width: 520px; width: 90%; background: #0b1329; border-radius: 20px; border: 1px solid rgba(0, 229, 255, 0.35); padding: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.6); position: relative; color: #fff;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+        <div style="display: flex; gap: 12px; align-items: center;">
+          <div style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #00E5FF, #0072FF); display: flex; align-items: center; justify-content: center; font-size: 22px;">📱</div>
+          <div>
+            <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #fff;">HydroPulse App Update Engine</h3>
+            <span style="font-size: 11px; color: #94a3b8;">Official Production Release • Vercel Edge CDN</span>
+          </div>
+        </div>
+        <button id="btn-close-update-modal" style="background: none; border: none; font-size: 22px; color: #94a3b8; cursor: pointer; padding: 4px 8px; line-height: 1;">✕</button>
+      </div>
+
+      <div style="background: rgba(0, 229, 255, 0.08); border: 1px solid rgba(0, 229, 255, 0.2); border-radius: 12px; padding: 12px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <span style="display: block; font-size: 11px; color: #94a3b8;">Latest Release:</span>
+          <strong style="font-size: 15px; color: #00E5FF;" id="modal-latest-version">v2.2.8 (Build 32)</strong>
+        </div>
+        <span style="background: #059669; color: white; font-size: 10px; font-weight: 800; padding: 4px 10px; border-radius: 20px;">STABLE LIVE</span>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <span style="font-size: 12px; font-weight: 700; color: #fff;">Release Notes & Highlights:</span>
+        <ul id="modal-changelog-list" style="margin: 8px 0 0 18px; padding: 0; font-size: 12px; line-height: 1.6; color: #94a3b8;">
+          <li>Live In-App OTA Update Engine: Guaranteed instant detection across older and current app versions with direct one-tap install.</li>
+          <li>Prominent Multi-Channel Update Alerts: Added global update announcement banners, interactive changelog modal, and status indicators across web and app.</li>
+          <li>Unpaired State Settings: Full access to Account Profile, App Update Engine, and App Info without hardware.</li>
+          <li>Top-Bar Direct Settings: Quick-navigation to system settings from any screen.</li>
+          <li>Dynamic Installed Version: Automatic reflection of true platform version across OTA and settings views.</li>
+          <li>Strict Cloud Server API: Production serverless database with real-time multi-tier auth.</li>
+        </ul>
+      </div>
+
+      <div style="font-size: 11px; color: #64748b; margin-bottom: 20px; background: rgba(0,0,0,0.35); padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);">
+        <div><strong>SHA-256:</strong> <span class="mono" id="modal-sha256" style="font-size: 10px; word-break: break-all; color: #38bdf8;">1bdbebbd702b7fc2bd359f87234e39d9ec5e836f35a81ee1618892d8053b53e8</span></div>
+        <div style="margin-top: 4px;"><strong>Package Size:</strong> 55.72 MB • Direct Android APK</div>
+      </div>
+
+      <div style="display: flex; gap: 10px;">
+        <a href="releases/HydroPulse_v2.2.8_build32.apk" class="btn btn-primary" download="HydroPulse_v2.2.8_build32.apk" id="modal-btn-download" style="flex: 1; text-align: center; text-decoration: none; padding: 12px; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+          <span>📥 Download APK v2.2.8</span>
+        </a>
+        <button class="btn btn-secondary" id="btn-modal-dismiss-update" style="padding: 12px 18px; font-size: 13px;">Close</button>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

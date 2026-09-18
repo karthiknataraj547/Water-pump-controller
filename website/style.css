@@ -1209,3 +1209,30 @@ body {
     text-align: center;
   }
 }
+
+/* Update Engine Modal & OTA Panel Styles */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(7, 11, 18, 0.75);
+  backdrop-filter: blur(8px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal-overlay.hidden {
+  display: none !important;
+}
+.update-modal-card {
+  margin: auto;
+  animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+@keyframes modalPop {
+  0% { transform: scale(0.92); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
