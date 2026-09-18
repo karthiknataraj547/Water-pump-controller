@@ -18,9 +18,9 @@ console.log('Source APK Size:', stats.size, 'bytes');
 console.log('Source APK SHA-256:', sha256);
 
 const targetPaths = [
-  path.join(rootDir, 'releases', 'HydroPulse_v2.2.5_build29.apk'),
+  path.join(rootDir, 'releases', 'HydroPulse_v2.2.6_build30.apk'),
   path.join(rootDir, 'releases', 'HydroPulse_WaterPumpController.apk'),
-  path.join(rootDir, 'website', 'releases', 'HydroPulse_v2.2.5_build29.apk'),
+  path.join(rootDir, 'website', 'releases', 'HydroPulse_v2.2.6_build30.apk'),
   path.join(rootDir, 'website', 'releases', 'HydroPulse_WaterPumpController.apk')
 ];
 
@@ -33,15 +33,17 @@ targetPaths.forEach((dest) => {
 
 // Update version.json manifests
 const versionManifest = {
-  version: '2.2.5',
-  build_number: 29,
-  release_date: '2026-09-17',
+  version: '2.2.6',
+  build_number: 30,
+  release_date: '2026-09-18',
   min_supported_version: '1.0.0',
-  download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.5_build29.apk',
+  download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.6_build30.apk',
   website_url: 'https://water-pump-controller.vercel.app',
   sha256: sha256,
-  title: 'HydroPulse v2.2.5 - Unpaired Console Settings, In-App OTA & Direct Server Auth',
+  title: 'HydroPulse v2.2.6 - Live In-App OTA Engine, Unpaired Console Settings & Real-Time Sync',
   changelog: [
+    'Live In-App OTA Update Engine: Guaranteed instant detection across older and current app versions with direct one-tap install.',
+    'Prominent Multi-Channel Update Alerts: Added global update announcement banners, interactive changelog modal, and status indicators across web and app.',
     'Unpaired State System Settings: Full access to Account Profile, App Update Engine, and App Information even before adding/pairing hardware.',
     'Top-Bar Settings & Config: Direct quick-navigation to Settings from any dashboard or unpaired screen.',
     'Dynamic Installed Version: Automatic reflection of true platform version across all OTA and settings views.',

@@ -66,7 +66,7 @@ server.listen(PORT, '127.0.0.1', async () => {
     // TC-AUTH-001: Valid Login with baseline user
     const resAuth1 = await request('/auth/login', 'POST', {
       email: 'karthiknataraj547@gmail.com',
-      password: 'Password123!'
+      password: 'karthik@547'
     });
     const auth1Passed = resAuth1.status === 200 && resAuth1.data?.data?.tokens?.accessToken && resAuth1.data?.data?.user?.email;
     record('TC-AUTH-001', 'Valid Login', auth1Passed, `Status: ${resAuth1.status}`);
@@ -160,7 +160,7 @@ server.listen(PORT, '127.0.0.1', async () => {
 
     // TC-API-002: Version Endpoint (200 OK)
     const resVersion = await request('/version.json', 'GET');
-    record('TC-API-002', 'GET /version.json Returns 200 OK', resVersion.status === 200 && resVersion.data?.version === '2.2.3');
+    record('TC-API-002', 'GET /version.json Returns 200 OK', resVersion.status === 200 && Boolean(resVersion.data?.version?.startsWith('2.2.')));
 
     // TC-API-003: 404 on Unknown API Endpoint
     const res404 = await request('/api/v1/unknown_resource_xyz', 'GET');

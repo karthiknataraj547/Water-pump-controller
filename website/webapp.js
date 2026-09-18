@@ -455,28 +455,109 @@ document.addEventListener('DOMContentLoaded', () => {
         btnProfSignout.onclick = handleSignOut;
       }
 
+      function openUpdateModal(data) {
+        const modal = document.getElementById('update-engine-modal');
+        if (!modal) return;
+        if (data) {
+          const mVer = document.getElementById('modal-latest-version');
+          if (mVer && data.version) mVer.textContent = `v${data.version} (Build ${data.build_number || 30})`;
+          const mList = document.getElementById('modal-changelog-list');
+          if (mList && Array.isArray(data.changelog) && data.changelog.length > 0) {
+            mList.innerHTML = data.changelog.map(item => `<li>${item}</li>`).join('');
+          }
+          const mSha = document.getElementById('modal-sha256');
+          if (mSha && data.sha256) mSha.textContent = data.sha256;
+          const mBtn = document.getElementById('modal-btn-download');
+          if (mBtn && data.download_url) {
+            mBtn.setAttribute('href', data.download_url);
+            mBtn.setAttribute('download', `HydroPulse_v${data.version}_build${data.build_number || 30}.apk`);
+            mBtn.innerHTML = `<span>📥 Download APK v${data.version}</span>`;
+          }
+        }
+        modal.classList.remove('hidden');
+      }
+
+      function closeUpdateModal() {
+        const modal = document.getElementById('update-engine-modal');
+        if (modal) modal.classList.add('hidden');
+      }
+
+      const updateModal = document.getElementById('update-engine-modal');
+      if (updateModal) {
+        updateModal.onclick = (e) => {
+          if (e.target === updateModal) closeUpdateModal();
+        };
+      }
+
+      const btnCloseModal = document.getElementById('btn-close-update-modal');
+      const btnDismissModal = document.getElementById('btn-modal-dismiss-update');
+      if (btnCloseModal) btnCloseModal.onclick = closeUpdateModal;
+      if (btnDismissModal) btnDismissModal.onclick = closeUpdateModal;
+
+      const btnSidebarUpdates = document.getElementById('btn-sidebar-updates');
+      if (btnSidebarUpdates) {
+        btnSidebarUpdates.onclick = () => {
+          fetch(`version.json?t=${Date.now()}`)
+            .then(r => r.json())
+            .then(data => openUpdateModal(data))
+            .catch(() => openUpdateModal(null));
+        };
+      }
+
+      const btnGubNotes = document.getElementById('btn-gub-notes');
+      if (btnGubNotes) {
+        btnGubNotes.onclick = () => {
+          fetch(`version.json?t=${Date.now()}`)
+            .then(r => r.json())
+            .then(data => openUpdateModal(data))
+            .catch(() => openUpdateModal(null));
+        };
+      }
+
+      const btnSettingsCheckUpdate = document.getElementById('btn-settings-check-update');
+      if (btnSettingsCheckUpdate) {
+        btnSettingsCheckUpdate.onclick = () => {
+          fetch(`version.json?t=${Date.now()}`)
+            .then(r => r.json())
+            .then(data => openUpdateModal(data))
+            .catch(() => openUpdateModal(null));
+        };
+      }
+
       function syncAppVersionInfo() {
         fetch(`version.json?t=${Date.now()}`)
           .then(r => r.json())
           .then(data => {
             if (data && data.version) {
               const otaVer = document.getElementById('ota-current-version');
-              if (otaVer) otaVer.textContent = `v${data.version} • Build ${data.build_number || 12}`;
+              if (otaVer) otaVer.textContent = `v${data.version} • Build ${data.build_number || 30}`;
 
               const setVer = document.getElementById('settings-app-version');
-              if (setVer) setVer.textContent = `v${data.version} (Build ${data.build_number || 12})`;
+              if (setVer) setVer.textContent = `v${data.version} (Build ${data.build_number || 30})`;
+
+              const setLatest = document.getElementById('settings-latest-version');
+              if (setLatest) setLatest.textContent = `v${data.version} (Build ${data.build_number || 30}) • Stable Available`;
+
+              const setOtaChip = document.getElementById('settings-ota-status-chip');
+              if (setOtaChip) setOtaChip.textContent = `OTA ENGINE v${data.version}`;
+
+              const setSha = document.getElementById('settings-sha256');
+              if (setSha && data.sha256) setSha.textContent = data.sha256;
+
+              const sbUpdateChip = document.getElementById('sidebar-update-chip');
+              if (sbUpdateChip) sbUpdateChip.textContent = `v${data.version}`;
 
               document.querySelectorAll('.sb-edition').forEach(el => el.textContent = `System Console v${data.version}`);
               document.querySelectorAll('.sys-chip').forEach(el => {
                 if (el.textContent.startsWith('v2.')) el.textContent = `v${data.version}`;
               });
 
-              const dlLinks = document.querySelectorAll('a[href*="HydroPulse"], .btn-mobile-download');
+              const dlLinks = document.querySelectorAll('a[href*="HydroPulse"], .btn-mobile-download, #btn-gub-download, #btn-ota-download-apk');
               dlLinks.forEach(link => {
-                const targetUrl = data.download_url || `releases/HydroPulse_v${data.version}_build${data.build_number || 22}.apk`;
+                const targetUrl = data.download_url || `releases/HydroPulse_v${data.version}_build${data.build_number || 30}.apk`;
                 link.setAttribute('href', targetUrl);
                 const sp = link.querySelector('span');
-                if (sp && sp.textContent.includes('Download Android APK')) {
+                if (sp && sp.textContent.includes('Download')) {
                   sp.textContent = `📥 Download Android APK v${data.version}`;
                 }
               });
@@ -488,14 +569,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const btnCheckUpdatesWeb = document.getElementById('btn-check-updates-web');
       if (btnCheckUpdatesWeb) {
-        btnCheckUpdatesWeb.onclick = async () => {
-          try {
-            const res = await fetch(`version.json?t=${Date.now()}`);
-            const data = await res.json();
-            alert(`HydroPulse Update Engine:\nLatest Release: v${data.version} (Build ${data.build_number || 12})\nRelease Date: ${data.release_date}\nTitle: ${data.title}\nStatus: System is synchronized with the latest release.`);
-          } catch (_) {
-            alert('HydroPulse Update Engine:\nInstalled Client: v2.2.5 (Build 29)\nStatus: Running latest official release with in-app OTA and direct package installer support.');
-          }
+        btnCheckUpdatesWeb.onclick = () => {
+          fetch(`version.json?t=${Date.now()}`)
+            .then(r => r.json())
+            .then(data => openUpdateModal(data))
+            .catch(() => openUpdateModal(null));
         };
       }
 

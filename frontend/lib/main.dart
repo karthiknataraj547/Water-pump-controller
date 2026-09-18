@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/hardware/hardware_state_service.dart';
@@ -669,11 +670,14 @@ class _NoGatewayLinkedViewState extends State<_NoGatewayLinkedView> {
   String _userName = 'HydroPulse User';
   String _userEmail = '';
   String _initials = 'HP';
+  AppVersionInfo? _latestVersionInfo;
+  bool _isCheckingUpdate = false;
 
   @override
   void initState() {
     super.initState();
     _loadUserAccount();
+    _checkAppUpdateStatus();
   }
 
   Future<void> _loadUserAccount() async {
@@ -705,6 +709,25 @@ class _NoGatewayLinkedViewState extends State<_NoGatewayLinkedView> {
     } catch (_) {}
   }
 
+  Future<void> _checkAppUpdateStatus({bool isManual = false}) async {
+    if (mounted) setState(() => _isCheckingUpdate = true);
+    try {
+      await appUpdateService.initVersion();
+      final info = await appUpdateService.fetchLatestVersion();
+      if (mounted) {
+        setState(() {
+          _latestVersionInfo = info;
+          _isCheckingUpdate = false;
+        });
+      }
+      if (isManual && mounted) {
+        await appUpdateService.checkForUpdates(context, isManual: true);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isCheckingUpdate = false);
+    }
+  }
+
   Future<void> _handleLogout(BuildContext context) async {
     await safeSecureStorage.deleteAll();
     await hardwareStateService.onUserLogout();
@@ -721,6 +744,14 @@ class _NoGatewayLinkedViewState extends State<_NoGatewayLinkedView> {
     final colorScheme = widget.colorScheme;
     final cardBg = isDark ? AppTheme.darkCard : AppTheme.lightCard;
     final cardBorder = isDark ? AppTheme.darkCardBorder : AppTheme.lightCardBorder;
+
+    final isNewer = _latestVersionInfo != null &&
+        appUpdateService.isVersionNewer(
+          _latestVersionInfo!.version,
+          AppUpdateService.currentVersion,
+          remoteBuild: _latestVersionInfo!.buildNumber,
+          currentBuild: AppUpdateService.currentBuildNumber,
+        );
 
     return SafeArea(
       child: Column(
@@ -751,7 +782,7 @@ class _NoGatewayLinkedViewState extends State<_NoGatewayLinkedView> {
                           style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
                         ),
                         Text(
-                          'Cloud Console v${AppConstants.appVersion}',
+                          'Cloud Console v${AppUpdateService.currentVersion}',
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
@@ -789,104 +820,15 @@ class _NoGatewayLinkedViewState extends State<_NoGatewayLinkedView> {
             ),
           ),
 
-          // 2. Scrollable Body containing Add Hardware banner + Basic Settings Cards
+          // 2. Scrollable Body containing Update Engine, Account, App Info & Add Hardware
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // --- HERO: ADD HARDWARE / GATEWAY BANNER ---
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20.0),
-                    decoration: BoxDecoration(
-                      color: cardBg,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: cardBorder, width: 0.5),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
-                          blurRadius: 16,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 72,
-                          height: 72,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: colorScheme.primary.withOpacity(0.12),
-                            border: Border.all(color: colorScheme.primary.withOpacity(0.3), width: 1.5),
-                          ),
-                          child: Center(
-                            child: Icon(Icons.sensors_off_rounded, size: 36, color: colorScheme.primary),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No Hardware Gateway Linked',
-                          style: textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.2,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Connect your ESP32 pump controller over BLE to monitor real-time water levels and manage automation. You can also view account, update, and app settings below.',
-                          style: textTheme.bodySmall?.copyWith(
-                            color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
-                            height: 1.4,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 18),
-                        AnimatedPressable(
-                          onTap: () => context.push('/provisioning'),
-                          child: Container(
-                            height: 46,
-                            decoration: BoxDecoration(
-                              color: colorScheme.primary,
-                              borderRadius: BorderRadius.circular(14),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: colorScheme.primary.withOpacity(0.3),
-                                  blurRadius: 14,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            alignment: Alignment.center,
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.bluetooth_searching_rounded, color: Colors.white, size: 20),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Add Device (Pair Hardware)',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  // Section Title
                   Text(
-                    'BASIC SETTINGS & SYSTEM INFO',
+                    'SYSTEM SETTINGS & APP UPDATES',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
@@ -897,12 +839,271 @@ class _NoGatewayLinkedViewState extends State<_NoGatewayLinkedView> {
 
                   const SizedBox(height: 10),
 
-                  // --- 1. ACCOUNT CARD ---
+                  // ========================================================
+                  // --- 1. APP UPDATE ENGINE & VERSION STATUS CARD ---
+                  // ========================================================
                   Container(
                     padding: const EdgeInsets.all(16.0),
                     decoration: BoxDecoration(
                       color: cardBg,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: isNewer ? AppTheme.accent : cardBorder,
+                        width: isNewer ? 1.5 : 0.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: (isNewer ? AppTheme.accent : Colors.black).withOpacity(isDark ? 0.25 : 0.05),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: isNewer
+                                          ? [const Color(0xFF00E5FF), const Color(0xFF0072FF)]
+                                          : [colorScheme.primary.withOpacity(0.2), colorScheme.primary.withOpacity(0.1)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Icon(
+                                    isNewer ? Icons.system_update_alt_rounded : Icons.system_update_rounded,
+                                    color: isNewer ? Colors.white : colorScheme.primary,
+                                    size: 22,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('App Version & Updates', style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
+                                    Text('Built-in OTA Update Engine', style: textTheme.bodySmall?.copyWith(fontSize: 10)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isNewer
+                                    ? AppTheme.accent.withOpacity(0.2)
+                                    : (isDark ? Colors.white10 : Colors.black.withOpacity(0.06)),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: isNewer ? AppTheme.accent : Colors.transparent,
+                                  width: 1,
+                                ),
+                              ),
+                              child: Text(
+                                isNewer
+                                    ? 'UPDATE READY'
+                                    : 'v${AppUpdateService.currentVersion} • B${AppUpdateService.currentBuildNumber}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: isNewer ? AppTheme.accent : (isDark ? Colors.white70 : Colors.black87),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Update Status Alert Box
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isNewer
+                                ? AppTheme.accent.withOpacity(0.1)
+                                : (isDark ? const Color(0xFF0D1826) : const Color(0xFFF1F5F9)),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isNewer ? AppTheme.accent.withOpacity(0.4) : cardBorder,
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                isNewer ? Icons.notification_important_rounded : Icons.verified_rounded,
+                                color: isNewer ? AppTheme.accent : const Color(0xFF10B981),
+                                size: 22,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      isNewer
+                                          ? 'New Version v${_latestVersionInfo!.version} (Build ${_latestVersionInfo!.buildNumber}) Ready'
+                                          : 'HydroPulse is Fully Up to Date',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 12,
+                                        color: isNewer ? AppTheme.accent : (isDark ? Colors.white : Colors.black87),
+                                      ),
+                                    ),
+                                    Text(
+                                      isNewer
+                                          ? 'Direct in-app OTA update package is ready to download and install.'
+                                          : 'Installed v${AppUpdateService.currentVersion} (Build ${AppUpdateService.currentBuildNumber}) matches official cloud release.',
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        color: isDark ? Colors.white60 : Colors.black54,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+                        Divider(color: cardBorder, height: 1),
+                        const SizedBox(height: 8),
+
+                        _buildSettingRow('Installed Version', 'v${AppUpdateService.currentVersion}', context),
+                        _buildSettingRow('Installed Build', '${AppUpdateService.currentBuildNumber}', context),
+                        _buildSettingRow(
+                          'Latest Cloud Release',
+                          _latestVersionInfo != null
+                              ? 'v${_latestVersionInfo!.version} (Build ${_latestVersionInfo!.buildNumber})'
+                              : 'v${AppConstants.appVersion} (Build ${AppConstants.appBuildNumber})',
+                          context,
+                        ),
+                        _buildSettingRow('Channel', 'Official Production Cloud (Vercel Edge)', context),
+                        _buildSettingRow('Architecture', 'arm64-v8a / armeabi-v7a (Direct APK)', context),
+
+                        // What's New Snippet if available
+                        if (_latestVersionInfo != null && _latestVersionInfo!.changelog.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF090E18) : const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: cardBorder, width: 0.5),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "What's New in v${_latestVersionInfo!.version}:",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDark ? Colors.white70 : Colors.black87,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                ..._latestVersionInfo!.changelog.take(2).map((item) => Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 1.5),
+                                      child: Row(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const Text('• ', style: TextStyle(color: AppTheme.accent, fontSize: 11)),
+                                          Expanded(
+                                            child: Text(
+                                              item,
+                                              style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white60 : Colors.black54),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    )),
+                              ],
+                            ),
+                          ),
+                        ],
+
+                        const SizedBox(height: 12),
+
+                        // Action Buttons: Update Now or Check for Updates
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: isNewer ? AppTheme.accent : colorScheme.primary,
+                                  foregroundColor: isNewer ? Colors.black : Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  padding: const EdgeInsets.symmetric(vertical: 11),
+                                ),
+                                icon: _isCheckingUpdate
+                                    ? const SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                      )
+                                    : Icon(
+                                        isNewer ? Icons.download_rounded : Icons.refresh_rounded,
+                                        size: 16,
+                                      ),
+                                label: Text(
+                                  isNewer ? 'Download & Update Now' : 'Check for Updates',
+                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                                ),
+                                onPressed: () {
+                                  if (isNewer) {
+                                    appUpdateService.showUpdateDialog(context, _latestVersionInfo!);
+                                  } else {
+                                    _checkAppUpdateStatus(isManual: true);
+                                  }
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: isDark ? Colors.white70 : Colors.black87,
+                                side: BorderSide(color: cardBorder, width: 1),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
+                              ),
+                              icon: const Icon(Icons.open_in_browser_rounded, size: 16),
+                              label: const Text('Website APK', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                              onPressed: () async {
+                                final uri = Uri.parse('https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.6_build30.apk');
+                                if (await canLaunchUrl(uri)) {
+                                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  // ========================================================
+                  // --- 2. ACCOUNT PROFILE CARD ---
+                  // ========================================================
+                  Container(
+                    padding: const EdgeInsets.all(16.0),
+                    decoration: BoxDecoration(
+                      color: cardBg,
+                      borderRadius: BorderRadius.circular(18),
                       border: Border.all(color: cardBorder, width: 0.5),
                     ),
                     child: Column(
@@ -921,9 +1122,9 @@ class _NoGatewayLinkedViewState extends State<_NoGatewayLinkedView> {
                                 child: Text(
                                   _initials,
                                   style: TextStyle(
-                                    color: colorScheme.primary,
+                                    fontSize: 16,
                                     fontWeight: FontWeight.w800,
-                                    fontSize: 15,
+                                    color: colorScheme.primary,
                                   ),
                                 ),
                               ),
@@ -935,28 +1136,28 @@ class _NoGatewayLinkedViewState extends State<_NoGatewayLinkedView> {
                                 children: [
                                   Text(
                                     _userName,
-                                    style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                                    style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    _userEmail.isNotEmpty ? _userEmail : 'Authenticated User',
+                                    _userEmail.isNotEmpty ? _userEmail : 'Authenticated User Session',
                                     style: textTheme.bodySmall?.copyWith(fontSize: 11),
                                   ),
                                 ],
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
-                                color: AppTheme.accent.withOpacity(0.12),
-                                borderRadius: BorderRadius.circular(6),
+                                color: const Color(0xFF10B981).withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Text(
                                 'ACTIVE',
                                 style: TextStyle(
-                                  color: AppTheme.accent,
                                   fontSize: 10,
                                   fontWeight: FontWeight.w800,
+                                  color: Color(0xFF10B981),
                                 ),
                               ),
                             ),
@@ -965,21 +1166,21 @@ class _NoGatewayLinkedViewState extends State<_NoGatewayLinkedView> {
                         const SizedBox(height: 12),
                         Divider(color: cardBorder, height: 1),
                         const SizedBox(height: 10),
-                        _buildSettingRow('Account Status', 'Active • Server Database Synced', context),
-                        _buildSettingRow('Security', 'Encrypted JWT Bearer Session', context),
-                        _buildSettingRow('Hardware Status', '0 Nodes Linked (Awaiting Pair)', context),
+                        _buildSettingRow('Cloud Sync', 'Database Session Synchronized', context),
+                        _buildSettingRow('Role', 'Client Account Holder', context),
+                        _buildSettingRow('Auth Protocol', 'PBKDF2-SHA512 Strict Server Auth', context),
                         const SizedBox(height: 8),
                         SizedBox(
                           width: double.infinity,
                           child: OutlinedButton.icon(
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: colorScheme.primary,
-                              side: BorderSide(color: colorScheme.primary.withOpacity(0.4), width: 1),
+                              foregroundColor: isDark ? Colors.white70 : Colors.black87,
+                              side: BorderSide(color: cardBorder, width: 1),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              padding: const EdgeInsets.symmetric(vertical: 9),
                             ),
-                            icon: const Icon(Icons.person_outline_rounded, size: 16),
-                            label: const Text('Manage Account & Preferences', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                            icon: const Icon(Icons.manage_accounts_outlined, size: 16),
+                            label: const Text('Manage Account Preferences', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                             onPressed: () => context.push('/settings'),
                           ),
                         ),
@@ -989,94 +1190,14 @@ class _NoGatewayLinkedViewState extends State<_NoGatewayLinkedView> {
 
                   const SizedBox(height: 14),
 
-                  // --- 2. APP UPDATE CARD ---
-                  Container(
-                    padding: const EdgeInsets.all(16.0),
-                    decoration: BoxDecoration(
-                      color: cardBg,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: cardBorder, width: 0.5),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  width: 36,
-                                  height: 36,
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.accent.withOpacity(0.12),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Icon(Icons.system_update_rounded, color: AppTheme.accent, size: 20),
-                                ),
-                                const SizedBox(width: 10),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('App Version & Updates', style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-                                    Text('Built-in OTA Update Engine', style: textTheme.bodySmall?.copyWith(fontSize: 10)),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: AppTheme.accent.withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                'v${AppUpdateService.currentVersion} • B${AppUpdateService.currentBuildNumber}',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppTheme.accent,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Divider(color: cardBorder, height: 1),
-                        const SizedBox(height: 10),
-                        _buildSettingRow('Installed Version', 'v${AppUpdateService.currentVersion}', context),
-                        _buildSettingRow('Build Number', '${AppUpdateService.currentBuildNumber}', context),
-                        _buildSettingRow('Channel', 'Official Production Cloud', context),
-                        const SizedBox(height: 8),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: colorScheme.primary,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                            ),
-                            icon: const Icon(Icons.refresh_rounded, size: 16),
-                            label: const Text('Check for Updates', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
-                            onPressed: () {
-                              appUpdateService.checkForUpdates(context, isManual: true);
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 14),
-
+                  // ========================================================
                   // --- 3. APP INFORMATION & SYSTEM CARD ---
+                  // ========================================================
                   Container(
                     padding: const EdgeInsets.all(16.0),
                     decoration: BoxDecoration(
                       color: cardBg,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(18),
                       border: Border.all(color: cardBorder, width: 0.5),
                     ),
                     child: Column(
@@ -1123,6 +1244,96 @@ class _NoGatewayLinkedViewState extends State<_NoGatewayLinkedView> {
                             icon: const Icon(Icons.tune_rounded, size: 16),
                             label: const Text('Open Full Settings & Diagnostics', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                             onPressed: () => context.push('/settings'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  // ========================================================
+                  // --- 4. HERO: ADD HARDWARE / GATEWAY BANNER ---
+                  // ========================================================
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20.0),
+                    decoration: BoxDecoration(
+                      color: cardBg,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: cardBorder, width: 0.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 64,
+                          height: 64,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: colorScheme.primary.withOpacity(0.12),
+                            border: Border.all(color: colorScheme.primary.withOpacity(0.3), width: 1.5),
+                          ),
+                          child: Center(
+                            child: Icon(Icons.sensors_off_rounded, size: 32, color: colorScheme.primary),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          'No Hardware Gateway Linked',
+                          style: textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.2,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Ready to monitor your agricultural borewell or overhead tank? Link your ESP32 controller over BLE to start live fluid simulation and automation.',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                            height: 1.4,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        AnimatedPressable(
+                          onTap: () => context.push('/provisioning'),
+                          child: Container(
+                            height: 46,
+                            decoration: BoxDecoration(
+                              color: colorScheme.primary,
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: colorScheme.primary.withOpacity(0.3),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            alignment: Alignment.center,
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.bluetooth_searching_rounded, color: Colors.white, size: 20),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Add Device (Pair Hardware)',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],

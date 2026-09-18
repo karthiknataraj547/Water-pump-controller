@@ -408,10 +408,18 @@ document.addEventListener('DOMContentLoaded', () => {
             changelogList.innerHTML = data.changelog.map(item => `<li>${item}</li>`).join('');
           }
 
+          // Announcement bar download button
+          const annBtn = document.querySelector('.top-announcement-bar a[download]');
+          if (annBtn && data.version) {
+            annBtn.setAttribute('href', data.download_url || `releases/HydroPulse_v${data.version}_build${data.build_number || 30}.apk`);
+            annBtn.setAttribute('download', `HydroPulse_v${data.version}_build${data.build_number || 30}.apk`);
+            annBtn.textContent = `📥 Download APK (v${data.version})`;
+          }
+
           // All APK download links
           const downloadLinks = document.querySelectorAll('a[href*="HydroPulse"], .download-trigger, .nav-download-btn');
           downloadLinks.forEach(link => {
-            const targetUrl = data.download_url || `releases/HydroPulse_v${data.version}_build${data.build_number || 22}.apk`;
+            const targetUrl = data.download_url || `releases/HydroPulse_v${data.version}_build${data.build_number || 30}.apk`;
             link.setAttribute('href', targetUrl);
             const span = link.querySelector('span');
             if (span && span.textContent.includes('Download HydroPulse APK')) {

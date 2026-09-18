@@ -162,25 +162,21 @@ class AppUpdateService {
     }
   }
 
-  /// Loads true version from the installed Android/iOS package with monotonic floor
+  /// Loads true version from the installed Android/iOS package
   Future<void> initVersion() async {
     if (_initialized) return;
     try {
       final pkg = await PackageInfo.fromPlatform();
       final parsedBuild = int.tryParse(pkg.buildNumber);
       
-      // Monotonic guard: never downgrade build number below AppConstants baseline
-      if (parsedBuild != null && parsedBuild > _currentBuildNumber) {
+      if (parsedBuild != null && parsedBuild > 0) {
         _currentBuildNumber = parsedBuild;
       }
       if (pkg.version.isNotEmpty) {
-        if (isVersionNewer(pkg.version, _currentVersion,
-            remoteBuild: _currentBuildNumber, currentBuild: AppConstants.appBuildNumber)) {
-          _currentVersion = pkg.version;
-        }
+        _currentVersion = pkg.version;
       }
       _initialized = true;
-      debugPrint('[AppUpdateService] Running version: v$_currentVersion+$_currentBuildNumber (baseline: v${AppConstants.appVersion}+${AppConstants.appBuildNumber})');
+      debugPrint('[AppUpdateService] True running version: v$_currentVersion+$_currentBuildNumber (baseline: v${AppConstants.appVersion}+${AppConstants.appBuildNumber})');
     } catch (e) {
       debugPrint('[AppUpdateService] PackageInfo note: $e');
     }

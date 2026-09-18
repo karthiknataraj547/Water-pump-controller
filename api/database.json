@@ -10,9 +10,127 @@
       "role": "USER",
       "createdAt": "2026-09-16T18:26:50.126Z",
       "updatedAt": "2026-09-17T18:17:23.958Z"
+    },
+    {
+      "id": "usr_1789583210284_488",
+      "email": "fresh_user_1789583210227@hydropulse.io",
+      "passwordHash": "2a7ef0bfc04160a1cec3f9a712b74ea3eb9815f48d448113b8d907c67701d05e5f8b6dab74218e4a45dfcabcb7501eba6be90188ce56d96005c94403b4c86920",
+      "salt": "4a4dba59a109aafc432b1a1f920ab94c",
+      "firstName": "Fresh",
+      "lastName": "User",
+      "role": "USER",
+      "createdAt": "2026-09-16T18:26:50.284Z"
+    },
+    {
+      "id": "usr_1789587251222_898",
+      "email": "fresh_user_1789587251214@hydropulse.io",
+      "passwordHash": "5698e8b946c030c9bc265b4a4924db05c6cee2b3452e27084c5a61aa96a94d227c334b9880c75bb0dd8548f8fb794409161cf623c1402fbf77f6d098f0d3b4af",
+      "salt": "e00190f5ae89e17ea4627fea89a6ce84",
+      "firstName": "Fresh",
+      "lastName": "User",
+      "role": "USER",
+      "createdAt": "2026-09-16T19:34:11.222Z"
+    },
+    {
+      "id": "usr_1789669044039_861",
+      "email": "fresh_user_1789669044029@hydropulse.io",
+      "passwordHash": "ceb86914d9c974783cf71438f9980c8c94ad1ac0f8b5fa041735edf8a6705d768a29dda0a76ea0dc2d669a07133958a7b9dab8a27eca28efb1674a4484a7af0c",
+      "salt": "c505d0dd299dcc8d483e45fbbf48b08a",
+      "firstName": "Fresh",
+      "lastName": "User",
+      "role": "USER",
+      "createdAt": "2026-09-17T18:17:24.039Z"
+    },
+    {
+      "id": "usr_1789706360458_147",
+      "email": "fresh_user_1789706360446@hydropulse.io",
+      "passwordHash": "9ee11c3aa5ed76c98c3ce87d63cd2d42b75566585bca36c510d4051bb4b74ba107a705d14856664e5c62e08f96a514fb44fd4b0f4653722259a199102b52a958",
+      "salt": "06ce3bf62aef580141aaec426022c38d",
+      "firstName": "Fresh",
+      "lastName": "User",
+      "role": "USER",
+      "createdAt": "2026-09-18T04:39:20.458Z"
+    },
+    {
+      "id": "usr_1789669999742_305",
+      "email": "divi@gmail.com",
+      "passwordHash": "cd8ff98123a025e2ac742aa7b5614277bc396f957f37695d81fc8b6cdacc5c2bd372823473b5c9a2e0e2b9d75e6b922d3173217ca1ec1a69659c6af31b505883",
+      "salt": "90d2f422febfb0dd305504c3b7fe9731",
+      "firstName": "Dici",
+      "lastName": "D",
+      "role": "USER",
+      "createdAt": "2026-09-17T18:33:19.742Z"
+    },
+    {
+      "id": "usr_1789672074740_906",
+      "email": "testuser@example.com",
+      "passwordHash": "eb51ca0a25d772e191810e7750789304b297734d291e88eab94b7a225ace1113e4159354803d4ac416d2f8ff19ccadf23d4a9db1896516da93078db487a81218",
+      "salt": "ec9f0f34c8877fa48d2267c616d2deac",
+      "firstName": "Test",
+      "lastName": "User",
+      "role": "USER",
+      "createdAt": "2026-09-17T19:07:54.740Z"
+    },
+    {
+      "id": "usr_1789714463234_173",
+      "email": "user_a_1789714463226@hydropulse.io",
+      "passwordHash": "c717a9db0c772fbe2e5f2206add15c770c25c73c65b39d32ec3e7f6d4df0fd63f5392ac37e6e3deef538a24575af9269f618b54275401ddd27a4145c14f4431e",
+      "salt": "327429df1c1114d4b635545a3236e515",
+      "firstName": "Alice",
+      "lastName": "Hydropulse",
+      "role": "USER",
+      "createdAt": "2026-09-18T06:54:23.234Z"
+    },
+    {
+      "id": "usr_1789714463248_34",
+      "email": "user_b_1789714463239@hydropulse.io",
+      "passwordHash": "cdafdf858debf6dcb530fab794fc0d068533e28c754bd2843822e08a35477e8a92d21005f4836e33714e48a1954eec02d57fe024b352ba9f56afb0d2535c2ece",
+      "salt": "b6eea9e37fb4778753ae379cb5fe752f",
+      "firstName": "Bob",
+      "lastName": "Hydropulse",
+      "role": "USER",
+      "createdAt": "2026-09-18T06:54:23.248Z"
+    },
+    {
+      "id": "usr_1789714483144_444",
+      "email": "user_a_1789714483128@hydropulse.io",
+      "passwordHash": "06256e2afffe272c52c1c66130e19c821f36d99c7963eb34055505d9690b4e1b0e820becb0639f031cd2e424fea4e9056e7dc1ff3033c466b52ed66f901d4806",
+      "salt": "332092ba8fa75dfe4697828048a3f330",
+      "firstName": "Alice",
+      "lastName": "Hydropulse",
+      "role": "USER",
+      "createdAt": "2026-09-18T06:54:43.144Z"
+    },
+    {
+      "id": "usr_1789714483157_472",
+      "email": "user_b_1789714483149@hydropulse.io",
+      "passwordHash": "09c2058653b61070b813020549b4fa4c33e93e095f1c267542813240169bdf2ae2801d8f6dc1dd7c3a4c5adcb1a167a8bfb00a22c967fa81551bf208f6deddd4",
+      "salt": "85936931096dab0a6ceda19769bd22f1",
+      "firstName": "Bob",
+      "lastName": "Hydropulse",
+      "role": "USER",
+      "createdAt": "2026-09-18T06:54:43.157Z"
     }
   ],
-  "devices": [],
+  "devices": [
+    {
+      "id": "esp32_pump_94B97E",
+      "deviceId": "esp32_pump_94B97E",
+      "nodeId": "esp32_pump_94B97E",
+      "name": "Agricultural Borewell Pump",
+      "macAddress": "24:6F:28:94:B9:7E",
+      "userId": "usr_1789672074740_906",
+      "userEmail": "testuser@example.com",
+      "isOnline": false,
+      "status": "OFFLINE",
+      "lastHeartbeat": 1789713252208,
+      "pumpRunning": true,
+      "mode": "MANUAL",
+      "waterLevelPct": 72,
+      "pairedAt": "2026-09-17T19:10:55.555Z",
+      "lastSeen": "2026-09-18T06:34:12.208Z"
+    }
+  ],
   "liveState": {
     "pumpRunning": true,
     "mode": "MANUAL",
@@ -23,8 +141,8 @@
     "powerKw": 0,
     "tdsPpm": 142,
     "tempC": 24.2,
-    "lastHeartbeat": 1789669045457,
-    "lastSeen": 1789669045457,
+    "lastHeartbeat": 1789713252208,
+    "lastSeen": 1789713252208,
     "_wasOnline": false,
     "isOnline": false
   },
@@ -70,5 +188,5 @@
       "pumpRunning": true
     }
   ],
-  "timestamp": 1789669047265
+  "timestamp": 1789714483190
 }

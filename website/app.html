@@ -192,14 +192,26 @@
             <span>Continue with Google</span>
           </button>
 
+          <!-- Top Update Notification Banner on Login Screen -->
+          <div class="auth-update-banner" style="background: linear-gradient(135deg, rgba(0, 229, 255, 0.15), rgba(0, 114, 255, 0.1)); border: 1px solid rgba(0, 229, 255, 0.35); border-radius: 14px; padding: 12px 14px; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 18px;">🚀</span>
+              <div>
+                <strong style="font-size: 12.5px; color: #fff; display: block;">HydroPulse v2.2.6 (Build 30) Live</strong>
+                <span style="font-size: 11px; color: #94a3b8;">In-App OTA Engine & Unpaired Console Settings</span>
+              </div>
+            </div>
+            <a href="releases/HydroPulse_v2.2.6_build30.apk" download="HydroPulse_v2.2.6_build30.apk" class="btn-primary-action" style="padding: 6px 12px; font-size: 11px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">📥 Get APK</a>
+          </div>
+
           <!-- Companion App Liquid Glass Chip -->
           <div class="app-companion-chip">
             <div class="companion-icon">📱</div>
             <div class="companion-text">
               <span class="companion-title">Mobile App Companion</span>
-              <span class="companion-desc">Pair hardware over BLE and receive push alerts.</span>
-              <a href="releases/HydroPulse_v2.2.5_build29.apk" class="btn-companion-link" download>
-                <span>Download Android APK v2.2.5</span>
+              <span class="companion-desc">Pair hardware over BLE, monitor tanks & receive OTA updates.</span>
+              <a href="releases/HydroPulse_v2.2.6_build30.apk" class="btn-companion-link" download="HydroPulse_v2.2.6_build30.apk">
+                <span>Download Android APK v2.2.6</span>
                 <span class="arrow-sym">→</span>
               </a>
             </div>
@@ -228,7 +240,7 @@
           </div>
           <div class="sidebar-brand-text">
             <span class="sb-title">HydroPulse</span>
-            <span class="sb-edition">System Console v2.1.2</span>
+            <span class="sb-edition" id="sb-edition-tag">System Console v2.2.6</span>
           </div>
         </div>
 
@@ -266,6 +278,11 @@
             <span class="nav-item-icon">🛡️</span>
             <span class="nav-item-text">Settings</span>
             <span class="nav-item-active-bar"></span>
+          </button>
+          <button class="nav-item-btn" id="btn-sidebar-updates" type="button" title="View In-App Updates & Releases">
+            <span class="nav-item-icon">🚀</span>
+            <span class="nav-item-text">OTA Updates</span>
+            <span class="sys-chip green" id="sidebar-update-chip" style="margin-left: auto; font-size: 9px; padding: 2px 6px;">v2.2.6</span>
           </button>
         </nav>
 
@@ -327,6 +344,26 @@
         <!-- Scrollable Workspace Body -->
         <div class="workspace-scroll-body">
           <div class="workspace-container">
+
+            <!-- GLOBAL UPDATE ENGINE ANNOUNCEMENT BANNER -->
+            <div class="global-update-banner" id="global-update-banner" style="background: linear-gradient(135deg, rgba(0, 229, 255, 0.12), rgba(0, 114, 255, 0.08)); border: 1px solid rgba(0, 229, 255, 0.35); border-radius: 16px; padding: 14px 18px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(135deg, #00E5FF, #0072FF); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;">🚀</div>
+                <div>
+                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <strong style="font-size: 14px; color: var(--text-primary, #fff);">HydroPulse v2.2.6 (Build 30) Released</strong>
+                    <span style="background: #059669; color: white; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 12px;">STABLE LIVE</span>
+                  </div>
+                  <span style="font-size: 11.5px; color: var(--text-secondary, #94a3b8); display: block; margin-top: 2px;">Direct in-app OTA update engine, live update prompts, unpaired console settings & real-time sync.</span>
+                </div>
+              </div>
+              <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <a href="releases/HydroPulse_v2.2.6_build30.apk" class="btn-primary-action" download="HydroPulse_v2.2.6_build30.apk" id="btn-gub-download" style="text-decoration: none; padding: 8px 16px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+                  <span>📥 Download APK (v2.2.6)</span>
+                </a>
+                <button class="btn-secondary-action" id="btn-gub-notes" style="padding: 8px 14px; font-size: 12px;">Release Details</button>
+              </div>
+            </div>
 
             <!-- TAB 1: DASHBOARD (2-COLUMN SYSTEM LAYOUT) -->
             <div class="tab-pane active" id="tab-pane-dashboard">
@@ -397,7 +434,7 @@
                     <div class="ota-icon-box">📱</div>
                     <div class="ota-details">
                       <div class="ota-version-row">
-                        <span class="ota-version-number" id="ota-current-version">v2.2.5 • Build 29</span>
+                        <span class="ota-version-number" id="ota-current-version">v2.2.6 • Build 30</span>
                         <span class="ota-tag">Production Release</span>
                       </div>
                       <p class="ota-description">
@@ -421,9 +458,24 @@
                     </div>
                   </div>
 
+                  <div class="ota-changelog-preview" style="background: rgba(0,0,0,0.18); border-radius: 12px; padding: 14px; margin: 16px 0; border: 1px solid rgba(255,255,255,0.06);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                      <span style="font-size: 11px; font-weight: 800; color: #00E5FF; text-transform: uppercase; letter-spacing: 0.5px;">What's New in v2.2.6 (Build 30):</span>
+                      <span style="font-size: 10px; color: #10b981; font-weight: 700;">LIVE UPDATE READY</span>
+                    </div>
+                    <ul style="margin: 6px 0 0 16px; padding: 0; font-size: 12px; line-height: 1.6; color: var(--text-secondary, #94a3b8);">
+                      <li><strong>Live In-App OTA Update Engine:</strong> Guaranteed instant detection across older and current app versions with direct one-tap install.</li>
+                      <li><strong>Prominent Multi-Channel Update Alerts:</strong> Added global update announcement banners, interactive changelog modal, and status indicators across web and app.</li>
+                      <li><strong>Unpaired State Settings:</strong> Full access to Account Profile, App Update Engine, and App Info without hardware.</li>
+                      <li><strong>Top-Bar Quick Settings:</strong> Direct navigation to system settings and diagnostics from any screen.</li>
+                      <li><strong>Dynamic Installed Version:</strong> Automatic reflection of true platform version across OTA and settings views.</li>
+                      <li><strong>Strict Cloud Server API:</strong> Production serverless database with real-time multi-tier authentication.</li>
+                    </ul>
+                  </div>
+
                   <div class="ota-action-bar">
-                    <a href="releases/HydroPulse_v2.2.5_build29.apk" class="btn-primary-action" download id="btn-ota-download-apk">
-                      <span>📥 Download Android APK v2.2.5</span>
+                    <a href="releases/HydroPulse_v2.2.6_build30.apk" class="btn-primary-action" download="HydroPulse_v2.2.6_build30.apk" id="btn-ota-download-apk">
+                      <span>📥 Download Android APK v2.2.6</span>
                     </a>
                     <button class="btn-secondary-action" id="btn-check-updates-web">
                       <span>🔄 Check for App Updates</span>
@@ -696,17 +748,21 @@
               </section>
             </div>
 
-            <!-- TAB 4: SETTINGS -->
+            <!-- TAB 4: SETTINGS & SYSTEM CONFIGURATION -->
             <div class="tab-pane hidden" id="tab-pane-settings">
-              <section class="system-card">
+              <!-- Card 1: Account & Node Configuration -->
+              <section class="system-card" style="margin-bottom: 20px;">
                 <div class="sys-card-header">
-                  <h3 class="sys-heading">System Console & Node Configuration</h3>
-                  <span class="sys-chip">v2.1.2</span>
+                  <div>
+                    <h3 class="sys-heading">Account & System Configuration</h3>
+                    <span class="sys-sub">Central Server Database Synchronized</span>
+                  </div>
+                  <span class="sys-chip green">AUTHENTICATED</span>
                 </div>
 
                 <div class="settings-list">
                   <div class="st-row">
-                    <span class="st-key">Active Account</span>
+                    <span class="st-key">Active User Profile</span>
                     <span class="st-val" id="settings-user-name">Authenticated User</span>
                   </div>
                   <div class="st-row">
@@ -714,23 +770,19 @@
                     <span class="st-val" id="settings-user-email">Session Active</span>
                   </div>
                   <div class="st-row">
-                    <span class="st-key">Client Release Version</span>
-                    <span class="st-val" id="settings-app-version">v2.1.2 (Build 15)</span>
-                  </div>
-                  <div class="st-row">
-                    <span class="st-key">Mobile APK Package Size</span>
-                    <span class="st-val">55.6 MB (58,325,471 bytes)</span>
+                    <span class="st-key">Security Protocol</span>
+                    <span class="st-val">PBKDF2-SHA512 Strict Server Auth</span>
                   </div>
                   <div class="st-row">
                     <span class="st-key">Backend Gateway Endpoint</span>
-                    <span class="st-val mono" id="settings-api-url">/api/v1 (Auto-Resolved)</span>
+                    <span class="st-val mono" id="settings-api-url">https://water-pump-controller.vercel.app/api/v1</span>
                   </div>
                   <div class="st-row">
                     <span class="st-key">Hardware Identifier</span>
                     <span class="st-val mono" id="settings-hw-id">No Hardware Linked</span>
                   </div>
                   <div class="st-row" style="align-items: center;">
-                    <span class="st-key">Node Pairing</span>
+                    <span class="st-key">Hardware Gateway</span>
                     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                       <button class="btn-primary-action" id="btn-quick-link-borewell" style="padding: 6px 14px; font-size: 12px; cursor: pointer;">
                         ⚡ Link Agricultural Borewell Pump (94B97E)
@@ -741,17 +793,66 @@
                     </div>
                   </div>
                   <div class="st-row">
-                    <span class="st-key">Firmware OS</span>
-                    <span class="st-val mono">FreeRTOS Dual-Core ESP32</span>
+                    <span class="st-key">Hardware Architecture</span>
+                    <span class="st-val mono">FreeRTOS Dual-Core ESP32 • BLE 5.0</span>
                   </div>
                 </div>
 
                 <div class="settings-action-bar" style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
-                  <a href="releases/HydroPulse_v2.2.5_build29.apk" class="btn-primary-action" download style="text-decoration: none; padding: 10px 18px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">
-                    <span>📥 Download Android APK v2.2.5</span>
-                  </a>
                   <button class="btn-danger-outline" id="btn-settings-flush" style="border-color: #ef4444; color: #ef4444; padding: 10px 18px; font-size: 13px;">🧹 Flush All Accounts & Database</button>
-                  <button class="btn-danger-outline" id="btn-settings-logout">Sign Out of System Console</button>
+                  <button class="btn-danger-outline" id="btn-settings-logout" style="padding: 10px 18px; font-size: 13px;">Sign Out of System Console</button>
+                </div>
+              </section>
+
+              <!-- Card 2: App Version & Built-in OTA Update Engine -->
+              <section class="system-card app-update-settings-card">
+                <div class="sys-card-header">
+                  <div>
+                    <h3 class="sys-heading">App Version & Update Engine</h3>
+                    <span class="sys-sub">Real-Time In-App OTA and Package Distribution</span>
+                  </div>
+                  <span class="sys-chip green" id="settings-ota-status-chip">OTA ENGINE v2.2.6</span>
+                </div>
+
+                <div class="settings-list">
+                  <div class="st-row">
+                    <span class="st-key">Installed Client Version</span>
+                    <span class="st-val" id="settings-app-version">v2.2.6 (Build 30)</span>
+                  </div>
+                  <div class="st-row">
+                    <span class="st-key">Latest Server Release</span>
+                    <span class="st-val" style="color: #00E5FF; font-weight: 700;" id="settings-latest-version">v2.2.6 (Build 30) • Stable Available</span>
+                  </div>
+                  <div class="st-row">
+                    <span class="st-key">Distribution Status</span>
+                    <span class="st-val" style="color: #10b981; font-weight: 700;">✓ Up to Date with Official Cloud Release</span>
+                  </div>
+                  <div class="st-row">
+                    <span class="st-key">Mobile APK Binary Size</span>
+                    <span class="st-val">55.8 MB (Direct Android APK)</span>
+                  </div>
+                  <div class="st-row">
+                    <span class="st-key">Binary SHA-256 Checksum</span>
+                    <span class="st-val mono" id="settings-sha256" style="font-size: 11px; word-break: break-all;">Verified SHA-256 Hash</span>
+                  </div>
+                  <div class="st-row">
+                    <span class="st-key">Release Highlights</span>
+                    <div style="font-size: 12px; line-height: 1.6; color: var(--text-secondary, #94a3b8); margin-top: 4px;">
+                      <div>• <strong>Live In-App OTA Engine:</strong> Instant detection across older and current app versions with direct one-tap install.</div>
+                      <div>• <strong>Unpaired State Settings:</strong> Full access to Account, App Updates, and App Information without hardware.</div>
+                      <div>• <strong>Top-Bar Direct Navigation:</strong> Instant Settings access from all screens.</div>
+                      <div>• <strong>Strict Cloud API:</strong> Locked to production serverless database.</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="settings-action-bar" style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
+                  <a href="releases/HydroPulse_v2.2.6_build30.apk" class="btn-primary-action" download="HydroPulse_v2.2.6_build30.apk" style="text-decoration: none; padding: 10px 18px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">
+                    <span>📥 Download Android APK v2.2.6</span>
+                  </a>
+                  <button class="btn-secondary-action" id="btn-settings-check-update" style="padding: 10px 18px; font-size: 13px;">
+                    <span>🔄 Check for App Updates</span>
+                  </button>
                 </div>
               </section>
             </div>
@@ -804,6 +905,54 @@
       </form>
 
       <button type="button" class="btn-sheet-close" id="btn-close-google-sheet" style="margin-top:10px;">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Interactive App Update Engine Modal Dialog -->
+  <div class="modal-overlay hidden" id="update-engine-modal">
+    <div class="modal-card update-modal-card" style="max-width: 520px; width: 90%; background: var(--card-bg, #111827); border-radius: 20px; border: 1px solid rgba(0, 229, 255, 0.35); padding: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.6); position: relative;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+        <div style="display: flex; gap: 12px; align-items: center;">
+          <div style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #00E5FF, #0072FF); display: flex; align-items: center; justify-content: center; font-size: 22px;">📱</div>
+          <div>
+            <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: var(--text-primary, #fff);">HydroPulse App Update Engine</h3>
+            <span style="font-size: 11px; color: var(--text-secondary, #94a3b8);">Official Production Release • Vercel Edge CDN</span>
+          </div>
+        </div>
+        <button id="btn-close-update-modal" style="background: none; border: none; font-size: 22px; color: #94a3b8; cursor: pointer; padding: 4px 8px; line-height: 1;">✕</button>
+      </div>
+
+      <div style="background: rgba(0, 229, 255, 0.08); border: 1px solid rgba(0, 229, 255, 0.2); border-radius: 12px; padding: 12px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <span style="display: block; font-size: 11px; color: #94a3b8;">Latest Release:</span>
+          <strong style="font-size: 15px; color: #00E5FF;" id="modal-latest-version">v2.2.6 (Build 30)</strong>
+        </div>
+        <span style="background: #059669; color: white; font-size: 10px; font-weight: 800; padding: 4px 10px; border-radius: 20px;">STABLE LIVE</span>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <span style="font-size: 12px; font-weight: 700; color: var(--text-primary, #fff);">Release Notes & Highlights:</span>
+        <ul id="modal-changelog-list" style="margin: 8px 0 0 18px; padding: 0; font-size: 12px; line-height: 1.6; color: var(--text-secondary, #94a3b8);">
+          <li>Live In-App OTA Update Engine: Guaranteed instant detection across older and current app versions with direct one-tap install.</li>
+          <li>Prominent Multi-Channel Update Alerts: Added global update announcement banners, interactive changelog modal, and status indicators across web and app.</li>
+          <li>Unpaired State Settings: Full access to Account Profile, App Update Engine, and App Info without hardware.</li>
+          <li>Top-Bar Direct Settings: Quick-navigation to system settings from any screen.</li>
+          <li>Dynamic Installed Version: Automatic reflection of true platform version across OTA and settings views.</li>
+          <li>Strict Cloud Server API: Production serverless database with real-time multi-tier auth.</li>
+        </ul>
+      </div>
+
+      <div style="font-size: 11px; color: #64748b; margin-bottom: 20px; background: rgba(0,0,0,0.25); padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);">
+        <div><strong>SHA-256:</strong> <span class="mono" id="modal-sha256" style="font-size: 10px; word-break: break-all;">Verified SHA-256 Checksum</span></div>
+        <div style="margin-top: 4px;"><strong>Package Size:</strong> 55.8 MB • Direct Android APK</div>
+      </div>
+
+      <div style="display: flex; gap: 10px;">
+        <a href="releases/HydroPulse_v2.2.6_build30.apk" class="btn-primary-action" download="HydroPulse_v2.2.6_build30.apk" id="modal-btn-download" style="flex: 1; text-align: center; text-decoration: none; padding: 12px; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+          <span>📥 Download APK v2.2.6</span>
+        </a>
+        <button class="btn-secondary-action" id="btn-modal-dismiss-update" style="padding: 12px 18px; font-size: 13px;">Close</button>
+      </div>
     </div>
   </div>
 
