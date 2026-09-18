@@ -369,13 +369,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
         child: Row(
           children: [
-            _buildFilterPill(SettingsCategoryFilter.all, '🌟 All Sub-Tabs', isDark, colorScheme),
-            _buildFilterPill(SettingsCategoryFilter.account, '👤 Account', isDark, colorScheme),
-            _buildFilterPill(SettingsCategoryFilter.updates, '🚀 Updates', isDark, colorScheme),
-            _buildFilterPill(SettingsCategoryFilter.hardware, '⚡ Hardware', isDark, colorScheme),
-            _buildFilterPill(SettingsCategoryFilter.broker, '🌐 Broker', isDark, colorScheme),
-            _buildFilterPill(SettingsCategoryFilter.notifications, '🔔 Alerts', isDark, colorScheme),
-            _buildFilterPill(SettingsCategoryFilter.system, '⚙️ System', isDark, colorScheme),
+            _buildFilterPill(SettingsCategoryFilter.all, 'All', Icons.dashboard_outlined, isDark, colorScheme),
+            _buildFilterPill(SettingsCategoryFilter.account, 'Account', Icons.person_outline_rounded, isDark, colorScheme),
+            _buildFilterPill(SettingsCategoryFilter.updates, 'Updates', Icons.system_update_rounded, isDark, colorScheme),
+            _buildFilterPill(SettingsCategoryFilter.hardware, 'Hardware', Icons.developer_board_rounded, isDark, colorScheme),
+            _buildFilterPill(SettingsCategoryFilter.broker, 'Broker', Icons.cloud_outlined, isDark, colorScheme),
+            _buildFilterPill(SettingsCategoryFilter.notifications, 'Alerts', Icons.notifications_none_rounded, isDark, colorScheme),
+            _buildFilterPill(SettingsCategoryFilter.system, 'System', Icons.tune_rounded, isDark, colorScheme),
           ],
         ),
       ),
@@ -385,6 +385,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildFilterPill(
     SettingsCategoryFilter filter,
     String label,
+    IconData icon,
     bool isDark,
     ColorScheme colorScheme,
   ) {
@@ -395,7 +396,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         onTap: () {
           setState(() {
             _activeFilter = filter;
-            // If filtering to a specific category, auto-expand it
             if (filter != SettingsCategoryFilter.all) {
               final key = _filterToKey(filter);
               if (key != null) _expanded[key] = true;
@@ -404,7 +404,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         },
         borderRadius: BorderRadius.circular(10),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           decoration: BoxDecoration(
             color: isSelected
@@ -417,25 +417,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   : (isDark ? AppTheme.darkCardBorder : AppTheme.lightCardBorder),
               width: 0.8,
             ),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: colorScheme.primary.withOpacity(0.25),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    )
-                  ]
-                : null,
           ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-              color: isSelected
-                  ? Colors.white
-                  : (isDark ? Colors.white70 : Colors.black87),
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 13,
+                color: isSelected
+                    ? Colors.white
+                    : (isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected
+                      ? Colors.white
+                      : (isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary),
+                ),
+              ),
+            ],
           ),
         ),
       ),

@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/hardware/hardware_state_service.dart';
@@ -21,7 +20,6 @@ import 'features/settings/presentation/settings_screen.dart';
 import 'features/pump_control/presentation/pump_control_screen.dart';
 import 'features/provisioning/presentation/provisioning_wizard_screen.dart';
 import 'features/notifications/presentation/notifications_screen.dart';
-import 'shared/widgets/animated_pressable.dart';
 import 'core/update/app_update_service.dart';
 import 'core/notifications/push_notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -471,7 +469,7 @@ class _MainScaffoldState extends State<MainScaffold> {
 }
 
 // ============================================================================
-// ANIMATED SHIFTING BOTTOM BAR WITH SLIDING PILL INDICATOR
+// INDUSTRIAL GROUNDED DOCKED BOTTOM BAR
 // ============================================================================
 class _AnimatedNavTabItem {
   final IconData icon;
@@ -501,147 +499,98 @@ class _AnimatedShiftingBottomBar extends StatelessWidget {
 
   static const List<_AnimatedNavTabItem> _tabs = [
     _AnimatedNavTabItem(
-      icon: Icons.waves_outlined,
-      selectedIcon: Icons.waves_rounded,
-      label: 'Hydro Hub',
+      icon: Icons.dashboard_outlined,
+      selectedIcon: Icons.dashboard_rounded,
+      label: 'Hub',
     ),
     _AnimatedNavTabItem(
-      icon: Icons.water_drop_outlined,
-      selectedIcon: Icons.water_drop_rounded,
-      label: 'Tank Control',
+      icon: Icons.water_outlined,
+      selectedIcon: Icons.water_rounded,
+      label: 'Reservoir',
     ),
     _AnimatedNavTabItem(
-      icon: Icons.developer_board_outlined,
-      selectedIcon: Icons.developer_board_rounded,
-      label: 'Device',
+      icon: Icons.memory_outlined,
+      selectedIcon: Icons.memory_rounded,
+      label: 'Hardware',
     ),
     _AnimatedNavTabItem(
-      icon: Icons.insights_outlined,
+      icon: Icons.query_stats_outlined,
       selectedIcon: Icons.query_stats_rounded,
       label: 'Telemetry',
     ),
     _AnimatedNavTabItem(
       icon: Icons.bolt_outlined,
       selectedIcon: Icons.bolt_rounded,
-      label: 'Autonomous',
+      label: 'Automation',
     ),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final borderCol = isDark ? AppTheme.darkCardBorder : AppTheme.lightCardBorder;
+    final bgCol = isDark ? AppTheme.darkSurface : AppTheme.lightSurface;
+
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-        border: Border(
-          top: BorderSide(
-            color: colorScheme.outline.withOpacity(isDark ? 0.22 : 0.15),
-            width: 0.5,
-          ),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.30 : 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, -3),
-          ),
-        ],
+        color: bgCol,
+        border: Border(top: BorderSide(color: borderCol, width: 0.8)),
       ),
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 64,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final tabWidth = constraints.maxWidth / _tabs.length;
-              return Stack(
-                children: [
-                  // Animated Shifting Pill Indicator with spring / easeOutCubic curve
-                  AnimatedPositioned(
-                    duration: const Duration(milliseconds: 320),
-                    curve: Curves.easeOutCubic,
-                    left: selectedIndex * tabWidth + 5,
-                    top: 6,
-                    width: tabWidth - 10,
-                    height: 52,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: colorScheme.primary.withOpacity(isDark ? 0.16 : 0.10),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: colorScheme.primary.withOpacity(isDark ? 0.35 : 0.25),
-                          width: 1.0,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: colorScheme.primary.withOpacity(isDark ? 0.20 : 0.08),
-                            blurRadius: 8,
-                            spreadRadius: 0.5,
-                            offset: const Offset(0, 2),
+          height: 60,
+          child: Row(
+            children: List.generate(_tabs.length, (index) {
+              final tab = _tabs[index];
+              final isSelected = selectedIndex == index;
+              const activeColor = AppTheme.primary;
+              final inactiveColor = isDark ? AppTheme.darkTextTertiary : AppTheme.lightTextTertiary;
+
+              return Expanded(
+                child: InkWell(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    onTabSelected(index);
+                  },
+                  splashColor: Colors.transparent,
+                  highlightColor: Colors.transparent,
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? activeColor.withOpacity(isDark ? 0.16 : 0.10)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                        ],
-                      ),
+                          child: Icon(
+                            isSelected ? tab.selectedIcon : tab.icon,
+                            size: 20,
+                            color: isSelected ? activeColor : inactiveColor,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          tab.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: isSelected ? activeColor : inactiveColor,
+                            letterSpacing: 0.1,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-
-                  // Interactive Tab Items
-                  Row(
-                    children: List.generate(_tabs.length, (index) {
-                      final tab = _tabs[index];
-                      final isSelected = selectedIndex == index;
-                      final isAccentTab = index == 4; // Autonomous tab
-                      final activeColor = isAccentTab ? AppTheme.accent : colorScheme.primary;
-
-                      return Expanded(
-                        child: InkWell(
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            onTabSelected(index);
-                          },
-                          splashColor: Colors.transparent,
-                          highlightColor: Colors.transparent,
-                          child: Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                AnimatedScale(
-                                  scale: isSelected ? 1.15 : 1.0,
-                                  duration: const Duration(milliseconds: 280),
-                                  curve: Curves.easeOutBack,
-                                  child: Icon(
-                                    isSelected ? tab.selectedIcon : tab.icon,
-                                    size: 21,
-                                    color: isSelected
-                                        ? activeColor
-                                        : (isDark ? AppTheme.darkTextTertiary : AppTheme.lightTextTertiary),
-                                  ),
-                                ),
-                                const SizedBox(height: 3),
-                                AnimatedDefaultTextStyle(
-                                  duration: const Duration(milliseconds: 250),
-                                  style: TextStyle(
-                                    fontSize: isSelected ? 11 : 10,
-                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                    color: isSelected
-                                        ? activeColor
-                                        : (isDark ? AppTheme.darkTextTertiary : AppTheme.lightTextTertiary),
-                                    letterSpacing: 0.15,
-                                  ),
-                                  child: Text(
-                                    tab.label,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
-                  ),
-                ],
+                ),
               );
-            },
+            }),
           ),
         ),
       ),
@@ -650,7 +599,7 @@ class _AnimatedShiftingBottomBar extends StatelessWidget {
 }
 
 // ============================================================================
-// NO GATEWAY LINKED VIEW (RENDERED WHEN NO HARDWARE IS ADDED)
+// NO GATEWAY LINKED VIEW (INDUSTRIAL STANDBY HERO STATE)
 // ============================================================================
 class _NoGatewayLinkedView extends StatefulWidget {
   final bool isDark;
@@ -669,15 +618,11 @@ class _NoGatewayLinkedView extends StatefulWidget {
 class _NoGatewayLinkedViewState extends State<_NoGatewayLinkedView> {
   String _userName = 'HydroPulse User';
   String _userEmail = '';
-  String _initials = 'HP';
-  AppVersionInfo? _latestVersionInfo;
-  bool _isCheckingUpdate = false;
 
   @override
   void initState() {
     super.initState();
     _loadUserAccount();
-    _checkAppUpdateStatus();
   }
 
   Future<void> _loadUserAccount() async {
@@ -698,34 +643,9 @@ class _NoGatewayLinkedViewState extends State<_NoGatewayLinkedView> {
           if (email != null && email.isNotEmpty) {
             _userEmail = email.trim();
           }
-          final parts = _userName.trim().split(RegExp(r'\s+'));
-          if (parts.length >= 2 && parts[0].isNotEmpty && parts[1].isNotEmpty) {
-            _initials = '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-          } else if (_userName.isNotEmpty) {
-            _initials = _userName.substring(0, _userName.length >= 2 ? 2 : 1).toUpperCase();
-          }
         });
       }
     } catch (_) {}
-  }
-
-  Future<void> _checkAppUpdateStatus({bool isManual = false}) async {
-    if (mounted) setState(() => _isCheckingUpdate = true);
-    try {
-      await appUpdateService.initVersion();
-      final info = await appUpdateService.fetchLatestVersion();
-      if (mounted) {
-        setState(() {
-          _latestVersionInfo = info;
-          _isCheckingUpdate = false;
-        });
-      }
-      if (isManual && mounted) {
-        await appUpdateService.checkForUpdates(context, isManual: true);
-      }
-    } catch (_) {
-      if (mounted) setState(() => _isCheckingUpdate = false);
-    }
   }
 
   Future<void> _handleLogout(BuildContext context) async {
@@ -741,22 +661,13 @@ class _NoGatewayLinkedViewState extends State<_NoGatewayLinkedView> {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final isDark = widget.isDark;
-    final colorScheme = widget.colorScheme;
     final cardBg = isDark ? AppTheme.darkCard : AppTheme.lightCard;
     final cardBorder = isDark ? AppTheme.darkCardBorder : AppTheme.lightCardBorder;
-
-    final isNewer = _latestVersionInfo != null &&
-        appUpdateService.isVersionNewer(
-          _latestVersionInfo!.version,
-          AppUpdateService.currentVersion,
-          remoteBuild: _latestVersionInfo!.buildNumber,
-          currentBuild: AppUpdateService.currentBuildNumber,
-        );
 
     return SafeArea(
       child: Column(
         children: [
-          // 1. Top Bar with Brand, Settings shortcut, Theme toggle & Logout
+          // 1. Sleek Industrial Top Bar
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
             child: Row(
@@ -765,29 +676,43 @@ class _NoGatewayLinkedViewState extends State<_NoGatewayLinkedView> {
                 Row(
                   children: [
                     Container(
-                      width: 38,
-                      height: 38,
+                      width: 36,
+                      height: 36,
                       decoration: BoxDecoration(
-                        color: colorScheme.primary.withOpacity(0.15),
+                        color: AppTheme.primary.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppTheme.primary.withOpacity(0.25), width: 0.8),
                       ),
-                      child: Icon(Icons.water_drop_rounded, color: colorScheme.primary, size: 22),
+                      child: const Icon(Icons.water_drop_rounded, color: AppTheme.primary, size: 20),
                     ),
                     const SizedBox(width: 10),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'HydroPulse IoT',
-                          style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                          'HydroPulse',
+                          style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800, fontSize: 16),
                         ),
-                        Text(
-                          'Cloud Console v${AppUpdateService.currentVersion}',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: isDark ? Colors.white54 : Colors.black45,
-                          ),
+                        Row(
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppTheme.slate,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Standby Mode',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? AppTheme.darkTextTertiary : AppTheme.lightTextTertiary,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -796,21 +721,21 @@ class _NoGatewayLinkedViewState extends State<_NoGatewayLinkedView> {
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.settings_outlined, size: 22),
-                      tooltip: 'Settings & Account',
-                      onPressed: () => context.push('/settings'),
-                    ),
-                    IconButton(
                       icon: Icon(
-                        isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                        color: isDark ? AppTheme.warning : colorScheme.primary,
-                        size: 22,
+                        isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                        size: 20,
+                        color: isDark ? AppTheme.warning : AppTheme.primary,
                       ),
                       tooltip: 'Toggle Theme',
                       onPressed: () => ThemeNotifier.instance.toggleTheme(),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.logout_rounded, size: 20, color: AppTheme.danger),
+                      icon: const Icon(Icons.tune_rounded, size: 20),
+                      tooltip: 'Settings & Updates',
+                      onPressed: () => context.push('/settings'),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.logout_rounded, size: 18, color: AppTheme.danger),
                       tooltip: 'Sign Out',
                       onPressed: () => _handleLogout(context),
                     ),
@@ -820,551 +745,233 @@ class _NoGatewayLinkedViewState extends State<_NoGatewayLinkedView> {
             ),
           ),
 
-          // 2. Scrollable Body containing Update Engine, Account, App Info & Add Hardware
+          Divider(color: cardBorder, height: 1),
+
+          // 2. Central Hero Standby Stage
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'SYSTEM SETTINGS & APP UPDATES',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.8,
-                      color: isDark ? Colors.white54 : Colors.black45,
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  // ========================================================
-                  // --- 1. APP UPDATE ENGINE & VERSION STATUS CARD ---
-                  // ========================================================
-                  Container(
-                    padding: const EdgeInsets.all(16.0),
-                    decoration: BoxDecoration(
-                      color: cardBg,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: isNewer ? AppTheme.accent : cardBorder,
-                        width: isNewer ? 1.5 : 0.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: (isNewer ? AppTheme.accent : Colors.black).withOpacity(isDark ? 0.25 : 0.05),
-                          blurRadius: 16,
-                          offset: const Offset(0, 4),
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Hardware Controller Schematic Card
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(24.0),
+                        decoration: BoxDecoration(
+                          color: cardBg,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: cardBorder, width: 0.8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(isDark ? 0.3 : 0.04),
+                              blurRadius: 16,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                        child: Column(
+                          children: [
+                            // Industrial Hardware Icon
+                            Container(
+                              width: 68,
+                              height: 68,
+                              decoration: BoxDecoration(
+                                color: AppTheme.primary.withOpacity(0.08),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: AppTheme.primary.withOpacity(0.2), width: 1.2),
+                              ),
+                              child: const Icon(
+                                Icons.developer_board_rounded,
+                                size: 34,
+                                color: AppTheme.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+
+                            // Status Tag
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppTheme.slate.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: AppTheme.slate.withOpacity(0.25), width: 0.8),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.link_off_rounded, size: 12, color: AppTheme.slate),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'GATEWAY UNPAIRED',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.8,
+                                      color: AppTheme.slate,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+
+                            Text(
+                              'No Pump Controller Connected',
+                              style: textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 17,
+                                letterSpacing: -0.2,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Connect a dual-core ESP32 hardware gateway via Bluetooth Low Energy (BLE) to activate real-time telemetry, volumetric fluid modeling, and automated safety lockouts.',
+                              style: textTheme.bodySmall?.copyWith(
+                                color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                                height: 1.5,
+                                fontSize: 12.5,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 22),
+
+                            // Primary Action Button: Pair Hardware
+                            SizedBox(
+                              width: double.infinity,
+                              height: 46,
+                              child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.primary,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  elevation: 0,
+                                ),
+                                icon: const Icon(Icons.bluetooth_searching_rounded, size: 18),
+                                label: const Text(
+                                  'Pair Hardware Gateway',
+                                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+                                ),
+                                onPressed: () => context.push('/provisioning'),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+
+                            // Secondary Action Button: Settings & Broker
+                            SizedBox(
+                              width: double.infinity,
+                              height: 42,
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
+                                  side: BorderSide(color: cardBorder, width: 0.8),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                icon: const Icon(Icons.settings_outlined, size: 16),
+                                label: const Text(
+                                  'Open Settings & System Updates',
+                                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                                ),
+                                onPressed: () => context.push('/settings'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      // Quick Account & System Summary Card
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: cardBg,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: cardBorder, width: 0.8),
+                        ),
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Row(
                               children: [
-                                Container(
-                                  width: 40,
-                                  height: 40,
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: isNewer
-                                          ? [const Color(0xFF00E5FF), const Color(0xFF0072FF)]
-                                          : [colorScheme.primary.withOpacity(0.2), colorScheme.primary.withOpacity(0.1)],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Icon(
-                                    isNewer ? Icons.system_update_alt_rounded : Icons.system_update_rounded,
-                                    color: isNewer ? Colors.white : colorScheme.primary,
-                                    size: 22,
-                                  ),
+                                CircleAvatar(
+                                  radius: 14,
+                                  backgroundColor: AppTheme.primary.withOpacity(0.15),
+                                  child: const Text('KN', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: AppTheme.primary)),
                                 ),
                                 const SizedBox(width: 10),
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('App Version & Updates', style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
-                                    Text('Built-in OTA Update Engine', style: textTheme.bodySmall?.copyWith(fontSize: 10)),
+                                    Text(_userName, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5)),
+                                    Text(_userEmail.isNotEmpty ? _userEmail : 'Authenticated User', style: TextStyle(fontSize: 10.5, color: isDark ? AppTheme.darkTextTertiary : AppTheme.lightTextTertiary)),
                                   ],
                                 ),
                               ],
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: isNewer
-                                    ? AppTheme.accent.withOpacity(0.2)
-                                    : (isDark ? Colors.white10 : Colors.black.withOpacity(0.06)),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: isNewer ? AppTheme.accent : Colors.transparent,
-                                  width: 1,
-                                ),
-                              ),
-                              child: Text(
-                                isNewer
-                                    ? 'UPDATE READY'
-                                    : 'v${AppUpdateService.currentVersion} • B${AppUpdateService.currentBuildNumber}',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: isNewer ? AppTheme.accent : (isDark ? Colors.white70 : Colors.black87),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Update Status Alert Box
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: isNewer
-                                ? AppTheme.accent.withOpacity(0.1)
-                                : (isDark ? const Color(0xFF0D1826) : const Color(0xFFF1F5F9)),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: isNewer ? AppTheme.accent.withOpacity(0.4) : cardBorder,
-                              width: 0.8,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                isNewer ? Icons.notification_important_rounded : Icons.verified_rounded,
-                                color: isNewer ? AppTheme.accent : const Color(0xFF10B981),
-                                size: 22,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      isNewer
-                                          ? 'New Version v${_latestVersionInfo!.version} (Build ${_latestVersionInfo!.buildNumber}) Ready'
-                                          : 'HydroPulse is Fully Up to Date',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 12,
-                                        color: isNewer ? AppTheme.accent : (isDark ? Colors.white : Colors.black87),
-                                      ),
-                                    ),
-                                    Text(
-                                      isNewer
-                                          ? 'Direct in-app OTA update package is ready to download and install.'
-                                          : 'Installed v${AppUpdateService.currentVersion} (Build ${AppUpdateService.currentBuildNumber}) matches official cloud release.',
-                                      style: TextStyle(
-                                        fontSize: 10.5,
-                                        color: isDark ? Colors.white60 : Colors.black54,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 12),
-                        Divider(color: cardBorder, height: 1),
-                        const SizedBox(height: 8),
-
-                        _buildSettingRow('Installed Version', 'v${AppUpdateService.currentVersion}', context),
-                        _buildSettingRow('Installed Build', '${AppUpdateService.currentBuildNumber}', context),
-                        _buildSettingRow(
-                          'Latest Cloud Release',
-                          _latestVersionInfo != null
-                              ? 'v${_latestVersionInfo!.version} (Build ${_latestVersionInfo!.buildNumber})'
-                              : 'v${AppConstants.appVersion} (Build ${AppConstants.appBuildNumber})',
-                          context,
-                        ),
-                        _buildSettingRow('Channel', 'Official Production Cloud (Vercel Edge)', context),
-                        _buildSettingRow('Architecture', 'arm64-v8a / armeabi-v7a (Direct APK)', context),
-
-                        // What's New Snippet if available
-                        if (_latestVersionInfo != null && _latestVersionInfo!.changelog.isNotEmpty) ...[
-                          const SizedBox(height: 10),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF090E18) : const Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: cardBorder, width: 0.5),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "What's New in v${_latestVersionInfo!.version}:",
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: isDark ? Colors.white70 : Colors.black87,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                ..._latestVersionInfo!.changelog.take(2).map((item) => Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 1.5),
-                                      child: Row(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          const Text('• ', style: TextStyle(color: AppTheme.accent, fontSize: 11)),
-                                          Expanded(
-                                            child: Text(
-                                              item,
-                                              style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white60 : Colors.black54),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    )),
-                              ],
-                            ),
-                          ),
-                        ],
-
-                        const SizedBox(height: 12),
-
-                        // Action Buttons: Update Now or Check for Updates
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: isNewer ? AppTheme.accent : colorScheme.primary,
-                                  foregroundColor: isNewer ? Colors.black : Colors.white,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                  padding: const EdgeInsets.symmetric(vertical: 11),
-                                ),
-                                icon: _isCheckingUpdate
-                                    ? const SizedBox(
-                                        width: 14,
-                                        height: 14,
-                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                      )
-                                    : Icon(
-                                        isNewer ? Icons.download_rounded : Icons.refresh_rounded,
-                                        size: 16,
-                                      ),
-                                label: Text(
-                                  isNewer ? 'Download & Update Now' : 'Check for Updates',
-                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
-                                ),
-                                onPressed: () {
-                                  if (isNewer) {
-                                    appUpdateService.showUpdateDialog(context, _latestVersionInfo!);
-                                  } else {
-                                    _checkAppUpdateStatus(isManual: true);
-                                  }
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: isDark ? Colors.white70 : Colors.black87,
-                                side: BorderSide(color: cardBorder, width: 1),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
-                              ),
-                              icon: const Icon(Icons.open_in_browser_rounded, size: 16),
-                              label: const Text('Website APK', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                              onPressed: () async {
-                                final uri = Uri.parse('https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.6_build30.apk');
-                                if (await canLaunchUrl(uri)) {
-                                  await launchUrl(uri, mode: LaunchMode.externalApplication);
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  // ========================================================
-                  // --- 2. ACCOUNT PROFILE CARD ---
-                  // ========================================================
-                  Container(
-                    padding: const EdgeInsets.all(16.0),
-                    decoration: BoxDecoration(
-                      color: cardBg,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: cardBorder, width: 0.5),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: colorScheme.primary.withOpacity(0.12),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  _initials,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    color: colorScheme.primary,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    _userName,
-                                    style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    _userEmail.isNotEmpty ? _userEmail : 'Authenticated User Session',
-                                    style: textTheme.bodySmall?.copyWith(fontSize: 11),
-                                  ),
-                                ],
-                              ),
                             ),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF10B981).withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(8),
+                                color: AppTheme.accent.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(6),
                               ),
                               child: const Text(
                                 'ACTIVE',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  color: Color(0xFF10B981),
-                                ),
+                                style: TextStyle(color: AppTheme.accent, fontSize: 10, fontWeight: FontWeight.w700),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
-                        Divider(color: cardBorder, height: 1),
-                        const SizedBox(height: 10),
-                        _buildSettingRow('Cloud Sync', 'Database Session Synchronized', context),
-                        _buildSettingRow('Role', 'Client Account Holder', context),
-                        _buildSettingRow('Auth Protocol', 'PBKDF2-SHA512 Strict Server Auth', context),
-                        const SizedBox(height: 8),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: isDark ? Colors.white70 : Colors.black87,
-                              side: BorderSide(color: cardBorder, width: 1),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              padding: const EdgeInsets.symmetric(vertical: 9),
-                            ),
-                            icon: const Icon(Icons.manage_accounts_outlined, size: 16),
-                            label: const Text('Manage Account Preferences', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                            onPressed: () => context.push('/settings'),
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-
-                  const SizedBox(height: 14),
-
-                  // ========================================================
-                  // --- 3. APP INFORMATION & SYSTEM CARD ---
-                  // ========================================================
-                  Container(
-                    padding: const EdgeInsets.all(16.0),
-                    decoration: BoxDecoration(
-                      color: cardBg,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: cardBorder, width: 0.5),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                color: colorScheme.primary.withOpacity(0.12),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(Icons.info_outline_rounded, color: colorScheme.primary, size: 20),
-                            ),
-                            const SizedBox(width: 10),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('App Information', style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-                                Text('Platform, Cloud Gateway & Protocols', style: textTheme.bodySmall?.copyWith(fontSize: 10)),
-                              ],
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Divider(color: cardBorder, height: 1),
-                        const SizedBox(height: 10),
-                        _buildSettingRow('Cloud Gateway', 'water-pump-controller.vercel.app', context),
-                        _buildSettingRow('IoT MQTT Broker', 'broker.hivemq.com (Port 1883)', context),
-                        _buildSettingRow('Architecture', 'FreeRTOS ESP32 • Flutter Cross-Platform', context),
-                        _buildSettingRow('Network Link', 'Central Cloud Server Active', context),
-                        const SizedBox(height: 8),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: isDark ? Colors.white70 : Colors.black87,
-                              side: BorderSide(color: cardBorder, width: 1),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                            ),
-                            icon: const Icon(Icons.tune_rounded, size: 16),
-                            label: const Text('Open Full Settings & Diagnostics', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                            onPressed: () => context.push('/settings'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  // ========================================================
-                  // --- 4. HERO: ADD HARDWARE / GATEWAY BANNER ---
-                  // ========================================================
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20.0),
-                    decoration: BoxDecoration(
-                      color: cardBg,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: cardBorder, width: 0.5),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
-                          blurRadius: 16,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 64,
-                          height: 64,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: colorScheme.primary.withOpacity(0.12),
-                            border: Border.all(color: colorScheme.primary.withOpacity(0.3), width: 1.5),
-                          ),
-                          child: Center(
-                            child: Icon(Icons.sensors_off_rounded, size: 32, color: colorScheme.primary),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        Text(
-                          'No Hardware Gateway Linked',
-                          style: textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.2,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Ready to monitor your agricultural borewell or overhead tank? Link your ESP32 controller over BLE to start live fluid simulation and automation.',
-                          style: textTheme.bodySmall?.copyWith(
-                            color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
-                            height: 1.4,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        AnimatedPressable(
-                          onTap: () => context.push('/provisioning'),
-                          child: Container(
-                            height: 46,
-                            decoration: BoxDecoration(
-                              color: colorScheme.primary,
-                              borderRadius: BorderRadius.circular(14),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: colorScheme.primary.withOpacity(0.3),
-                                  blurRadius: 14,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            alignment: Alignment.center,
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.bluetooth_searching_rounded, color: Colors.white, size: 20),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Add Device (Pair Hardware)',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-                ],
+                ),
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildSettingRow(String label, String value, BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3.5),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: textTheme.bodySmall?.copyWith(fontSize: 11)),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-              value,
-              style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600, fontSize: 11),
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.end,
+          // 3. Bottom Status Strip
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            decoration: BoxDecoration(
+              color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+              border: Border(top: BorderSide(color: cardBorder, width: 0.8)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(shape: BoxShape.circle, color: AppTheme.accent),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Cloud API Connected',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  'v${AppConstants.appVersion} • B${AppConstants.appBuildNumber}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? AppTheme.darkTextTertiary : AppTheme.lightTextTertiary,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

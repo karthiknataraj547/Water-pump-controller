@@ -1,5 +1,5 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../../core/theme/app_theme.dart';
 
 class SpatialHardwareTopology3D extends StatefulWidget {
   final bool isGatewayOnline;
@@ -32,7 +32,7 @@ class _SpatialHardwareTopology3DState extends State<SpatialHardwareTopology3D>
     super.initState();
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2400),
+      duration: const Duration(milliseconds: 2000),
     )..repeat();
   }
 
@@ -44,320 +44,223 @@ class _SpatialHardwareTopology3DState extends State<SpatialHardwareTopology3D>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? AppTheme.darkCard : AppTheme.lightCard;
+    final cardBorder = isDark ? AppTheme.darkCardBorder : AppTheme.lightCardBorder;
+    final isOnline = widget.isGatewayOnline;
+    final isSubOnline = widget.isSubNodeOnline;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFF090E1C).withOpacity(0.95),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-          color: const Color(0xFF00E5FF).withOpacity(0.3),
-          width: 1.5,
-        ),
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cardBorder, width: 0.8),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF00E5FF).withOpacity(0.12),
-            blurRadius: 24,
-            spreadRadius: 1,
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Header with Topology Status
+          // Header with System Architecture Title & Signal
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    const Icon(Icons.hub_rounded, color: Color(0xFF00E5FF), size: 18),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        'SPATIAL NODE TOPOLOGY',
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF00E5FF).withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '${widget.rssiDbm} dBm • EXCELLENT',
-                  style: const TextStyle(
-                    color: Color(0xFF00E5FF),
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-
-          // 2. 3D Spatial Radio Network Stage
-          Transform(
-            alignment: Alignment.center,
-            transform: Matrix4.identity()
-              ..setEntry(3, 2, 0.0015)
-              ..rotateX(-0.08),
-            child: SizedBox(
-              height: 140,
-              child: Stack(
-                alignment: Alignment.center,
+              Row(
                 children: [
-                  // Animated RF Radio Wavefront Canvas
-                  AnimatedBuilder(
-                    animation: _pulseController,
-                    builder: (context, _) {
-                      return CustomPaint(
-                        size: const Size(double.infinity, 140),
-                        painter: _SpatialRadioWavePainter(
-                          pulseProgress: _pulseController.value,
-                          isLinkActive: widget.isSubNodeOnline && widget.isGatewayOnline,
-                        ),
-                      );
-                    },
-                  ),
-
-                  // Node Cards (Left: Main Gateway, Right: Sub Sensor Node)
-                  Row(
-                    children: [
-                      // Gateway Node (ESP32)
-                      Expanded(
-                        child: _buildNodeCard(
-                          title: 'MAIN GATEWAY',
-                          subtitle: 'ESP32 (MQTT HUB)',
-                          mac: widget.gatewayMac,
-                          isOnline: widget.isGatewayOnline,
-                          icon: Icons.developer_board_rounded,
-                          accentColor: const Color(0xFF00E5FF),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      // Sub-Node (ESP8266)
-                      Expanded(
-                        child: _buildNodeCard(
-                          title: 'SUB SENSOR NODE',
-                          subtitle: 'ESP8266 (ESP-NOW)',
-                          mac: widget.subNodeMac,
-                          isOnline: widget.isSubNodeOnline,
-                          icon: Icons.sensors_rounded,
-                          accentColor: const Color(0xFF00E676),
-                        ),
-                      ),
-                    ],
+                  const Icon(Icons.hub_outlined, color: AppTheme.primary, size: 16),
+                  const SizedBox(width: 8),
+                  Text(
+                    'NETWORK SIGNAL TOPOLOGY',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.0,
+                      color: isDark ? AppTheme.darkTextTertiary : AppTheme.lightTextTertiary,
+                    ),
                   ),
                 ],
               ),
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          // 3. Live Radio Metrics Footer
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildMetricChip(
-                label: 'CHANNEL',
-                value: 'CH 1..13 (AUTO)',
-                color: Colors.white,
-              ),
-              _buildMetricChip(
-                label: 'PACKETS SYNCED',
-                value: '${widget.packetsReceived} PKTS',
-                color: const Color(0xFF00E5FF),
-              ),
-              _buildMetricChip(
-                label: 'PROTOCOL',
-                value: 'ESP-NOW 2.4G',
-                color: const Color(0xFF00E676),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNodeCard({
-    required String title,
-    required String subtitle,
-    required String mac,
-    required bool isOnline,
-    required IconData icon,
-    required Color accentColor,
-  }) {
-    return Container(
-      width: 140,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF111A30).withOpacity(0.9),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: isOnline ? accentColor.withOpacity(0.6) : Colors.red.withOpacity(0.4),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: (isOnline ? accentColor : Colors.red).withOpacity(0.2),
-            blurRadius: 16,
-            spreadRadius: 1,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Icon(icon, color: accentColor, size: 20),
               Container(
-                width: 8,
-                height: 8,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isOnline ? const Color(0xFF00E676) : Colors.red,
-                  boxShadow: [
-                    BoxShadow(
-                      color: isOnline ? const Color(0xFF00E676) : Colors.red,
-                      blurRadius: 6,
-                    ),
-                  ],
+                  color: (isOnline ? AppTheme.accent : AppTheme.slate).withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  isOnline ? '${widget.rssiDbm} dBm · Wi-Fi' : 'NO LINK',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: isOnline ? AppTheme.accent : AppTheme.slate,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 10,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0.5,
+          const SizedBox(height: 16),
+
+          // Topology Flow Schematic (Cloud -> Gateway -> Sub Node)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF090E17) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: cardBorder, width: 0.8),
+            ),
+            child: Row(
+              children: [
+                // Node 1: Cloud MQTT Broker
+                _buildTopologyNode(
+                  'Cloud Broker',
+                  'broker.hivemq.com',
+                  Icons.cloud_outlined,
+                  AppTheme.primary,
+                  isDark,
+                ),
+
+                // Link 1
+                Expanded(child: _buildTopologyLink(isOnline, isDark)),
+
+                // Node 2: Main Gateway (ESP32)
+                _buildTopologyNode(
+                  'ESP32 Gateway',
+                  widget.gatewayMac.length > 10 ? widget.gatewayMac.substring(0, 10) : widget.gatewayMac,
+                  Icons.developer_board_rounded,
+                  isOnline ? AppTheme.accent : AppTheme.slate,
+                  isDark,
+                ),
+
+                // Link 2
+                Expanded(child: _buildTopologyLink(isSubOnline, isDark)),
+
+                // Node 3: Tank Sub-Node (ESP8266)
+                _buildTopologyNode(
+                  'Tank Sensor',
+                  widget.subNodeMac.length > 10 ? widget.subNodeMac.substring(0, 10) : widget.subNodeMac,
+                  Icons.sensors_rounded,
+                  isSubOnline ? AppTheme.primaryLight : AppTheme.slate,
+                  isDark,
+                ),
+              ],
             ),
           ),
-          Text(
-            subtitle,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.5),
-              fontSize: 8,
-              fontWeight: FontWeight.w600,
-            ),
+          const SizedBox(height: 14),
+
+          // Technical Link Readout Strip
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildMicroStat('LINK PROTOCOL', 'ESP-NOW & MQTT TLS', isDark),
+              _buildMicroStat('PACKET SEQUENCE', '#${widget.packetsReceived}', isDark),
+              _buildMicroStat('SIGNAL QUALITY', isOnline ? 'Optimal (-54 dBm)' : 'Offline', isDark),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopologyNode(
+    String title,
+    String subtitle,
+    IconData icon,
+    Color color,
+    bool isDark,
+  ) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: color.withOpacity(0.3), width: 1.0),
+          ),
+          child: Icon(icon, size: 18, color: color),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w700,
+            color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
+          ),
+        ),
+        Text(
+          subtitle,
+          style: TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.w500,
+            color: isDark ? AppTheme.darkTextTertiary : AppTheme.lightTextTertiary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTopologyLink(bool isActive, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: List.generate(5, (index) {
+              return Expanded(
+                child: Container(
+                  height: 2,
+                  margin: const EdgeInsets.symmetric(horizontal: 1),
+                  color: isActive
+                      ? (index % 2 == 0 ? AppTheme.accent : AppTheme.accent.withOpacity(0.3))
+                      : (isDark ? Colors.white12 : Colors.black12),
+                ),
+              );
+            }),
           ),
           const SizedBox(height: 4),
-          Text(
-            mac,
-            style: TextStyle(
-              color: accentColor.withOpacity(0.9),
-              fontSize: 8,
-              fontFamily: 'monospace',
-              fontWeight: FontWeight.bold,
-            ),
+          Icon(
+            Icons.chevron_right_rounded,
+            size: 12,
+            color: isActive ? AppTheme.accent : (isDark ? Colors.white24 : Colors.black26),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMetricChip({
-    required String label,
-    required String value,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFF131D33),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF24324F)),
-      ),
-      child: Column(
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.4),
-              fontSize: 7,
-              fontWeight: FontWeight.bold,
-            ),
+  Widget _buildMicroStat(String label, String value, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.7,
+            color: isDark ? AppTheme.darkTextTertiary : AppTheme.lightTextTertiary,
           ),
-          const SizedBox(height: 1),
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-            ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
-}
-
-class _SpatialRadioWavePainter extends CustomPainter {
-  final double pulseProgress;
-  final bool isLinkActive;
-
-  _SpatialRadioWavePainter({
-    required this.pulseProgress,
-    required this.isLinkActive,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (!isLinkActive) return;
-
-    final startX = 140.0;
-    final endX = size.width - 140.0;
-    final centerY = size.height / 2;
-
-    final linePaint = Paint()
-      ..color = const Color(0xFF00E5FF).withOpacity(0.2)
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-
-    canvas.drawLine(Offset(startX, centerY), Offset(endX, centerY), linePaint);
-
-    // Dynamic Pulsing Packets streaming across space
-    for (int i = 0; i < 3; i++) {
-      final progress = (pulseProgress + (i * 0.33)) % 1.0;
-      final packetX = startX + ((endX - startX) * progress);
-      final packetY = centerY + math.sin(progress * 2 * math.pi) * 8;
-
-      final packetGlow = Paint()
-        ..color = const Color(0xFF00E5FF).withOpacity((1.0 - progress) * 0.8)
-        ..style = PaintingStyle.fill;
-      canvas.drawCircle(Offset(packetX, packetY), 5.0, packetGlow);
-
-      final packetCore = Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.fill;
-      canvas.drawCircle(Offset(packetX, packetY), 2.5, packetCore);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
