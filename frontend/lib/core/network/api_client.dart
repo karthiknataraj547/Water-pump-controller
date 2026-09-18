@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/app_constants.dart';
 
 class ApiClient {
@@ -23,7 +24,7 @@ class ApiClient {
           AppConstants.activeApiBaseUrl = AppConstants.cloudApiBaseUrl;
           await storage.delete(key: AppConstants.keyCustomApiBaseUrl);
           options.baseUrl = AppConstants.cloudApiBaseUrl;
-          if (options.path.startsWith('/') && options.baseUrl.endsWith('/api/v1')) {
+          if (options.path.startsWith('/') && !options.path.startsWith('/api/v1') && options.baseUrl.endsWith('/api/v1')) {
             options.path = '/api/v1${options.path}';
             options.baseUrl = options.baseUrl.substring(0, options.baseUrl.length - 7);
           }
@@ -32,6 +33,17 @@ class ApiClient {
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
           }
+
+          String? userEmail = await storage.read(key: AppConstants.keyUserEmail);
+          if (userEmail == null || userEmail.isEmpty) {
+            final prefs = await SharedPreferences.getInstance();
+            userEmail = prefs.getString(AppConstants.keyUserEmail) ??
+                prefs.getString('saved_paired_device_owner_email');
+          }
+          if (userEmail != null && userEmail.trim().isNotEmpty) {
+            options.headers['x-user-email'] = userEmail.trim().toLowerCase();
+          }
+
           return handler.next(options);
         },
         onError: (DioException error, handler) async {

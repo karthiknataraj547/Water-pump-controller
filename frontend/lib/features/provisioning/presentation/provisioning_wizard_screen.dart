@@ -1,8 +1,12 @@
 import 'dart:async';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/ble/ble_provisioning_service.dart';
 import '../../../core/hardware/hardware_state_service.dart';
@@ -29,6 +33,71 @@ class _ProvisioningWizardScreenState extends State<ProvisioningWizardScreen>
   StreamSubscription<BleStatus>? _bleStatusSub;
   StreamSubscription<ProvisioningStep>? _stepSub;
 
+  Future<String> _getAuthenticatedUserEmail() async {
+    try {
+      const storage = FlutterSecureStorage();
+      final prefs = await SharedPreferences.getInstance();
+      final email = (await storage.read(key: AppConstants.keyUserEmail))?.trim().toLowerCase();
+      if (email != null && email.isNotEmpty) return email;
+      return (prefs.getString(AppConstants.keyUserEmail) ??
+              prefs.getString('saved_paired_device_owner_email') ??
+              '').trim().toLowerCase();
+    } catch (_) {
+      return '';
+    }
+  }
+
+  Future<void> _claimAndRegisterDevice({
+    required String deviceId,
+    required String name,
+    required String macAddress,
+  }) async {
+    final userEmail = await _getAuthenticatedUserEmail();
+    await hardwareStateService.registerPairedDevice(
+      deviceId: deviceId,
+      name: name,
+      macAddress: macAddress,
+      userEmail: userEmail,
+    );
+
+    final payload = {
+      'deviceId': deviceId,
+      'id': deviceId,
+      'nodeId': deviceId,
+      'name': name,
+      'macAddress': macAddress,
+      'userEmail': userEmail,
+      'email': userEmail,
+      'userId': userEmail.isNotEmpty ? userEmail : 'user',
+    };
+
+    final headers = <String, dynamic>{
+      if (userEmail.isNotEmpty) 'x-user-email': userEmail,
+    };
+
+    try {
+      await apiClient.post(
+        '/devices/claim',
+        data: payload,
+        options: Options(headers: headers),
+      );
+    } catch (e) {
+      debugPrint('[Provisioning] Claim notice: $e');
+    }
+
+    try {
+      await apiClient.post(
+        '/devices',
+        data: payload,
+        options: Options(headers: headers),
+      );
+    } catch (e) {
+      debugPrint('[Provisioning] Devices notice: $e');
+    }
+
+    await hardwareStateService.fetchUserDevicesFromBackend();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -52,16 +121,12 @@ class _ProvisioningWizardScreenState extends State<ProvisioningWizardScreen>
           _provStep = step;
           if (step == ProvisioningStep.success) {
             _currentStep = 3;
-            if (_selectedDevice != null) {
-              final devId = _selectedDevice!.name.startsWith('PumpController-')
-                  ? _selectedDevice!.name.replaceFirst('PumpController-', 'esp32_pump_')
-                  : (_selectedDevice!.name.isNotEmpty ? _selectedDevice!.name : 'esp32_pump_000001');
-              hardwareStateService.registerPairedDevice(
-                deviceId: devId,
-                name: _selectedDevice!.name.isNotEmpty ? _selectedDevice!.name : 'ESP32 Main Gateway',
-                macAddress: _selectedDevice!.id,
-              );
-            }
+            final devId = _selectedDevice != null && _selectedDevice!.name.startsWith('PumpController-')
+                ? _selectedDevice!.name.replaceFirst('PumpController-', 'esp32_pump_')
+                : (_selectedDevice?.name.isNotEmpty == true ? _selectedDevice!.name : 'esp32_pump_AA69E0');
+            final devName = _selectedDevice?.name.isNotEmpty == true ? _selectedDevice!.name : 'ESP32 Main Gateway';
+            final devMac = _selectedDevice?.id.isNotEmpty == true ? _selectedDevice!.id : 'A0:A3:B3:AA:69:E2';
+            _claimAndRegisterDevice(deviceId: devId, name: devName, macAddress: devMac).ignore();
           }
         });
       }
@@ -131,21 +196,11 @@ class _ProvisioningWizardScreenState extends State<ProvisioningWizardScreen>
       final devName = _selectedDevice!.name.isNotEmpty ? _selectedDevice!.name : 'ESP32 Main Gateway';
       final devMac = _selectedDevice!.id.isNotEmpty ? _selectedDevice!.id : 'A0:A3:B3:AA:69:E2';
 
-      hardwareStateService.registerPairedDevice(
+      await _claimAndRegisterDevice(
         deviceId: devId,
         name: devName,
         macAddress: devMac,
       );
-
-      // 3. Claim device on backend if available
-      try {
-        await apiClient.post('/devices/claim', data: {
-          'deviceId': devId,
-          'name': devName,
-          'macAddress': devMac,
-        });
-        await hardwareStateService.fetchUserDevicesFromBackend();
-      } catch (_) {}
     } catch (e) {
       debugPrint('Provisioning exception: $e');
     }
@@ -433,19 +488,11 @@ class _ProvisioningWizardScreenState extends State<ProvisioningWizardScreen>
                                     icon: const Icon(Icons.flash_on_rounded, size: 16),
                                     label: const Text('Quick-Link This Gateway', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                                     onPressed: () async {
-                                      hardwareStateService.registerPairedDevice(
+                                      await _claimAndRegisterDevice(
                                         deviceId: 'esp32_pump_AA69E0',
                                         name: 'PumpController-AA69E0',
                                         macAddress: 'A0:A3:B3:AA:69:E2',
                                       );
-                                      try {
-                                        await apiClient.post('/devices/claim', data: {
-                                          'deviceId': 'esp32_pump_AA69E0',
-                                          'name': 'PumpController-AA69E0',
-                                          'macAddress': 'A0:A3:B3:AA:69:E2',
-                                        });
-                                      } catch (_) {}
-                                      await hardwareStateService.fetchUserDevicesFromBackend();
                                       if (context.mounted) {
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           const SnackBar(
@@ -774,27 +821,18 @@ class _ProvisioningWizardScreenState extends State<ProvisioningWizardScreen>
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
                 onPressed: () async {
-                  if (hardwareStateService.activeDevice == null) {
-                    final devId = _selectedDevice != null && _selectedDevice!.name.startsWith('PumpController-')
-                        ? _selectedDevice!.name.replaceFirst('PumpController-', 'esp32_pump_')
-                        : (_selectedDevice?.name.isNotEmpty == true ? _selectedDevice!.name : 'esp32_pump_AA69E0');
-                    final devName = _selectedDevice?.name.isNotEmpty == true ? _selectedDevice!.name : 'ESP32 Main Gateway';
-                    final devMac = _selectedDevice?.id.isNotEmpty == true ? _selectedDevice!.id : 'A0:A3:B3:AA:69:E2';
+                  final devId = _selectedDevice != null && _selectedDevice!.name.startsWith('PumpController-')
+                      ? _selectedDevice!.name.replaceFirst('PumpController-', 'esp32_pump_')
+                      : (_selectedDevice?.name.isNotEmpty == true ? _selectedDevice!.name : 'esp32_pump_AA69E0');
+                  final devName = _selectedDevice?.name.isNotEmpty == true ? _selectedDevice!.name : 'ESP32 Main Gateway';
+                  final devMac = _selectedDevice?.id.isNotEmpty == true ? _selectedDevice!.id : 'A0:A3:B3:AA:69:E2';
 
-                    hardwareStateService.registerPairedDevice(
-                      deviceId: devId,
-                      name: devName,
-                      macAddress: devMac,
-                    );
-                    try {
-                      await apiClient.post('/devices/claim', data: {
-                        'deviceId': devId,
-                        'name': devName,
-                        'macAddress': devMac,
-                      });
-                    } catch (_) {}
-                  }
-                  await hardwareStateService.fetchUserDevicesFromBackend();
+                  await _claimAndRegisterDevice(
+                    deviceId: devId,
+                    name: devName,
+                    macAddress: devMac,
+                  );
+
                   if (mounted) {
                     context.go('/dashboard');
                   }
@@ -944,21 +982,11 @@ class _ProvisioningWizardScreenState extends State<ProvisioningWizardScreen>
                       final devId = idCtrl.text.trim().isNotEmpty ? idCtrl.text.trim() : 'esp32_pump_AA69E0';
                       final mac = macCtrl.text.trim().isNotEmpty ? macCtrl.text.trim() : 'A0:A3:B3:AA:69:E2';
 
-                      hardwareStateService.registerPairedDevice(
+                      await _claimAndRegisterDevice(
                         deviceId: devId,
                         name: name,
                         macAddress: mac,
                       );
-
-                      try {
-                        await apiClient.post('/devices/claim', data: {
-                          'deviceId': devId,
-                          'name': name,
-                          'macAddress': mac,
-                        });
-                      } catch (_) {}
-
-                      await hardwareStateService.fetchUserDevicesFromBackend();
 
                       if (mounted && ctx.mounted) {
                         Navigator.of(ctx).pop();

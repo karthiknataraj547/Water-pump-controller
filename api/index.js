@@ -237,6 +237,8 @@ function getMqttClient() {
         'pump/+/heartbeat',
         'pump/availability',
         'pump/+/availability',
+        'hydropulse/devices/#',
+        'devices/sync/#',
         DB_SYNC_TOPIC
       ]);
     });
@@ -244,6 +246,33 @@ function getMqttClient() {
     mqttClient.on('message', (topic, message) => {
       try {
         const msgStr = message.toString().trim();
+
+        // 0. User Device Sync Ingestion from MQTT (Retained across instances)
+        if (topic.startsWith('hydropulse/devices/') || topic.startsWith('devices/sync/')) {
+          try {
+            const devData = JSON.parse(msgStr);
+            if (devData && (devData.id || devData.deviceId)) {
+              const devId = devData.deviceId || devData.id || devData.nodeId;
+              const pathEmail = topic.split('/')[2] || '';
+              const devEmail = (devData.userEmail || devData.email || pathEmail || '').trim().toLowerCase();
+              if (devEmail) devData.userEmail = devEmail;
+              const devKey = devEmail ? `${devEmail}_${devId}` : devId;
+              devicesDb.set(devKey, {
+                ...devData,
+                id: devId,
+                deviceId: devId,
+                nodeId: devId,
+                userEmail: devEmail,
+                isOnline: true,
+                status: 'ONLINE',
+                lastHeartbeat: Date.now()
+              });
+              saveState(false);
+              console.log(`[API MQTT] Ingested cloud device sync for ${devEmail}: ${devId}`);
+            }
+          } catch (_) {}
+          return;
+        }
 
         // 0. Database Cloud State Synchronization (Retained)
         if (topic === DB_SYNC_TOPIC) {
@@ -1090,8 +1119,8 @@ module.exports = async (req, res) => {
       });
     }
 
-    const userDevices = Array.from(devicesDb.values()).filter(d => {
-      const dEmail = (d.userEmail || '').trim().toLowerCase();
+    const matchedDevices = Array.from(devicesDb.values()).filter(d => {
+      const dEmail = (d.userEmail || d.email || '').trim().toLowerCase();
       const dUser = (d.userId || '').trim();
 
       // Check explicit match on userEmail
@@ -1105,7 +1134,18 @@ module.exports = async (req, res) => {
       }
 
       return false;
-    }).map(d => {
+    });
+
+    // Deduplicate by unique device ID
+    const seenMap = new Map();
+    for (const d of matchedDevices) {
+      const devId = d.id || d.deviceId || d.nodeId;
+      if (devId && !seenMap.has(devId)) {
+        seenMap.set(devId, d);
+      }
+    }
+
+    const userDevices = Array.from(seenMap.values()).map(d => {
       const isOnline = verifyHardwareOnline(d);
       return {
         ...d,
@@ -1132,13 +1172,13 @@ module.exports = async (req, res) => {
   }
 
   // 7b. Register / Pair / Claim New Device (Strict Multi-Tenant Database Storage)
-  if (method === 'POST' && !url.includes('/pump') && !url.includes('/command') && (url.includes('/devices/claim') || url.includes('/devices/pair') || url === '/devices' || url.startsWith('/devices?') || url === '/api/v1/devices' || url.startsWith('/api/v1/devices?'))) {
+  if (method === 'POST' && !url.includes('/pump') && !url.includes('/command') && !url.includes('/unpair') && (url.includes('/devices/claim') || url.includes('/devices/pair') || url.includes('/devices'))) {
     const authHeader = req.headers['authorization'] || '';
     const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
     const payload = verifyToken(token);
 
-    const targetEmail = (payload?.email || body.userEmail || body.email || req.headers['x-user-email'] || '').trim().toLowerCase();
-    const targetUserId = (payload?.userId || body.userId || targetEmail || '').trim();
+    const targetEmail = (payload?.email || body.userEmail || body.email || req.headers['x-user-email'] || query.email || '').trim().toLowerCase();
+    const targetUserId = (payload?.userId || body.userId || query.userId || targetEmail || '').trim();
 
     if (!targetEmail && !targetUserId) {
       return res.status(400).json({
@@ -1154,21 +1194,34 @@ module.exports = async (req, res) => {
       deviceId: devId,
       nodeId: devId,
       name: body.name || 'HydroPulse Gateway',
-      macAddress: body.macAddress || body.mac || '24:6F:28:B2:A4:10',
-      userId: targetUserId,
+      macAddress: body.macAddress || body.mac || 'A0:A3:B3:AA:69:E2',
+      userId: targetUserId || targetEmail,
       userEmail: targetEmail,
       isOnline: true,
       status: 'ONLINE',
       lastHeartbeat: nowMs,
-      pumpRunning: liveState.pumpRunning,
-      mode: liveState.mode,
-      waterLevelPct: liveState.waterLevelPct,
+      pumpRunning: body.pumpRunning !== undefined ? body.pumpRunning : liveState.pumpRunning,
+      mode: body.mode || liveState.mode || 'AUTO',
+      waterLevelPct: body.waterLevelPct !== undefined ? body.waterLevelPct : liveState.waterLevelPct,
       pairedAt: new Date().toISOString(),
       lastSeen: new Date().toISOString()
     };
     const storageKey = targetEmail ? `${targetEmail}_${devId}` : devId;
     devicesDb.set(storageKey, newDevice);
+    if (targetEmail) {
+      devicesDb.set(devId, newDevice);
+    }
     saveState();
+
+    // Broadcast device synchronization via retained MQTT so all clients receive it immediately
+    try {
+      const client = getMqttClient();
+      if (client && targetEmail) {
+        const syncMsg = JSON.stringify(newDevice);
+        client.publish(`hydropulse/devices/${targetEmail}`, syncMsg, { retain: true, qos: 1 });
+        client.publish(`devices/sync/${targetEmail}`, syncMsg, { retain: true, qos: 1 });
+      }
+    } catch (_) {}
 
     return res.status(201).json({
       status: 'success',

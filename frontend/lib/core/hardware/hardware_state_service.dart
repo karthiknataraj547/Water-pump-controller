@@ -182,31 +182,46 @@ class HardwareStateService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> clearDeviceForNewLogin() async {
+  Future<void> clearDeviceForNewLogin({String? newLoginEmail}) async {
     _isExplicitlyRemoved = false;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('hardware_explicitly_removed');
-    await prefs.remove('saved_paired_device');
-    await prefs.remove('saved_paired_device_owner_email');
-    await prefs.remove('saved_last_pump_state');
-    await prefs.remove('saved_last_mode');
-    await prefs.remove('last_heartbeat_ms');
-    const storage = FlutterSecureStorage();
-    await storage.delete(key: AppConstants.keySelectedDeviceId);
-    _activeDevice = null;
-    _sensorData = null;
-    _pumpStatus = null;
-    _lastMainNodeHeartbeat = null;
-    _lastSubNodePacket = null;
-    notifyListeners();
+
+    final cleanNewEmail = (newLoginEmail ?? '').trim().toLowerCase();
+    final savedOwner = (prefs.getString('saved_paired_device_owner_email') ?? '').trim().toLowerCase();
+
+    // Only wipe device state if logging into a genuinely DIFFERENT user account
+    if (cleanNewEmail.isNotEmpty && savedOwner.isNotEmpty && cleanNewEmail != savedOwner) {
+      debugPrint('[HardwareStateService] Switched accounts ($savedOwner -> $cleanNewEmail), clearing previous device.');
+      await prefs.remove('saved_paired_device');
+      await prefs.remove('saved_paired_device_owner_email');
+      await prefs.remove('saved_last_pump_state');
+      await prefs.remove('saved_last_mode');
+      await prefs.remove('last_heartbeat_ms');
+      const storage = FlutterSecureStorage();
+      await storage.delete(key: AppConstants.keySelectedDeviceId);
+      _activeDevice = null;
+      _sensorData = null;
+      _pumpStatus = null;
+      _lastMainNodeHeartbeat = null;
+      _lastSubNodePacket = null;
+      notifyListeners();
+    } else if (cleanNewEmail.isNotEmpty) {
+      await prefs.setString('saved_paired_device_owner_email', cleanNewEmail);
+    }
   }
 
   Future<void> syncDeviceToBackend(DeviceModel device) async {
     try {
       const storage = FlutterSecureStorage();
-      final email = await storage.read(key: AppConstants.keyUserEmail);
+      final prefs = await SharedPreferences.getInstance();
+      var cleanEmail = (await storage.read(key: AppConstants.keyUserEmail))?.trim().toLowerCase() ?? '';
+      if (cleanEmail.isEmpty) {
+        cleanEmail = (prefs.getString(AppConstants.keyUserEmail) ??
+            prefs.getString('saved_paired_device_owner_email') ??
+            '').trim().toLowerCase();
+      }
       final token = await storage.read(key: AppConstants.keyAccessToken);
-      final cleanEmail = email?.trim().toLowerCase() ?? '';
 
       final payload = {
         'deviceId': device.id,
@@ -215,6 +230,7 @@ class HardwareStateService extends ChangeNotifier {
         'name': device.name,
         'macAddress': device.macAddress,
         'userEmail': cleanEmail,
+        'email': cleanEmail,
         'userId': cleanEmail.isNotEmpty ? cleanEmail : 'user',
         'status': device.status,
         'pumpState': device.pumpState,
@@ -237,26 +253,34 @@ class HardwareStateService extends ChangeNotifier {
         debugPrint('[HardwareStateService] MQTT retained sync notice: $mqttErr');
       }
 
-      // 2. HTTP POST to backend database
+      // 2. HTTP POST to backend database (Call /devices/claim first, then /devices)
       final headers = <String, dynamic>{
         if (cleanEmail.isNotEmpty) 'x-user-email': cleanEmail,
         if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
       };
 
-      await apiClient.post(
-        '/devices',
-        data: payload,
-        options: Options(headers: headers),
-      );
+      try {
+        await apiClient.post(
+          '/devices/claim',
+          data: payload,
+          options: Options(headers: headers),
+        );
+      } catch (claimErr) {
+        debugPrint('[HardwareStateService] claim notice: $claimErr');
+      }
 
-      // Call /devices/claim as well for compatibility
-      await apiClient.post(
-        '/devices/claim',
-        data: payload,
-        options: Options(headers: headers),
-      );
+      try {
+        await apiClient.post(
+          '/devices',
+          data: payload,
+          options: Options(headers: headers),
+        );
+      } catch (devErr) {
+        debugPrint('[HardwareStateService] devices notice: $devErr');
+      }
 
       await storage.write(key: AppConstants.keySelectedDeviceId, value: device.id);
+      await prefs.setString('saved_selected_device_id', device.id);
       debugPrint('[HardwareStateService] Synchronized device ${device.id} to cloud backend database for $cleanEmail');
     } catch (e) {
       debugPrint('[HardwareStateService] syncDeviceToBackend notice: $e');
@@ -266,15 +290,37 @@ class HardwareStateService extends ChangeNotifier {
   Future<void> fetchUserDevicesFromBackend() async {
     try {
       const storage = FlutterSecureStorage();
-      final email = await storage.read(key: AppConstants.keyUserEmail);
+      final prefs = await SharedPreferences.getInstance();
+      var cleanEmail = (await storage.read(key: AppConstants.keyUserEmail))?.trim().toLowerCase() ?? '';
+      if (cleanEmail.isEmpty) {
+        cleanEmail = (prefs.getString(AppConstants.keyUserEmail) ??
+            prefs.getString('saved_paired_device_owner_email') ??
+            '').trim().toLowerCase();
+      }
       final token = await storage.read(key: AppConstants.keyAccessToken);
-      final cleanEmail = email?.trim().toLowerCase() ?? '';
 
-      if (_isExplicitlyRemoved || cleanEmail.isEmpty) {
+      if (_isExplicitlyRemoved) {
         _activeDevice = null;
         _sensorData = null;
         _pumpStatus = null;
         notifyListeners();
+        return;
+      }
+
+      if (cleanEmail.isEmpty) {
+        // Fallback: If no email found but we already have an active or cached device, retain it
+        if (_activeDevice != null) return;
+        final savedDevStr = prefs.getString('saved_paired_device');
+        if (savedDevStr != null && savedDevStr.isNotEmpty) {
+          try {
+            final devMap = jsonDecode(savedDevStr);
+            if (devMap is Map<String, dynamic>) {
+              _activeDevice = DeviceModel.fromJson(devMap);
+              notifyListeners();
+              return;
+            }
+          } catch (_) {}
+        }
         return;
       }
 
@@ -305,16 +351,16 @@ class HardwareStateService extends ChangeNotifier {
 
           if (userOwned.isEmpty) {
             debugPrint('[HardwareStateService] Cloud returned 0 matching devices for $cleanEmail.');
-            
+
             // 1. If the user already has an active paired device in memory and hasn't explicitly removed it, preserve and re-sync
             if (!_isExplicitlyRemoved && _activeDevice != null && _activeDevice!.id.isNotEmpty) {
               debugPrint('[HardwareStateService] Retaining locally active device ${_activeDevice!.id} and re-syncing to cloud.');
               syncDeviceToBackend(_activeDevice!).ignore();
+              notifyListeners();
               return;
             }
 
             // 2. Check SharedPreferences if we have a saved paired device for this user
-            final prefs = await SharedPreferences.getInstance();
             final savedDevStr = prefs.getString('saved_paired_device');
             final savedOwner = prefs.getString('saved_paired_device_owner_email')?.trim().toLowerCase() ?? '';
             if (!_isExplicitlyRemoved && savedDevStr != null && (savedOwner.isEmpty || savedOwner == cleanEmail)) {
@@ -1459,18 +1505,26 @@ class HardwareStateService extends ChangeNotifier {
     } catch (_) {}
   }
 
-  void registerPairedDevice({
+  Future<void> registerPairedDevice({
     required String deviceId,
     required String name,
     required String macAddress,
     String? ipAddress,
-  }) {
+    String? userEmail,
+  }) async {
     _isExplicitlyRemoved = false;
     final now = DateTime.now();
-    SharedPreferences.getInstance().then((p) {
-      p.remove('hardware_explicitly_removed');
-      p.setInt('last_heartbeat_ms', now.millisecondsSinceEpoch);
-    });
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('hardware_explicitly_removed');
+    await prefs.setInt('last_heartbeat_ms', now.millisecondsSinceEpoch);
+
+    const storage = FlutterSecureStorage();
+    String ownerEmail = (userEmail ?? '').trim().toLowerCase();
+    if (ownerEmail.isEmpty) {
+      ownerEmail = (await storage.read(key: AppConstants.keyUserEmail))?.trim().toLowerCase() ??
+          prefs.getString(AppConstants.keyUserEmail)?.trim().toLowerCase() ??
+          prefs.getString('saved_paired_device_owner_email')?.trim().toLowerCase() ?? '';
+    }
 
     _lastMainNodeHeartbeat = now;
     _lastCloudVerifiedOnline = now;
@@ -1487,8 +1541,16 @@ class HardwareStateService extends ChangeNotifier {
       lastSeen: now,
     );
 
-    _persistActiveDevice();
-    syncDeviceToBackend(_activeDevice!);
+    await prefs.setString('saved_paired_device', jsonEncode(_activeDevice!.toJson()));
+    if (ownerEmail.isNotEmpty) {
+      await prefs.setString('saved_paired_device_owner_email', ownerEmail);
+      await prefs.setString(AppConstants.keyUserEmail, ownerEmail);
+    }
+    await storage.write(key: AppConstants.keySelectedDeviceId, value: deviceId);
+    await prefs.setString('saved_selected_device_id', deviceId);
+
+    notifyListeners();
+    await syncDeviceToBackend(_activeDevice!);
     notifyListeners();
   }
 

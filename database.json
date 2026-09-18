@@ -240,6 +240,56 @@
       "lastName": "User",
       "role": "USER",
       "createdAt": "2026-09-18T17:11:23.991Z"
+    },
+    {
+      "id": "usr_1789759362105_522",
+      "email": "test_wizard_1789759361981@hydropulse.io",
+      "passwordHash": "e9ce0bddd4fc6de83d0b68ae5fefb7efd334cb2d2e2a4c34079faf35d80fe754a5ee702b544f7644cd94ee858f19dae98ecd9784400f2f5089210c65ac2acf8f",
+      "salt": "7056155995a6ef1aac045ab94ae5e933",
+      "firstName": "Wizard",
+      "lastName": "Tester",
+      "role": "USER",
+      "createdAt": "2026-09-18T19:22:42.105Z"
+    },
+    {
+      "id": "usr_1789759393294_896",
+      "email": "fresh_user_1789759393282@hydropulse.io",
+      "passwordHash": "ccc03c6e4106f6b6db516c0e738763e80db5aa80642e6e0780a08f6abe2fd5a6456aadab4f53e6eca03785b5f2a3e52ff2527e15e5868460d34b5ef63ba85236",
+      "salt": "8b1ca2f895612f722289cc7082b359c1",
+      "firstName": "Fresh",
+      "lastName": "User",
+      "role": "USER",
+      "createdAt": "2026-09-18T19:23:13.294Z"
+    },
+    {
+      "id": "usr_1789757423234_270",
+      "email": "ammu@gmail.com",
+      "passwordHash": "9f0a30e307a9813b8361036edecfd6d640fba2b4ed099b4d541d64051a834f94d1e65aeb900432a7984714ba6acbe8278797caf4da8b19e2f2e3edb126aafd89",
+      "salt": "68ef4980999b8f9e3fee28c211a02f63",
+      "firstName": "Divi",
+      "lastName": "Ammu",
+      "role": "USER",
+      "createdAt": "2026-09-18T18:50:23.234Z"
+    },
+    {
+      "id": "usr_1789758863905_854",
+      "email": "test_user_1789758863533@hydropulse.io",
+      "passwordHash": "aefbee0fee12c27580d66918889f0ab991cef98763d0201d2d819c16cee4c39094792eb4d388159cc416e7b7ce61a820a33ba73f08e38420fbae441646090a05",
+      "salt": "756a4d753b5389f2ace43c8bbda77819",
+      "firstName": "Test",
+      "lastName": "User",
+      "role": "USER",
+      "createdAt": "2026-09-18T19:14:23.905Z"
+    },
+    {
+      "id": "usr_1789759456837_755",
+      "email": "wizard_user_1789759456766@hydropulse.io",
+      "passwordHash": "d4093405651c0ca210a278d98f57e6be00d73404ebb29ef72cd6bcbeb95661780473db8b7f8fa17cc81480440f7856ebf2b6b9e6cfb6e30e8f52a2d331f90f7d",
+      "salt": "8604df36aa6080579f582553e388eca7",
+      "firstName": "Wizard",
+      "lastName": "Pair",
+      "role": "USER",
+      "createdAt": "2026-09-18T19:24:16.837Z"
     }
   ],
   "devices": [
@@ -249,16 +299,36 @@
       "nodeId": "esp32_pump_94B97E",
       "name": "Agricultural Borewell Pump",
       "macAddress": "24:6F:28:94:B9:7E",
-      "userId": "usr_1789672074740_906",
       "userEmail": "testuser@example.com",
-      "isOnline": false,
-      "status": "OFFLINE",
-      "lastHeartbeat": 0,
-      "pumpRunning": true,
-      "mode": "MANUAL",
-      "waterLevelPct": 72,
-      "pairedAt": "2026-09-17T19:10:55.555Z",
-      "lastSeen": "2026-09-18T06:34:12.208Z"
+      "userId": "testuser@example.com",
+      "isOnline": true,
+      "status": "ONLINE",
+      "pumpState": "OFF",
+      "mode": "AUTO",
+      "firmwareVersion": "v2.1.8",
+      "wifiRssi": -58,
+      "lastHeartbeat": 1789759394564
+    },
+    {
+      "deviceId": "esp32_pump_AA69E0",
+      "id": "esp32_pump_AA69E0",
+      "nodeId": "esp32_pump_AA69E0",
+      "name": "PumpController-AA69E0",
+      "macAddress": "A0:A3:B3:AA:69:E2",
+      "userEmail": "karthiknataraj547@gmail.com",
+      "userId": "karthiknataraj547@gmail.com",
+      "status": "ONLINE",
+      "pumpState": "OFF",
+      "mode": "AUTO",
+      "wifiRssi": -65,
+      "firmwareVersion": "2.2.7",
+      "pairedAt": "2026-09-18T22:13:30.734431",
+      "timestamp": 1789749810734,
+      "isOnline": true,
+      "lastHeartbeat": 1789759394572,
+      "lastSeen": "2026-09-18T19:23:14.572Z",
+      "pumpRunning": false,
+      "waterLevelPct": 72
     },
     {
       "id": "esp32_pump_AA69E0",
@@ -266,16 +336,50 @@
       "nodeId": "esp32_pump_AA69E0",
       "name": "PumpController-AA69E0",
       "macAddress": "A0:A3:B3:AA:69:E2",
-      "userId": "usr_1789583210126_231",
-      "userEmail": "karthiknataraj547@gmail.com",
+      "userId": "usr_1789759362105_522",
+      "userEmail": "test_wizard_1789759361981@hydropulse.io",
       "isOnline": true,
       "status": "ONLINE",
-      "lastHeartbeat": 1789752446969,
+      "lastHeartbeat": 1789759394572,
+      "pumpRunning": false,
+      "mode": "AUTO",
+      "waterLevelPct": 72,
+      "pairedAt": "2026-09-18T19:22:42.138Z",
+      "lastSeen": "2026-09-18T19:23:14.572Z"
+    },
+    {
+      "id": "esp32_pump_AA69E0",
+      "deviceId": "esp32_pump_AA69E0",
+      "nodeId": "esp32_pump_AA69E0",
+      "name": "PumpController-AA69E0",
+      "macAddress": "A0:A3:B3:AA:69:E2",
+      "userId": "usr_1789759456837_755",
+      "userEmail": "wizard_user_1789759456766@hydropulse.io",
+      "isOnline": true,
+      "status": "ONLINE",
+      "lastHeartbeat": 1789759456887,
+      "pumpRunning": false,
+      "mode": "AUTO",
+      "waterLevelPct": 72,
+      "pairedAt": "2026-09-18T19:24:16.887Z",
+      "lastSeen": "2026-09-18T19:24:16.887Z"
+    },
+    {
+      "id": "esp32_pump_TEST_FRESH",
+      "deviceId": "esp32_pump_TEST_FRESH",
+      "nodeId": "esp32_pump_TEST_FRESH",
+      "name": "PumpController-Fresh",
+      "macAddress": "A0:A3:B3:AA:88:88",
+      "userId": "usr_1789758863905_854",
+      "userEmail": "test_user_1789758863533@hydropulse.io",
+      "isOnline": false,
+      "status": "OFFLINE",
+      "lastHeartbeat": 0,
       "pumpRunning": false,
       "mode": "STANDBY",
-      "waterLevelPct": 72,
-      "pairedAt": "2026-09-18T16:03:37.868Z",
-      "lastSeen": "2026-09-18T17:27:26.969Z"
+      "waterLevelPct": -1,
+      "pairedAt": "2026-09-18T19:14:24.315Z",
+      "lastSeen": "2026-09-18T19:14:24.315Z"
     }
   ],
   "liveState": {
@@ -288,10 +392,10 @@
     "powerKw": 0,
     "tdsPpm": 142,
     "tempC": 24.2,
-    "lastHeartbeat": 1789751488883,
-    "lastSeen": 1789751488883,
-    "_wasOnline": false,
-    "isOnline": false
+    "lastHeartbeat": 1789759394572,
+    "lastSeen": 1789759394572,
+    "_wasOnline": true,
+    "isOnline": true
   },
   "telemetryHistory": [
     {
@@ -375,5 +479,5 @@
       "pumpRunning": false
     }
   ],
-  "timestamp": 1789752447079
+  "timestamp": 1789759456887
 }

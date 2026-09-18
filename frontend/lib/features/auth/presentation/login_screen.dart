@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/network/api_client.dart';
@@ -117,12 +118,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         final finalRefresh = tokens?['refreshToken'] ?? 'hp_refresh_${DateTime.now().millisecondsSinceEpoch}';
 
         const storage = FlutterSecureStorage();
+        final prefs = await SharedPreferences.getInstance();
         await storage.write(key: AppConstants.keyUserEmail, value: email);
         await storage.write(key: AppConstants.keyUserName, value: fullName);
         await storage.write(key: AppConstants.keyAccessToken, value: finalToken);
         await storage.write(key: AppConstants.keyRefreshToken, value: finalRefresh);
+        await prefs.setString(AppConstants.keyUserEmail, email);
+        await prefs.setString(AppConstants.keyUserName, fullName);
 
-        await hardwareStateService.clearDeviceForNewLogin();
+        await hardwareStateService.clearDeviceForNewLogin(newLoginEmail: email);
         await hardwareStateService.fetchUserDevicesFromBackend();
 
         authStateNotifier.value = finalToken;
@@ -204,12 +208,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         final finalRefresh = tokens?['refreshToken'] ?? 'jwt_refresh_${DateTime.now().millisecondsSinceEpoch}';
 
         const storage = FlutterSecureStorage();
+        final prefs = await SharedPreferences.getInstance();
         await storage.write(key: AppConstants.keyUserEmail, value: email);
         await storage.write(key: AppConstants.keyUserName, value: resolvedName);
         await storage.write(key: AppConstants.keyAccessToken, value: finalToken);
         await storage.write(key: AppConstants.keyRefreshToken, value: finalRefresh);
+        await prefs.setString(AppConstants.keyUserEmail, email);
+        await prefs.setString(AppConstants.keyUserName, resolvedName);
 
-        await hardwareStateService.clearDeviceForNewLogin();
+        await hardwareStateService.clearDeviceForNewLogin(newLoginEmail: email);
         await hardwareStateService.fetchUserDevicesFromBackend();
 
         authStateNotifier.value = finalToken;
@@ -378,12 +385,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           final finalRefresh = tokens?['refreshToken'] ?? 'jwt_refresh_${DateTime.now().millisecondsSinceEpoch}';
 
           const storage = FlutterSecureStorage();
+          final prefs = await SharedPreferences.getInstance();
           await storage.write(key: AppConstants.keyUserEmail, value: email);
           await storage.write(key: AppConstants.keyUserName, value: name);
           await storage.write(key: AppConstants.keyAccessToken, value: finalToken);
           await storage.write(key: AppConstants.keyRefreshToken, value: finalRefresh);
+          await prefs.setString(AppConstants.keyUserEmail, email);
+          await prefs.setString(AppConstants.keyUserName, name);
 
-          await hardwareStateService.clearDeviceForNewLogin();
+          await hardwareStateService.clearDeviceForNewLogin(newLoginEmail: email);
           await hardwareStateService.fetchUserDevicesFromBackend();
 
           authStateNotifier.value = finalToken;
