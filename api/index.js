@@ -748,26 +748,26 @@ module.exports = async (req, res) => {
 
     if (!manifest) {
       manifest = {
-        version: '2.2.6',
-        build_number: 30,
+        version: '2.2.7',
+        build_number: 31,
         release_date: '2026-09-18',
         min_supported_version: '1.0.0',
-        download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.6_build30.apk',
+        download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.7_build31.apk',
         website_url: 'https://water-pump-controller.vercel.app',
-        sha256: '4ce9752d24bb29196b83c4a2f5d1c8e27460139ec2cd3f763fad18b74531b877',
-        title: 'HydroPulse v2.2.6 - Classified Downward Settings, Live In-App OTA & Real-Time Sync',
+        sha256: '40e123f62846fa95b8c427677840b46e196faa8d846c282e1ce9196ca94cca6d',
+        title: 'HydroPulse v2.2.7 - Complete Industrial UI Redesign & Precision Telemetry Deck',
         changelog: [
-          'Redesigned Settings Screen: Classified downward-expanding sub-tabs (Account & Security, OTA Updates, Hardware & BLE, MQTT Broker, Smart Alerts, System) with category pill filters.',
-          'Live In-App OTA Update Engine: Guaranteed instant detection across older and current app versions with direct one-tap install.',
-          'Prominent Multi-Channel Update Alerts: Added global update announcement banners, interactive changelog modal, and status indicators across web and app.',
-          'Unpaired State System Settings: Full access to Account Profile, App Update Engine, and App Information even before adding/pairing hardware.',
-          'Top-Bar Settings & Config: Direct quick-navigation to Settings from any dashboard or unpaired screen.',
-          'Dynamic Installed Version: Automatic reflection of true platform version across all OTA and settings views.',
-          'Strict Cloud Server API: Locked mobile app and web console directly to production cloud API; removed all localhost endpoint fallbacks.'
+          'Complete Industrial UI Overhaul: Replaced cartoonish canvas animations and glowing neon effects with an engineering-grade Linear and Tesla Energy-inspired aesthetic.',
+          'Obsidian Deep Slate Theme: Introduced true obsidian deep slate (#090D14) with 0.8px technical micro-borders and crisp semantic status accents.',
+          'Precision Architectural Reservoir: Calibrated cross-section fluid visualizer with 0-5000L volumetric markings, auto-stop (95%) and auto-start (25%) limits, and calm fluid meniscus.',
+          'Monospace Telemetry Matrix: Monospace tabular numbers, tracked technical overlines, and heavy-duty industrial pump actuator toggle.',
+          'Network Signal Flow Topology: Replaced toy particle sphere with an industrial signal schematic (Broker -> ESP32 Master Gateway -> ESP8266 Tank Node) with live Wi-Fi RSSI meter.',
+          'Apple/Linear Enterprise Auth: Calm tactile authentication card with sliding segmented tabs, TLS encryption status, and instant demo access.',
+          'Vector Icon System: Upgraded all settings category pills and bottom navigation to crisp Material vector icons.'
         ],
         is_critical: false,
         updatedAt: new Date().toISOString(),
-        file_size: 58574412
+        file_size: 58394268
       };
     }
 
