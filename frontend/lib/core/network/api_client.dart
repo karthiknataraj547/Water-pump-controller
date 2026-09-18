@@ -73,6 +73,15 @@ class ApiClient {
               }
             }
           }
+
+          // Handle 429 Rate Limit response
+          if (error.response?.statusCode == 429) {
+            final retryAfter = error.response?.headers.value('retry-after') ?? '30';
+            error = error.copyWith(
+              message: 'Rate limit exceeded. Please wait $retryAfter seconds before retrying.',
+            );
+          }
+
           return handler.next(error);
         },
       ),

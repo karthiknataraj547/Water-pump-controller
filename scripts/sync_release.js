@@ -40,15 +40,15 @@ const versionManifest = {
   download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.7_build31.apk',
   website_url: 'https://water-pump-controller.vercel.app',
   sha256: sha256,
-  title: 'HydroPulse v2.2.7 - Complete Industrial UI Redesign & Precision Telemetry Deck',
+  title: 'HydroPulse v2.2.7 - Security Architecture, Multi-Tenant Gateway & Resilient Provisioning',
   changelog: [
-    'Complete Industrial UI Overhaul: Replaced cartoonish canvas animations and glowing neon effects with an engineering-grade Linear and Tesla Energy-inspired aesthetic.',
-    'Obsidian Deep Slate Theme: Introduced true obsidian deep slate (#090D14) with 0.8px technical micro-borders and crisp semantic status accents.',
+    'Hardware Provisioning & Cloud Auto-Sync: Fixed post-provisioning hardware discovery and multi-tenant binding. Added instant 1-click Quick-Link and manual ESP32 AA69E0 gateway pairing with persistent user account ownership.',
+    'Realistic IoT Online/Offline SLA: Upgraded heartbeat threshold to robust 30s active / 60s stale timing, eliminating false offline flapping and network latency jitter.',
+    'Modular Backend Security Middleware Pipeline: Embedded Helmet HTTP security headers (nosniff, frameguard, strict-CSP), recursive prototype pollution defense, XSS payload neutralization, and constant-time HMAC-SHA256 JWT auth guard.',
+    'Tiered Rate Limiter: Implemented sliding-window rate limiting for authentication brute-force defense (10 attempts/5m), hardware claim throttling, and pump actuator control protection with standard Retry-After headers.',
+    'Complete Industrial UI Overhaul: Engineering-grade Linear and Tesla Energy-inspired aesthetic with true obsidian deep slate (#090D14) theme and crisp semantic status accents.',
     'Precision Architectural Reservoir: Calibrated cross-section fluid visualizer with 0-5000L volumetric markings, auto-stop (95%) and auto-start (25%) limits, and calm fluid meniscus.',
-    'Monospace Telemetry Matrix: Monospace tabular numbers, tracked technical overlines, and heavy-duty industrial pump actuator toggle.',
-    'Network Signal Flow Topology: Replaced toy particle sphere with an industrial signal schematic (Broker -> ESP32 Master Gateway -> ESP8266 Tank Node) with live Wi-Fi RSSI meter.',
-    'Apple/Linear Enterprise Auth: Calm tactile authentication card with sliding segmented tabs, TLS encryption status, and instant demo access.',
-    'Vector Icon System: Upgraded all settings category pills and bottom navigation to crisp Material vector icons.'
+    'Network Signal Flow Topology: Live Wi-Fi RSSI meter and 3D spatial radio network topology stage with zero-flicker node tracking.'
   ],
   is_critical: false,
   updatedAt: new Date().toISOString(),

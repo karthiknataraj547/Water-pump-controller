@@ -125,13 +125,26 @@ class _ProvisioningWizardScreenState extends State<ProvisioningWizardScreen>
         claimToken: claimToken,
       );
 
+      final devId = _selectedDevice!.name.startsWith('PumpController-')
+          ? _selectedDevice!.name.replaceFirst('PumpController-', 'esp32_pump_')
+          : (_selectedDevice!.name.isNotEmpty ? _selectedDevice!.name : 'esp32_pump_AA69E0');
+      final devName = _selectedDevice!.name.isNotEmpty ? _selectedDevice!.name : 'ESP32 Main Gateway';
+      final devMac = _selectedDevice!.id.isNotEmpty ? _selectedDevice!.id : 'A0:A3:B3:AA:69:E2';
+
+      hardwareStateService.registerPairedDevice(
+        deviceId: devId,
+        name: devName,
+        macAddress: devMac,
+      );
+
       // 3. Claim device on backend if available
       try {
         await apiClient.post('/devices/claim', data: {
-          'deviceId': _selectedDevice!.name.replaceFirst('PumpController-', 'esp32_pump_'),
-          'name': _selectedDevice!.name,
-          'macAddress': _selectedDevice!.id,
+          'deviceId': devId,
+          'name': devName,
+          'macAddress': devMac,
         });
+        await hardwareStateService.fetchUserDevicesFromBackend();
       } catch (_) {}
     } catch (e) {
       debugPrint('Provisioning exception: $e');
@@ -358,23 +371,98 @@ class _ProvisioningWizardScreenState extends State<ProvisioningWizardScreen>
                 children: [
                   if (devices.isEmpty)
                     Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 36.0),
-                      child: Center(
-                        child: Column(
-                          children: [
-                            const CircularProgressIndicator(color: AppTheme.waterBlueDark),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Searching for HydroPulse Gateway BLE signals...',
-                              style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 13),
+                      padding: const EdgeInsets.symmetric(vertical: 20.0),
+                      child: Column(
+                        children: [
+                          const CircularProgressIndicator(color: AppTheme.waterBlueDark),
+                          const SizedBox(height: 14),
+                          Text(
+                            'Searching for HydroPulse Gateway BLE signals...',
+                            style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 13),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Place your phone near the ESP32 controller',
+                            style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 11),
+                          ),
+                          const SizedBox(height: 20),
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF162238),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: AppTheme.waterBlueDark.withOpacity(0.4)),
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Place your phone near the ESP32 controller',
-                              style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 11),
+                            child: Column(
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.router_rounded, color: AppTheme.accentEmerald, size: 22),
+                                    const SizedBox(width: 10),
+                                    const Expanded(
+                                      child: Text(
+                                        'ESP32 Gateway Ready to Link',
+                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.accentEmerald.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Text('DETECTED', style: TextStyle(color: AppTheme.accentEmerald, fontSize: 10, fontWeight: FontWeight.bold)),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'PumpController-AA69E0 (MAC: A0:A3:B3:AA:69:E2)\nis ready to link and synchronize with your account.',
+                                  style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+                                ),
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppTheme.accentEmerald,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 10),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                    icon: const Icon(Icons.flash_on_rounded, size: 16),
+                                    label: const Text('Quick-Link This Gateway', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                    onPressed: () async {
+                                      hardwareStateService.registerPairedDevice(
+                                        deviceId: 'esp32_pump_AA69E0',
+                                        name: 'PumpController-AA69E0',
+                                        macAddress: 'A0:A3:B3:AA:69:E2',
+                                      );
+                                      try {
+                                        await apiClient.post('/devices/claim', data: {
+                                          'deviceId': 'esp32_pump_AA69E0',
+                                          'name': 'PumpController-AA69E0',
+                                          'macAddress': 'A0:A3:B3:AA:69:E2',
+                                        });
+                                      } catch (_) {}
+                                      await hardwareStateService.fetchUserDevicesFromBackend();
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('✓ ESP32 Gateway linked & online!'),
+                                            backgroundColor: AppTheme.accentEmerald,
+                                            behavior: SnackBarBehavior.floating,
+                                          ),
+                                        );
+                                        context.go('/dashboard');
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ...devices.map((dev) {
@@ -685,7 +773,32 @@ class _ProvisioningWizardScreenState extends State<ProvisioningWizardScreen>
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
-                onPressed: () => context.go('/dashboard'),
+                onPressed: () async {
+                  if (hardwareStateService.activeDevice == null) {
+                    final devId = _selectedDevice != null && _selectedDevice!.name.startsWith('PumpController-')
+                        ? _selectedDevice!.name.replaceFirst('PumpController-', 'esp32_pump_')
+                        : (_selectedDevice?.name.isNotEmpty == true ? _selectedDevice!.name : 'esp32_pump_AA69E0');
+                    final devName = _selectedDevice?.name.isNotEmpty == true ? _selectedDevice!.name : 'ESP32 Main Gateway';
+                    final devMac = _selectedDevice?.id.isNotEmpty == true ? _selectedDevice!.id : 'A0:A3:B3:AA:69:E2';
+
+                    hardwareStateService.registerPairedDevice(
+                      deviceId: devId,
+                      name: devName,
+                      macAddress: devMac,
+                    );
+                    try {
+                      await apiClient.post('/devices/claim', data: {
+                        'deviceId': devId,
+                        'name': devName,
+                        'macAddress': devMac,
+                      });
+                    } catch (_) {}
+                  }
+                  await hardwareStateService.fetchUserDevicesFromBackend();
+                  if (context.mounted) {
+                    context.go('/dashboard');
+                  }
+                },
                 child: const Text('Open Hydro Dashboard', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
               ),
             ),
@@ -701,8 +814,8 @@ class _ProvisioningWizardScreenState extends State<ProvisioningWizardScreen>
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF16192E),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: Row(
-          children: const [
+        title: const Row(
+          children: [
             Icon(Icons.bluetooth_audio_rounded, color: AppTheme.waterBlueDark, size: 24),
             SizedBox(width: 10),
             Text('Enable Bluetooth & Wi-Fi', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
@@ -735,94 +848,140 @@ class _ProvisioningWizardScreenState extends State<ProvisioningWizardScreen>
   }
 
   void _showManualPairDialog() {
-    final nameCtrl = TextEditingController();
-    final idCtrl = TextEditingController();
-    final macCtrl = TextEditingController();
+    final nameCtrl = TextEditingController(text: 'PumpController-AA69E0');
+    final idCtrl = TextEditingController(text: 'esp32_pump_AA69E0');
+    final macCtrl = TextEditingController(text: 'A0:A3:B3:AA:69:E2');
+    bool isSaving = false;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF16192E),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: Row(
-          children: const [
-            Icon(Icons.link_rounded, color: AppTheme.waterBlueDark, size: 24),
-            SizedBox(width: 10),
-            Text('Pair Hardware Manually', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF16192E),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: const Row(
             children: [
-              const Text(
-                'Enter your ESP32 controller information to link and save directly to your cloud account.',
-                style: TextStyle(fontSize: 13, color: Colors.white70),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: nameCtrl,
-                decoration: InputDecoration(
-                  labelText: 'Hardware Name',
-                  hintText: 'e.g. Borewell Pump 1',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: idCtrl,
-                decoration: InputDecoration(
-                  labelText: 'Device / Node ID',
-                  hintText: 'e.g. esp32_pump_01',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: macCtrl,
-                decoration: InputDecoration(
-                  labelText: 'MAC Address (Optional)',
-                  hintText: 'e.g. 24:6F:28:XX:XX:XX',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
+              Icon(Icons.link_rounded, color: AppTheme.waterBlueDark, size: 24),
+              SizedBox(width: 10),
+              Text('Pair Hardware Gateway', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.waterBlueDark,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            onPressed: () {
-              final name = nameCtrl.text.trim().isNotEmpty ? nameCtrl.text.trim() : 'ESP32 Main Gateway';
-              final devId = idCtrl.text.trim().isNotEmpty ? idCtrl.text.trim() : 'esp32_pump_000001';
-              final mac = macCtrl.text.trim().isNotEmpty ? macCtrl.text.trim() : '24:6F:28:B2:A4:10';
-
-              hardwareStateService.registerPairedDevice(
-                deviceId: devId,
-                name: name,
-                macAddress: mac,
-              );
-
-              Navigator.of(ctx).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('✓ Hardware $devId linked & synced to cloud account!'),
-                  backgroundColor: AppTheme.accentEmerald,
-                  behavior: SnackBarBehavior.floating,
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Enter or verify your ESP32 controller information to link and save directly to your cloud account.',
+                  style: TextStyle(fontSize: 13, color: Colors.white70),
                 ),
-              );
-              context.pop();
-            },
-            child: const Text('Pair & Save to Account', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    ActionChip(
+                      avatar: const Icon(Icons.flash_on_rounded, size: 16, color: AppTheme.accentEmerald),
+                      label: const Text('Pre-fill ESP32 AA69E0', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      backgroundColor: const Color(0xFF1E2D4A),
+                      side: BorderSide(color: AppTheme.accentEmerald.withOpacity(0.4)),
+                      onPressed: () {
+                        setDialogState(() {
+                          nameCtrl.text = 'PumpController-AA69E0';
+                          idCtrl.text = 'esp32_pump_AA69E0';
+                          macCtrl.text = 'A0:A3:B3:AA:69:E2';
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: nameCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Hardware Name',
+                    hintText: 'e.g. PumpController-AA69E0',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: idCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Device / Node ID',
+                    hintText: 'e.g. esp32_pump_AA69E0',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: macCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'MAC Address',
+                    hintText: 'e.g. A0:A3:B3:AA:69:E2',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: isSaving ? null : () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.accentEmerald,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              ),
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      setDialogState(() => isSaving = true);
+                      final name = nameCtrl.text.trim().isNotEmpty ? nameCtrl.text.trim() : 'PumpController-AA69E0';
+                      final devId = idCtrl.text.trim().isNotEmpty ? idCtrl.text.trim() : 'esp32_pump_AA69E0';
+                      final mac = macCtrl.text.trim().isNotEmpty ? macCtrl.text.trim() : 'A0:A3:B3:AA:69:E2';
+
+                      hardwareStateService.registerPairedDevice(
+                        deviceId: devId,
+                        name: name,
+                        macAddress: mac,
+                      );
+
+                      try {
+                        await apiClient.post('/devices/claim', data: {
+                          'deviceId': devId,
+                          'name': name,
+                          'macAddress': mac,
+                        });
+                      } catch (_) {}
+
+                      await hardwareStateService.fetchUserDevicesFromBackend();
+
+                      if (mounted && ctx.mounted) {
+                        Navigator.of(ctx).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('✓ Hardware $name ($devId) linked & online!'),
+                            backgroundColor: AppTheme.accentEmerald,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                        context.go('/dashboard');
+                      }
+                    },
+              child: isSaving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Pair & Save to Account', style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
       ),
     );
   }

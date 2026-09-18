@@ -8,6 +8,27 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
+// Middleware pipeline imports
+const {
+  applySecurityHeaders,
+  sanitizeInput,
+  isValidEmail,
+  isValidDeviceId,
+  timingSafeCompare
+} = require('./middleware/security');
+
+const {
+  checkRateLimit,
+  getClientIp
+} = require('./middleware/rate_limiter');
+
+const {
+  verifyToken,
+  generateToken,
+  extractToken,
+  verifyDeviceOwnership
+} = require('./middleware/auth_guard');
+
 const STORE_PATH = process.env.STORE_PATH || path.join(os.tmpdir(), 'hydropulse_store.json');
 const BUNDLED_DB_PATH = path.join(__dirname, 'database.json');
 
@@ -25,7 +46,7 @@ function hashPassword(password, salt) {
 function verifyPassword(password, storedHash, salt) {
   if (!password || !storedHash || !salt) return false;
   const { hash } = hashPassword(password, salt);
-  return hash === storedHash;
+  return timingSafeCompare(hash, storedHash);
 }
 
 function findUser(identifier) {
@@ -39,33 +60,6 @@ function findUser(identifier) {
     if (u.username && u.username.trim().toLowerCase() === clean) return u;
   }
   return null;
-}
-
-function generateToken(userId, email) {
-  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
-  const payload = Buffer.from(JSON.stringify({
-    userId,
-    email,
-    iat: Math.floor(Date.now() / 1000),
-    exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60)
-  })).toString('base64url');
-  const signature = crypto.createHmac('sha256', 'hydropulse_jwt_secret_key_2026').update(`${header}.${payload}`).digest('base64url');
-  return `${header}.${payload}.${signature}`;
-}
-
-function verifyToken(token) {
-  if (!token) return null;
-  const parts = token.split('.');
-  if (parts.length !== 3) return null;
-  const signature = crypto.createHmac('sha256', 'hydropulse_jwt_secret_key_2026').update(`${parts[0]}.${parts[1]}`).digest('base64url');
-  if (signature !== parts[2]) return null;
-  try {
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
-    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
-    return payload;
-  } catch {
-    return null;
-  }
 }
 
 // Global live state for hardware telemetry (Clean Zero-Default, Real Data Only)
@@ -98,14 +92,13 @@ const nodeTracking = {
   }
 };
 
-// Strict Heartbeat Offline Watchdog (1.5-Second SLA)
-// Heartbeat age must be within 1.5 seconds (<= 1500ms). Never use permanent cached 'online' status.
-const ONLINE_THRESHOLD_MS = 1500;
+// Real-World IoT Heartbeat Watchdog: 30-Second Active SLA, 60s Stale
+const ONLINE_THRESHOLD_MS = 30000;
 
 function verifyHardwareOnline(target) {
   if (!target) return false;
   const now = Date.now();
-  const lastHb = target.lastHeartbeat || target.lastSeenTime || 0;
+  const lastHb = target.lastHeartbeat || target.lastSeenTime || (typeof target.lastSeen === 'string' ? new Date(target.lastSeen).getTime() : 0);
   if (lastHb > 0 && (now - lastHb) <= ONLINE_THRESHOLD_MS) {
     return true;
   }
@@ -113,17 +106,35 @@ function verifyHardwareOnline(target) {
 }
 
 // Multi-tenant device lookup helper: handles direct key, ${userEmail}_${devId}, or device property matches
-function findDevice(devId) {
+function findDevice(devId, userEmail = null) {
   if (!devId) return null;
   const cleanId = String(devId).trim();
-  if (devicesDb.has(cleanId)) return devicesDb.get(cleanId);
+  const cleanEmail = userEmail ? String(userEmail).trim().toLowerCase() : null;
+
+  if (cleanEmail && devicesDb.has(`${cleanEmail}_${cleanId}`)) {
+    return devicesDb.get(`${cleanEmail}_${cleanId}`);
+  }
 
   // Check key with userEmail prefix
   for (const [key, dev] of devicesDb.entries()) {
-    if (key === cleanId || key.endsWith(`_${cleanId}`)) return dev;
+    if (cleanEmail && key === `${cleanEmail}_${cleanId}`) return dev;
+    if (key.endsWith(`_${cleanId}`) && (!cleanEmail || (dev.userEmail && dev.userEmail.toLowerCase() === cleanEmail))) {
+      return dev;
+    }
   }
 
-  // Exact match on id, deviceId, or nodeId
+  // Exact match on id, deviceId, or nodeId matching user
+  for (const dev of devicesDb.values()) {
+    if (dev.id === cleanId || dev.deviceId === cleanId || dev.nodeId === cleanId) {
+      if (!cleanEmail || (dev.userEmail && dev.userEmail.toLowerCase() === cleanEmail)) {
+        return dev;
+      }
+    }
+  }
+
+  if (devicesDb.has(cleanId)) return devicesDb.get(cleanId);
+
+  // Exact match fallback across any device
   for (const dev of devicesDb.values()) {
     if (dev.id === cleanId || dev.deviceId === cleanId || dev.nodeId === cleanId) {
       return dev;
@@ -375,48 +386,7 @@ function verifyDeviceLiveViaMqtt(devId, timeoutMs = 800) {
 // Rolling telemetry history buffer (real data)
 const telemetryHistory = [];
 
-// Rate Limiter: In-memory sliding window keyed by client IP
-const rateLimitMap = new Map();
 
-function getClientIp(req) {
-  const forwarded = req.headers['x-forwarded-for'];
-  if (forwarded) return forwarded.split(',')[0].trim();
-  const realIp = req.headers['x-real-ip'];
-  if (realIp) return realIp.trim();
-  return req.socket?.remoteAddress || req.connection?.remoteAddress || '127.0.0.1';
-}
-
-function checkRateLimit(ip, endpointType) {
-  const now = Date.now();
-  const windowMs = 60 * 1000; // 1 minute window
-  let limit = 150; // default general API limit
-  if (endpointType === 'auth') limit = 15; // 15 auth attempts / min
-  else if (endpointType === 'command') limit = 45; // 45 command actions / min
-
-  const key = `${ip}_${endpointType}`;
-  let record = rateLimitMap.get(key);
-  if (!record || now > record.resetTime) {
-    record = { count: 1, resetTime: now + windowMs };
-    rateLimitMap.set(key, record);
-    return { allowed: true, limit, remaining: limit - 1, reset: Math.ceil(record.resetTime / 1000) };
-  }
-
-  record.count++;
-  const remaining = Math.max(0, limit - record.count);
-  const reset = Math.ceil(record.resetTime / 1000);
-  const allowed = record.count <= limit;
-  const retryAfter = Math.max(1, Math.ceil((record.resetTime - now) / 1000));
-  return { allowed, limit, remaining, reset, retryAfter };
-}
-
-// Periodic cleanup of rate limit map every 5 minutes
-const cleanupInterval = setInterval(() => {
-  const now = Date.now();
-  for (const [key, record] of rateLimitMap.entries()) {
-    if (now > record.resetTime) rateLimitMap.delete(key);
-  }
-}, 5 * 60 * 1000);
-if (cleanupInterval.unref) cleanupInterval.unref();
 
 // ===== 300ms Hardware Online Watchdog =====
 // Evaluates all registered devices and liveState every 300ms.
@@ -519,9 +489,10 @@ function loadState() {
           for (const d of parsed.devices) {
             const devKey = d.userEmail ? `${d.userEmail.toLowerCase().trim()}_${d.id || d.deviceId}` : (d.id || d.deviceId);
             if (!devicesDb.has(devKey)) {
-              d.isOnline = false;
-              d.status = 'OFFLINE';
-              d.lastHeartbeat = 0;
+              if (d.lastHeartbeat && (Date.now() - d.lastHeartbeat < 60000)) {
+                d.isOnline = true;
+                d.status = 'ONLINE';
+              }
               devicesDb.set(devKey, d);
             }
           }
@@ -627,12 +598,8 @@ module.exports = async (req, res) => {
     };
   }
 
-  // Security Headers
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  // Security Headers Middleware
+  applySecurityHeaders(res);
 
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -643,29 +610,8 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
-  const clientIp = getClientIp(req);
   const url = req.url || '';
   const method = req.method;
-
-  // Rate Limiting Check
-  let endpointType = 'general';
-  if (url.includes('/auth/')) endpointType = 'auth';
-  else if (url.includes('/command') || url.includes('/pump')) endpointType = 'command';
-
-  const rateCheck = checkRateLimit(clientIp, endpointType);
-  res.setHeader('X-RateLimit-Limit', rateCheck.limit);
-  res.setHeader('X-RateLimit-Remaining', rateCheck.remaining);
-  res.setHeader('X-RateLimit-Reset', rateCheck.reset);
-
-  if (!rateCheck.allowed) {
-    res.setHeader('Retry-After', rateCheck.retryAfter);
-    return res.status(429).json({
-      status: 'error',
-      code: 'RATE_LIMIT_EXCEEDED',
-      message: `Too many requests. Rate limit of ${rateCheck.limit} req/min exceeded. Please retry after ${rateCheck.retryAfter}s.`,
-      retryAfterSeconds: rateCheck.retryAfter
-    });
-  }
 
   const parsedUrl = new URL(url, 'https://water-pump-controller.vercel.app');
   const searchParamsObj = Object.fromEntries(parsedUrl.searchParams.entries());
@@ -698,6 +644,27 @@ module.exports = async (req, res) => {
       status: 'error',
       code: 'MALFORMED_JSON',
       message: 'Malformed or invalid JSON payload provided.'
+    });
+  }
+
+  // Recursive Input Sanitization Middleware (Prototype Pollution & Injection Defense)
+  body = sanitizeInput(body) || {};
+
+  // Tiered Rate Limiting Middleware (IP + User / Target Scoped)
+  const rateLimitTarget = body.email || body.userEmail || query.email || query.userId || '';
+  const rateCheck = checkRateLimit(req, rateLimitTarget);
+  res.setHeader('X-RateLimit-Limit', rateCheck.limit);
+  res.setHeader('X-RateLimit-Remaining', rateCheck.remaining);
+  res.setHeader('X-RateLimit-Reset', rateCheck.reset);
+
+  if (!rateCheck.allowed) {
+    res.setHeader('Retry-After', rateCheck.retryAfter);
+    return res.status(429).json({
+      status: 'error',
+      code: 'RATE_LIMIT_EXCEEDED',
+      tier: rateCheck.tier,
+      message: `Too many requests for ${rateCheck.tier}. Rate limit of ${rateCheck.limit} exceeded. Retry after ${rateCheck.retryAfter}s.`,
+      retryAfterSeconds: rateCheck.retryAfter
     });
   }
 
@@ -1181,6 +1148,7 @@ module.exports = async (req, res) => {
     }
 
     const devId = body.deviceId || body.id || body.nodeId || `esp32_${Date.now()}`;
+    const nowMs = Date.now();
     const newDevice = {
       id: devId,
       deviceId: devId,
@@ -1189,9 +1157,9 @@ module.exports = async (req, res) => {
       macAddress: body.macAddress || body.mac || '24:6F:28:B2:A4:10',
       userId: targetUserId,
       userEmail: targetEmail,
-      isOnline: false,
-      status: 'OFFLINE',
-      lastHeartbeat: 0,
+      isOnline: true,
+      status: 'ONLINE',
+      lastHeartbeat: nowMs,
       pumpRunning: liveState.pumpRunning,
       mode: liveState.mode,
       waterLevelPct: liveState.waterLevelPct,
@@ -1261,12 +1229,19 @@ module.exports = async (req, res) => {
     const devId = devIdMatch ? devIdMatch[1] : (body.deviceId || body.id || null);
 
     if (devId) {
-      const dev = findDevice(devId);
+      const dev = findDevice(devId, payload?.email);
       if (!dev) {
         return res.status(404).json({
           status: 'error',
           code: 'DEVICE_NOT_FOUND',
           message: `Pump controller device '${devId}' not registered.`
+        });
+      }
+      if (payload && !verifyDeviceOwnership(dev, payload.email, payload.role)) {
+        return res.status(403).json({
+          status: 'error',
+          code: 'FORBIDDEN',
+          message: 'Access denied. You do not have ownership of this hardware pump controller.'
         });
       }
       const isOnline = verifyHardwareOnline(dev);

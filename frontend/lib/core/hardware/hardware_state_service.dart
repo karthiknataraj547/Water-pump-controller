@@ -331,12 +331,13 @@ class HardwareStateService extends ChangeNotifier {
             }
 
             // 3. Only if the account truly has never paired any device, show pairing interface
-            _activeDevice = null;
-            _sensorData = null;
-            _pumpStatus = null;
-            _lastMainNodeHeartbeat = null;
-            _lastSubNodePacket = null;
-            notifyListeners();
+            if (_activeDevice == null) {
+              _sensorData = null;
+              _pumpStatus = null;
+              _lastMainNodeHeartbeat = null;
+              _lastSubNodePacket = null;
+              notifyListeners();
+            }
             return;
           }
 
@@ -580,9 +581,7 @@ class HardwareStateService extends ChangeNotifier {
     }
   }
 
-  // 1. Strict Physical Hardware Connection State — 1.5s Heartbeat SLA
-  // The ESP32 publishes heartbeats every 500ms. If unplugged or powered down,
-  // the app switches to OFFLINE within 1.5 - 1.8 seconds. No cached permanent online status.
+  // 1. Physical Hardware Connection State — Realistic IoT Timing (30s Active / 60s Stale)
   NodeStatus get mainNodeStatus {
     if (_activeDevice == null) return NodeStatus.offline;
 
@@ -591,15 +590,22 @@ class HardwareStateService extends ChangeNotifier {
     // A. Direct verified hardware heartbeat (via MQTT)
     if (_lastMainNodeHeartbeat != null) {
       final diffMs = now.difference(_lastMainNodeHeartbeat!).inMilliseconds;
-      if (diffMs <= 1800) return NodeStatus.online;
-      if (diffMs <= 2500) return NodeStatus.stale;
+      if (diffMs <= 30000) return NodeStatus.online;
+      if (diffMs <= 60000) return NodeStatus.stale;
       return NodeStatus.offline;
     }
 
-    // B. Cloud Backend Verification Failover (REST Watchdog within 2.5s)
-    if (_lastCloudVerifiedOnline != null &&
-        now.difference(_lastCloudVerifiedOnline!).inMilliseconds <= 2500) {
-      return NodeStatus.online;
+    // B. Cloud Backend Verification Failover (REST Watchdog within 30s)
+    if (_lastCloudVerifiedOnline != null) {
+      final diffMs = now.difference(_lastCloudVerifiedOnline!).inMilliseconds;
+      if (diffMs <= 30000) return NodeStatus.online;
+      if (diffMs <= 60000) return NodeStatus.stale;
+    }
+
+    // C. If active device model is marked ONLINE and was seen recently
+    if (_activeDevice!.status.toUpperCase() == 'ONLINE') {
+      final diffMs = now.difference(_activeDevice!.lastSeen).inMilliseconds;
+      if (diffMs <= 45000) return NodeStatus.online;
     }
 
     if (_isVerifyingStatus) return NodeStatus.stale;
@@ -609,10 +615,15 @@ class HardwareStateService extends ChangeNotifier {
   // 2. Independent Sub Node (ESP-NOW) Connection State
   NodeStatus get subNodeStatus {
     if (mainNodeStatus == NodeStatus.offline) return NodeStatus.offline;
-    if (_lastSubNodePacket == null) return NodeStatus.offline;
+    if (_lastSubNodePacket == null) {
+      if (_sensorData != null && DateTime.now().difference(_sensorData!.timestamp).inMilliseconds <= 45000) {
+        return NodeStatus.online;
+      }
+      return NodeStatus.offline;
+    }
     final diffMs = DateTime.now().difference(_lastSubNodePacket!).inMilliseconds;
-    if (diffMs <= 2000) return NodeStatus.online;
-    if (diffMs <= 3000) return NodeStatus.stale;
+    if (diffMs <= 30000) return NodeStatus.online;
+    if (diffMs <= 60000) return NodeStatus.stale;
     return NodeStatus.offline;
   }
 
@@ -730,20 +741,26 @@ class HardwareStateService extends ChangeNotifier {
         final restored = DeviceModel.fromJson(map);
         final savedPump = prefs.getString('saved_last_pump_state') ?? restored.pumpState;
         final savedMode = prefs.getString('saved_last_mode') ?? restored.mode;
+        final lastHbMs = prefs.getInt('last_heartbeat_ms') ?? 0;
+        final now = DateTime.now();
+        final isRecentlyActive = (now.millisecondsSinceEpoch - lastHbMs) < 60000;
+        final initialStatus = isRecentlyActive ? 'ONLINE' : (restored.status.isNotEmpty ? restored.status : 'OFFLINE');
         _activeDevice = DeviceModel(
           id: restored.id,
           name: restored.name,
           macAddress: restored.macAddress,
-          status: 'OFFLINE',
+          status: initialStatus,
           pumpState: savedPump,
           mode: savedMode,
           wifiRssi: restored.wifiRssi,
           firmwareVersion: restored.firmwareVersion,
-          lastSeen: restored.lastSeen,
+          lastSeen: isRecentlyActive ? now : restored.lastSeen,
         );
-        _lastMainNodeHeartbeat = null;
-        _lastSubNodePacket = null;
-        debugPrint('[HardwareStateService] Restored paired hardware: ${_activeDevice!.id} for $currentEmail');
+        if (isRecentlyActive) {
+          _lastMainNodeHeartbeat = DateTime.fromMillisecondsSinceEpoch(lastHbMs);
+          _lastCloudVerifiedOnline = now;
+        }
+        debugPrint('[HardwareStateService] Restored paired hardware: ${_activeDevice!.id} (status: $initialStatus) for $currentEmail');
       } catch (e) {
         debugPrint('[HardwareStateService] Restoring saved device notice: $e');
       }
@@ -1449,7 +1466,14 @@ class HardwareStateService extends ChangeNotifier {
     String? ipAddress,
   }) {
     _isExplicitlyRemoved = false;
-    SharedPreferences.getInstance().then((p) => p.remove('hardware_explicitly_removed'));
+    final now = DateTime.now();
+    SharedPreferences.getInstance().then((p) {
+      p.remove('hardware_explicitly_removed');
+      p.setInt('last_heartbeat_ms', now.millisecondsSinceEpoch);
+    });
+
+    _lastMainNodeHeartbeat = now;
+    _lastCloudVerifiedOnline = now;
 
     _activeDevice = DeviceModel(
       id: deviceId,
@@ -1460,7 +1484,7 @@ class HardwareStateService extends ChangeNotifier {
       mode: 'AUTO',
       wifiRssi: -65,
       firmwareVersion: AppConstants.appVersion,
-      lastSeen: DateTime.now(),
+      lastSeen: now,
     );
 
     _persistActiveDevice();
@@ -1473,6 +1497,11 @@ class HardwareStateService extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('saved_paired_device', jsonEncode(_activeDevice!.toJson()));
+      const storage = FlutterSecureStorage();
+      final currentEmail = (await storage.read(key: AppConstants.keyUserEmail))?.trim().toLowerCase() ?? '';
+      if (currentEmail.isNotEmpty) {
+        await prefs.setString('saved_paired_device_owner_email', currentEmail);
+      }
     } catch (_) {}
   }
 
