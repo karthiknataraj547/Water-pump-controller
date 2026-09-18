@@ -199,13 +199,13 @@ class _AutomationScreenState extends State<AutomationScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setSheetState) => Padding(
+      builder: (modalCtx) => StatefulBuilder(
+        builder: (sheetCtx, setSheetState) => Padding(
           padding: EdgeInsets.only(
             left: 24,
             right: 24,
             top: 24,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 28,
+            bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 28,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -282,7 +282,7 @@ class _AutomationScreenState extends State<AutomationScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
                   onPressed: () async {
-                    Navigator.pop(context);
+                    Navigator.pop(sheetCtx);
                     final devId = hardwareStateService.activeDevice?.id ?? 'esp32_pump_000000';
                     final newRule = AutomationRuleModel(
                       id: 'rule_${DateTime.now().millisecondsSinceEpoch}',

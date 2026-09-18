@@ -65,7 +65,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.check_circle_outline_rounded, color: AppTheme.accent, size: 48),
+                      const Icon(Icons.check_circle_outline_rounded, color: AppTheme.accent, size: 48),
                       const SizedBox(height: 12),
                       Text('All Systems Normal', style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
                       const SizedBox(height: 4),

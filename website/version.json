@@ -1,12 +1,12 @@
 {
-    "version": "2.2.7",
-    "build_number": 31,
+    "version": "2.2.8",
+    "build_number": 32,
     "release_date": "2026-09-18",
     "min_supported_version": "1.0.0",
-    "download_url": "https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.7_build31.apk",
+    "download_url": "https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.8_build32.apk",
     "website_url": "https://water-pump-controller.vercel.app",
-    "sha256": "8d7cbed45fac8c17e7c88a93d7ee1d20dd0fa484c00f22e485d69d0d99afbf02",
-    "title": "HydroPulse v2.2.7 - Security Architecture, Multi-Tenant Gateway & Resilient Provisioning",
+    "sha256": "1bdbebbd702b7fc2bd359f87234e39d9ec5e836f35a81ee1618892d8053b53e8",
+    "title": "HydroPulse v2.2.8 - Security Architecture, Multi-Tenant Gateway & Resilient Provisioning",
     "changelog": [
         "Hardware Provisioning & Cloud Auto-Sync: Fixed post-provisioning hardware discovery and multi-tenant binding. Added instant 1-click Quick-Link and manual ESP32 AA69E0 gateway pairing with persistent user account ownership.",
         "Realistic IoT Online/Offline SLA: Upgraded heartbeat threshold to robust 30s active / 60s stale timing, eliminating false offline flapping and network latency jitter.",
@@ -17,6 +17,6 @@
         "Network Signal Flow Topology: Live Wi-Fi RSSI meter and 3D spatial radio network topology stage with zero-flicker node tracking."
     ],
     "is_critical": false,
-    "updatedAt": "2026-09-18T16:49:46.901Z",
-    "file_size": 58427188
+    "updatedAt": "2026-09-18T17:05:58.759Z",
+    "file_size": 58427184
 }

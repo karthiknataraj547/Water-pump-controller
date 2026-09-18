@@ -693,8 +693,8 @@ class _WaterGaugePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = math.min(size.width, size.height) / 2 - 6;
-    final sweepAngle = math.pi * 1.5;
-    final startAngle = math.pi * 0.75;
+    const sweepAngle = math.pi * 1.5;
+    const startAngle = math.pi * 0.75;
 
     // Background arc
     final bgPaint = Paint()

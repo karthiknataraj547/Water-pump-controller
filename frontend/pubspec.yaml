@@ -1,7 +1,7 @@
 name: iot_water_pump_app
 description: "A secure, multi-node IoT Water Pump Automation & Tank Monitoring System."
 publish_to: 'none'
-version: 2.2.7+31
+version: 2.2.8+32
 
 environment:
   sdk: '>=3.2.0 <4.0.0'

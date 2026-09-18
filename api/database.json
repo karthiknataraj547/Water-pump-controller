@@ -230,6 +230,16 @@
       "lastName": "Tester",
       "role": "USER",
       "createdAt": "2026-09-18T16:26:51.704Z"
+    },
+    {
+      "id": "usr_1789751483991_28",
+      "email": "fresh_user_1789751483982@hydropulse.io",
+      "passwordHash": "b3f08f9e3ce87046749942d6f729156128fc631c00b5b9027d96ec3ba8413a2556a8c82e899007bc23004b320ddccf2f9d4bfdacb74e86399e598b3c7190a779",
+      "salt": "d2a21286001dcc6f579b73016ac6332a",
+      "firstName": "Fresh",
+      "lastName": "User",
+      "role": "USER",
+      "createdAt": "2026-09-18T17:11:23.991Z"
     }
   ],
   "devices": [
@@ -258,14 +268,14 @@
       "macAddress": "A0:A3:B3:AA:69:E2",
       "userId": "usr_1789583210126_231",
       "userEmail": "karthiknataraj547@gmail.com",
-      "isOnline": false,
-      "status": "OFFLINE",
-      "lastHeartbeat": 0,
+      "isOnline": true,
+      "status": "ONLINE",
+      "lastHeartbeat": 1789752446969,
       "pumpRunning": false,
-      "mode": "AUTO",
+      "mode": "STANDBY",
       "waterLevelPct": 72,
       "pairedAt": "2026-09-18T16:03:37.868Z",
-      "lastSeen": "2026-09-18T16:23:26.340Z"
+      "lastSeen": "2026-09-18T17:27:26.969Z"
     }
   ],
   "liveState": {
@@ -278,10 +288,10 @@
     "powerKw": 0,
     "tdsPpm": 142,
     "tempC": 24.2,
-    "lastHeartbeat": 1789748830712,
-    "lastSeen": 1789748830712,
+    "lastHeartbeat": 1789751488883,
+    "lastSeen": 1789751488883,
     "_wasOnline": false,
-    "isOnline": true
+    "isOnline": false
   },
   "telemetryHistory": [
     {
@@ -365,5 +375,5 @@
       "pumpRunning": false
     }
   ],
-  "timestamp": 1789748830712
+  "timestamp": 1789752447079
 }

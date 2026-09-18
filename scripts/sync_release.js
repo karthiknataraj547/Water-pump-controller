@@ -18,9 +18,9 @@ console.log('Source APK Size:', stats.size, 'bytes');
 console.log('Source APK SHA-256:', sha256);
 
 const targetPaths = [
-  path.join(rootDir, 'releases', 'HydroPulse_v2.2.7_build31.apk'),
+  path.join(rootDir, 'releases', 'HydroPulse_v2.2.8_build32.apk'),
   path.join(rootDir, 'releases', 'HydroPulse_WaterPumpController.apk'),
-  path.join(rootDir, 'website', 'releases', 'HydroPulse_v2.2.7_build31.apk'),
+  path.join(rootDir, 'website', 'releases', 'HydroPulse_v2.2.8_build32.apk'),
   path.join(rootDir, 'website', 'releases', 'HydroPulse_WaterPumpController.apk')
 ];
 
@@ -33,14 +33,14 @@ targetPaths.forEach((dest) => {
 
 // Update version.json manifests
 const versionManifest = {
-  version: '2.2.7',
-  build_number: 31,
+  version: '2.2.8',
+  build_number: 32,
   release_date: '2026-09-18',
   min_supported_version: '1.0.0',
-  download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.7_build31.apk',
+  download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.8_build32.apk',
   website_url: 'https://water-pump-controller.vercel.app',
   sha256: sha256,
-  title: 'HydroPulse v2.2.7 - Security Architecture, Multi-Tenant Gateway & Resilient Provisioning',
+  title: 'HydroPulse v2.2.8 - Security Architecture, Multi-Tenant Gateway & Resilient Provisioning',
   changelog: [
     'Hardware Provisioning & Cloud Auto-Sync: Fixed post-provisioning hardware discovery and multi-tenant binding. Added instant 1-click Quick-Link and manual ESP32 AA69E0 gateway pairing with persistent user account ownership.',
     'Realistic IoT Online/Offline SLA: Upgraded heartbeat threshold to robust 30s active / 60s stale timing, eliminating false offline flapping and network latency jitter.',

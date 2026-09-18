@@ -361,7 +361,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.auto_fix_high_outlined, color: AppTheme.accent, size: 18),
+                                  const Icon(Icons.auto_fix_high_outlined, color: AppTheme.accent, size: 18),
                                   const SizedBox(width: 8),
                                   Text(
                                     'Automation',
@@ -515,7 +515,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                       const storage = FlutterSecureStorage();
                       await storage.deleteAll();
                       hardwareStateService.clearDevice();
-                      if (context.mounted) {
+                      if (mounted) {
                         context.go('/login');
                       }
                     },

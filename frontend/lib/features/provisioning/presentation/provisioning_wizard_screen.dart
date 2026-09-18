@@ -795,7 +795,7 @@ class _ProvisioningWizardScreenState extends State<ProvisioningWizardScreen>
                     } catch (_) {}
                   }
                   await hardwareStateService.fetchUserDevicesFromBackend();
-                  if (context.mounted) {
+                  if (mounted) {
                     context.go('/dashboard');
                   }
                 },

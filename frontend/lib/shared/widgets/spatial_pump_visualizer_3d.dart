@@ -435,7 +435,7 @@ class _SpatialPumpVisualizer3DState extends State<SpatialPumpVisualizer3D>
                 ),
                 Text(
                   value,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,
                     fontWeight: FontWeight.w900,
