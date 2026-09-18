@@ -868,7 +868,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!modal) return;
     if (data) {
       const mVer = document.getElementById('modal-latest-version');
-      if (mVer && data.version) mVer.textContent = `v${data.version} (Build ${data.build_number || 32})`;
+      if (mVer && data.version) mVer.textContent = `v${data.version} (Build ${data.build_number || 33})`;
       const mList = document.getElementById('modal-changelog-list');
       if (mList && Array.isArray(data.changelog) && data.changelog.length > 0) {
         mList.innerHTML = data.changelog.map(item => `<li>${item}</li>`).join('');
@@ -878,7 +878,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const mBtn = document.getElementById('modal-btn-download');
       if (mBtn && data.download_url) {
         mBtn.setAttribute('href', data.download_url);
-        mBtn.setAttribute('download', `HydroPulse_v${data.version}_build${data.build_number || 32}.apk`);
+        mBtn.setAttribute('download', `HydroPulse_v${data.version}_build${data.build_number || 33}.apk`);
         mBtn.innerHTML = `<span>📥 Download APK v${data.version}</span>`;
       }
     }
@@ -958,10 +958,10 @@ document.addEventListener('DOMContentLoaded', () => {
       .then(data => {
         if (data && data.version) {
           const otaVer = document.getElementById('ota-current-version');
-          if (otaVer) otaVer.textContent = `v${data.version} • Build ${data.build_number || 32}`;
+          if (otaVer) otaVer.textContent = `v${data.version} • Build ${data.build_number || 33}`;
 
           const otaTabVer = document.getElementById('ota-tab-version');
-          if (otaTabVer) otaTabVer.textContent = `v${data.version} (Build ${data.build_number || 32})`;
+          if (otaTabVer) otaTabVer.textContent = `v${data.version} (Build ${data.build_number || 33})`;
 
           const otaTabSha = document.getElementById('ota-tab-sha256');
           if (otaTabSha && data.sha256) otaTabSha.textContent = data.sha256;
@@ -969,16 +969,16 @@ document.addEventListener('DOMContentLoaded', () => {
           const otaTabBtn = document.getElementById('ota-tab-btn-download');
           if (otaTabBtn && data.download_url) {
             otaTabBtn.setAttribute('href', data.download_url);
-            otaTabBtn.setAttribute('download', `HydroPulse_v${data.version}_build${data.build_number || 32}.apk`);
+            otaTabBtn.setAttribute('download', `HydroPulse_v${data.version}_build${data.build_number || 33}.apk`);
             const sp = otaTabBtn.querySelector('span');
             if (sp) sp.textContent = `📥 Download Android APK (v${data.version})`;
           }
 
           const setVer = document.getElementById('settings-app-version');
-          if (setVer) setVer.textContent = `v${data.version} (Build ${data.build_number || 32})`;
+          if (setVer) setVer.textContent = `v${data.version} (Build ${data.build_number || 33})`;
 
           const setLatest = document.getElementById('settings-latest-version');
-          if (setLatest) setLatest.textContent = `v${data.version} (Build ${data.build_number || 32}) • Stable Available`;
+          if (setLatest) setLatest.textContent = `v${data.version} (Build ${data.build_number || 33}) • Stable Available`;
 
           const setOtaChip = document.getElementById('settings-ota-status-chip');
           if (setOtaChip) setOtaChip.textContent = `OTA ENGINE v${data.version}`;
@@ -991,25 +991,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
           // Top update banner on login screen
           const authBannerVer = document.querySelector('.auth-update-banner strong');
-          if (authBannerVer) authBannerVer.textContent = `HydroPulse v${data.version} (Build ${data.build_number || 32}) Live`;
+          if (authBannerVer) authBannerVer.textContent = `HydroPulse v${data.version} (Build ${data.build_number || 33}) Live`;
           const authBannerLink = document.querySelector('.auth-update-banner a');
           if (authBannerLink) {
-            authBannerLink.setAttribute('href', data.download_url || `releases/HydroPulse_v${data.version}_build${data.build_number || 32}.apk`);
-            authBannerLink.setAttribute('download', `HydroPulse_v${data.version}_build${data.build_number || 32}.apk`);
+            authBannerLink.setAttribute('href', data.download_url || `releases/HydroPulse_v${data.version}_build${data.build_number || 33}.apk`);
+            authBannerLink.setAttribute('download', `HydroPulse_v${data.version}_build${data.build_number || 33}.apk`);
           }
 
           // Companion badge link
           const companionLink = document.querySelector('.btn-companion-link');
           if (companionLink) {
-            companionLink.setAttribute('href', data.download_url || `releases/HydroPulse_v${data.version}_build${data.build_number || 32}.apk`);
-            companionLink.setAttribute('download', `HydroPulse_v${data.version}_build${data.build_number || 32}.apk`);
+            companionLink.setAttribute('href', data.download_url || `releases/HydroPulse_v${data.version}_build${data.build_number || 33}.apk`);
+            companionLink.setAttribute('download', `HydroPulse_v${data.version}_build${data.build_number || 33}.apk`);
             const compSpan = companionLink.querySelector('span:first-child');
             if (compSpan) compSpan.textContent = `Download Android APK v${data.version}`;
           }
 
           // Global banner title
           const gubTitle = document.querySelector('#global-update-banner strong');
-          if (gubTitle) gubTitle.textContent = `HydroPulse v${data.version} (Build ${data.build_number || 32}) Released`;
+          if (gubTitle) gubTitle.textContent = `HydroPulse v${data.version} (Build ${data.build_number || 33}) Released`;
 
           document.querySelectorAll('.sb-edition').forEach(el => el.textContent = `System Console v${data.version}`);
           document.querySelectorAll('.sys-chip').forEach(el => {
@@ -1018,9 +1018,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
           const dlLinks = document.querySelectorAll('a[href*="HydroPulse"], .btn-mobile-download, #btn-gub-download, #btn-ota-download-apk, #modal-btn-download, #ota-tab-btn-download');
           dlLinks.forEach(link => {
-            const targetUrl = data.download_url || `releases/HydroPulse_v${data.version}_build${data.build_number || 32}.apk`;
+            const targetUrl = data.download_url || `releases/HydroPulse_v${data.version}_build${data.build_number || 33}.apk`;
             link.setAttribute('href', targetUrl);
-            link.setAttribute('download', `HydroPulse_v${data.version}_build${data.build_number || 32}.apk`);
+            link.setAttribute('download', `HydroPulse_v${data.version}_build${data.build_number || 33}.apk`);
             const sp = link.querySelector('span');
             if (sp && sp.textContent.includes('Download')) {
               sp.textContent = `📥 Download Android APK v${data.version}`;
