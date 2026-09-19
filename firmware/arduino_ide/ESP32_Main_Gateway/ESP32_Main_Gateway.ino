@@ -575,14 +575,21 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   cleanMsg.trim();
   if (cleanMsg.equalsIgnoreCase("START") || cleanMsg.equalsIgnoreCase("ON") || 
       cleanMsg.equalsIgnoreCase("START_PUMP") || cleanMsg.equalsIgnoreCase("PUMP_ON")) {
+    if (systemMode != "MANUAL") {
+      systemMode = "MANUAL";
+      prefs.begin(NVS_NAMESPACE, false);
+      prefs.putString("sys_mode", systemMode);
+      prefs.end();
+      Serial.println("[MQTT Fast Path] Manual Start: Switched mode to MANUAL and saved to NVS.");
+    }
     setPumpState(true, "MQTT Direct Plaintext Start");
-    publishFastAckAndStatus("cmd_fast_raw", "MQTT Remote Start");
+    publishFastAckAndStatus("cmd_fast_raw", "MQTT Remote Start", true);
     hasPendingPumpCommand = false;
     return;
   } else if (cleanMsg.equalsIgnoreCase("STOP") || cleanMsg.equalsIgnoreCase("OFF") || 
              cleanMsg.equalsIgnoreCase("STOP_PUMP") || cleanMsg.equalsIgnoreCase("PUMP_OFF")) {
     setPumpState(false, "MQTT Direct Plaintext Stop");
-    publishFastAckAndStatus("cmd_fast_raw", "MQTT Remote Stop");
+    publishFastAckAndStatus("cmd_fast_raw", "MQTT Remote Stop", true);
     hasPendingPumpCommand = false;
     return;
   } else if (cleanMsg.equalsIgnoreCase("MANUAL") || cleanMsg.equalsIgnoreCase("MODE:MANUAL") || 
@@ -643,18 +650,19 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     Serial.printf("[MQTT Command RX] Action parsed: '%s' | CmdId: '%s'\n", action, cmdId);
 
     if (strcasecmp(action, "START_PUMP") == 0 || strcasecmp(action, "PUMP_ON") == 0 || strcasecmp(action, "START") == 0 || strcasecmp(action, "ON") == 0) {
-      bool subAlive = (lastSensorPacketTime > 0 && (millis() - lastSensorPacketTime) < SUB_NODE_TIMEOUT_MS);
-      if (systemMode == "AUTO" && !subAlive) {
-        Serial.println("[MQTT] 🔒 Start command rejected: Sub-node disconnected in AUTO mode.");
-        publishFastAckAndStatus(cmdId, "START_PUMP", false, "Safety lock: Sub-node disconnected in AUTO mode");
-        notifyMqttStatusUpdate = true;
-        return;
-      }
       if (emergencyStopped) {
         Serial.println("[MQTT] 🔒 Start command rejected: Emergency stop active.");
         publishFastAckAndStatus(cmdId, "START_PUMP", false, "Emergency stop active");
         notifyMqttStatusUpdate = true;
         return;
+      }
+      // Explicit manual actuation switches system to MANUAL mode (like physical button GPIO 19)
+      if (systemMode != "MANUAL") {
+        systemMode = "MANUAL";
+        prefs.begin(NVS_NAMESPACE, false);
+        prefs.putString("sys_mode", systemMode);
+        prefs.end();
+        Serial.println("[MQTT Command] Manual pump start: Switched mode to MANUAL and saved to NVS.");
       }
       // Instant direct actuation - ZERO QUEUE DELAY
       setPumpState(true, "MQTT Fast Remote Start");
@@ -663,7 +671,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     } else if (strcasecmp(action, "STOP_PUMP") == 0 || strcasecmp(action, "PUMP_OFF") == 0 || strcasecmp(action, "STOP") == 0 || strcasecmp(action, "OFF") == 0) {
       // Instant direct actuation - ZERO QUEUE DELAY
       setPumpState(false, "MQTT Fast Remote Stop");
-      publishFastAckAndStatus(cmdId, "MQTT Remote Stop");
+      publishFastAckAndStatus(cmdId, "MQTT Remote Stop", true);
       hasPendingPumpCommand = false;
     } else if (strcasecmp(action, "SET_MODE") == 0) {
       String m = "";
@@ -700,14 +708,21 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       Serial.printf("[SYSTEM] Automation Rules Updated: Start at %.1f%%, Stop at %.1f%%\n", autoStartLevel, autoStopLevel);
       publishFastAckAndStatus(cmdId, "Rules Updated");
     } else if (strcasecmp(action, "TOGGLE_PUMP") == 0 || strcasecmp(action, "TOGGLE") == 0) {
-      bool subAlive = (lastSensorPacketTime > 0 && (millis() - lastSensorPacketTime) < SUB_NODE_TIMEOUT_MS);
-      if (!pumpRunning && systemMode == "AUTO" && !subAlive) {
-        Serial.println("[MQTT] 🔒 Toggle start rejected: Sub-node disconnected in AUTO mode.");
+      if (emergencyStopped) {
+        Serial.println("[MQTT] 🔒 Toggle command rejected: Emergency stop active.");
+        publishFastAckAndStatus(cmdId, "TOGGLE_PUMP", false, "Emergency stop active");
         notifyMqttStatusUpdate = true;
         return;
       }
+      if (systemMode != "MANUAL") {
+        systemMode = "MANUAL";
+        prefs.begin(NVS_NAMESPACE, false);
+        prefs.putString("sys_mode", systemMode);
+        prefs.end();
+        Serial.println("[MQTT Command] Manual toggle command: Switched mode to MANUAL and saved to NVS.");
+      }
       setPumpState(!pumpRunning, "MQTT Fast Toggle");
-      publishFastAckAndStatus(cmdId, "MQTT Toggle");
+      publishFastAckAndStatus(cmdId, "MQTT Toggle", true);
       hasPendingPumpCommand = false;
     } else if (strcasecmp(action, "EMERGENCY_STOP") == 0) {
       emergencyStopped = true;

@@ -2008,17 +2008,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function setPump(targetState) {
-    if (!isHardwareOnline) {
-      alert('⚠️ Hardware is Offline. Ensure ESP32 is powered on and connected before operating pump.');
-      return;
-    }
     if (targetState && isEmergencyStopActive) {
       alert('⚠️ Emergency Stop is active. Reset Emergency Stop first before operating pump.');
       return;
     }
-    if (targetState && controlMode === 'AUTO' && !isSubNodeOnline) {
-      alert('⚠️ Tank sensor (sub-node) is disconnected! In AUTO mode the motor cannot run for safety.');
-      return;
+    if (targetState && controlMode === 'AUTO') {
+      setControlMode('MANUAL');
     }
 
     // Set transit loading state - DO NOT optimistically flip pump state!

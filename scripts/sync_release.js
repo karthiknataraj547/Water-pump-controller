@@ -18,9 +18,9 @@ console.log('Source APK Size:', stats.size, 'bytes');
 console.log('Source APK SHA-256:', sha256);
 
 const targetPaths = [
-  path.join(rootDir, 'releases', 'HydroPulse_v2.3.0_build34.apk'),
+  path.join(rootDir, 'releases', 'HydroPulse_v2.3.1_build35.apk'),
   path.join(rootDir, 'releases', 'HydroPulse_WaterPumpController.apk'),
-  path.join(rootDir, 'website', 'releases', 'HydroPulse_v2.3.0_build34.apk'),
+  path.join(rootDir, 'website', 'releases', 'HydroPulse_v2.3.1_build35.apk'),
   path.join(rootDir, 'website', 'releases', 'HydroPulse_WaterPumpController.apk')
 ];
 
@@ -33,20 +33,20 @@ targetPaths.forEach((dest) => {
 
 // Update version.json manifests
 const versionManifest = {
-  version: '2.3.0',
-  build_number: 34,
+  version: '2.3.1',
+  build_number: 35,
   release_date: '2026-09-19',
   min_supported_version: '1.0.0',
-  download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.3.0_build34.apk',
+  download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.3.1_build35.apk',
   website_url: 'https://water-pump-controller.vercel.app',
   sha256: sha256,
-  title: 'HydroPulse v2.3.0 - Consolidated EMQX Cloud Broker & 3D Water Flow Animated Tank',
+  title: 'HydroPulse v2.3.1 - Zero-Lockout Pump Control & Manual Override Actuation',
   changelog: [
-    'EMQX Cloud MQTT Consolidation: Unified the entire system across mobile app, web console, backend server, and ESP32 gateway firmware to a single high-throughput EMQX broker (broker.emqx.io:1883 / WSS: 8084). Removed legacy HiveMQ and Mosquitto brokers.',
-    '3D Water Flow Animated Tank: Engineered interactive spatial reservoir in Flutter with active cascading inflow jet, surface impact splash ripples, dynamic aeration micro-bubbles, and responsive 3D perspective rotation.',
-    'Dual-Mode Reservoir Visualizer: One-tap toggle between 3D Spatial Fluid Tank and 2D Calibrated Analytic Grid on Dashboard and Tank Control screens.',
-    'Direct In-App OTA Update Engine: Sub-second update discovery and package delivery powered by retained EMQX MQTT broadcast signals and multi-mirror CDN delivery.',
-    'Multi-Tenant Hardware Ownership & Instant Pair: Frictionless BLE gateway claim with automatic cloud synchronization and local preference migration.'
+    'Zero-Lockout Manual Actuation: Starting or toggling the pump immediately transitions system to MANUAL mode without getting blocked by AUTO mode safety deadlocks.',
+    'Permissive Command Dispatch: Removed artificial offline UI blockers, allowing dual-channel command transmission (EMQX MQTT + REST relay) with 5-second hardware ACK SLA.',
+    'Backend REST Relay Forwarding: Cloud /command endpoint now automatically forwards actuation commands to EMQX MQTT topics without offline rejection.',
+    'Firmware Manual Override: ESP32 Gateway automatically switches systemMode to MANUAL on explicit remote start, preventing sub-node disconnection cutoffs.',
+    'Offline Queueing & Multi-Topic Broadcast: Commands enqueued during brief network changes flush instantly upon broker connection.'
   ],
   is_critical: false,
   updatedAt: new Date().toISOString(),

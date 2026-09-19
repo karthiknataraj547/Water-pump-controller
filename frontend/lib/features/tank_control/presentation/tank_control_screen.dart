@@ -120,56 +120,16 @@ class _TankControlScreenState extends ConsumerState<TankControlScreen> {
                     subNodeStatus: hardwareStateService.subNodeStatus,
                     systemHealth: hardwareStateService.systemHealth,
                     onTogglePump: () {
-                      if (!hardwareStateService.isHardwareOnline) {
-                        ScaffoldMessenger.of(context).clearSnackBars();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            duration: Duration(seconds: 2),
-                            backgroundColor: Color(0xFFE11D48),
-                            content: Text('🔒 Hardware Offline • Connect ESP32 first to operate motor.'),
-                          ),
-                        );
-                        return;
-                      }
-                      if (mode == 'AUTO') {
-                        if (hardwareStateService.subNodeStatus == NodeStatus.offline) {
-                          ScaffoldMessenger.of(context).clearSnackBars();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              duration: Duration(seconds: 3),
-                              backgroundColor: Color(0xFFD97706),
-                              content: Text('⚠️ Tank sensor disconnected • Motor locked in AUTO mode for safety.'),
-                            ),
-                          );
-                          return;
-                        }
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            duration: Duration(seconds: 2),
-                            content: Text('⚡ Switch to MANUAL mode to start or stop the pump manually.'),
-                          ),
-                        );
-                        return;
-                      }
-
                       if (isPumpRunning) {
                         hardwareStateService.sendPumpCommand('STOP_PUMP');
                       } else {
+                        if (mode == 'AUTO') {
+                          hardwareStateService.setMode('MANUAL');
+                        }
                         hardwareStateService.sendPumpCommand('START_PUMP');
                       }
                     },
                     onModeChanged: (newMode) {
-                      if (!hardwareStateService.isHardwareOnline) {
-                        ScaffoldMessenger.of(context).clearSnackBars();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            duration: Duration(seconds: 2),
-                            backgroundColor: Color(0xFFE11D48),
-                            content: Text('⚠️ Hardware Offline • Cannot switch mode.'),
-                          ),
-                        );
-                        return;
-                      }
                       hardwareStateService.setMode(newMode);
                     },
                   ),

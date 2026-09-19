@@ -301,34 +301,31 @@
       "macAddress": "24:6F:28:94:B9:7E",
       "userEmail": "testuser@example.com",
       "userId": "testuser@example.com",
-      "isOnline": true,
-      "status": "ONLINE",
+      "isOnline": false,
+      "status": "OFFLINE",
       "pumpState": "OFF",
-      "mode": "AUTO",
+      "mode": "MANUAL",
       "firmwareVersion": "v2.1.8",
       "wifiRssi": -58,
-      "lastHeartbeat": 1789759394564
+      "lastHeartbeat": 1789759394564,
+      "pumpRunning": true
     },
     {
-      "deviceId": "esp32_pump_AA69E0",
       "id": "esp32_pump_AA69E0",
+      "deviceId": "esp32_pump_AA69E0",
       "nodeId": "esp32_pump_AA69E0",
       "name": "PumpController-AA69E0",
       "macAddress": "A0:A3:B3:AA:69:E2",
-      "userEmail": "karthiknataraj547@gmail.com",
       "userId": "karthiknataraj547@gmail.com",
-      "status": "ONLINE",
-      "pumpState": "OFF",
-      "mode": "AUTO",
-      "wifiRssi": -65,
-      "firmwareVersion": "2.2.7",
-      "pairedAt": "2026-09-18T22:13:30.734431",
-      "timestamp": 1789749810734,
-      "isOnline": true,
-      "lastHeartbeat": 1789759394572,
-      "lastSeen": "2026-09-18T19:23:14.572Z",
-      "pumpRunning": false,
-      "waterLevelPct": 72
+      "userEmail": "karthiknataraj547@gmail.com",
+      "isOnline": false,
+      "status": "OFFLINE",
+      "lastHeartbeat": 1789797370386,
+      "pumpRunning": true,
+      "mode": "MANUAL",
+      "waterLevelPct": 72,
+      "pairedAt": "2026-09-19T05:35:46.887Z",
+      "lastSeen": "2026-09-19T05:35:46.887Z"
     },
     {
       "id": "esp32_pump_AA69E0",
@@ -338,14 +335,14 @@
       "macAddress": "A0:A3:B3:AA:69:E2",
       "userId": "usr_1789759362105_522",
       "userEmail": "test_wizard_1789759361981@hydropulse.io",
-      "isOnline": true,
-      "status": "ONLINE",
-      "lastHeartbeat": 1789759394572,
-      "pumpRunning": false,
-      "mode": "AUTO",
-      "waterLevelPct": 72,
+      "isOnline": false,
+      "status": "OFFLINE",
+      "lastHeartbeat": 1789797370380,
+      "pumpRunning": true,
+      "mode": "MANUAL",
+      "waterLevelPct": 56.30653,
       "pairedAt": "2026-09-18T19:22:42.138Z",
-      "lastSeen": "2026-09-18T19:23:14.572Z"
+      "lastSeen": "2026-09-19T05:56:10.380Z"
     },
     {
       "id": "esp32_pump_AA69E0",
@@ -355,14 +352,14 @@
       "macAddress": "A0:A3:B3:AA:69:E2",
       "userId": "usr_1789759456837_755",
       "userEmail": "wizard_user_1789759456766@hydropulse.io",
-      "isOnline": true,
-      "status": "ONLINE",
-      "lastHeartbeat": 1789759456887,
-      "pumpRunning": false,
-      "mode": "AUTO",
-      "waterLevelPct": 72,
+      "isOnline": false,
+      "status": "OFFLINE",
+      "lastHeartbeat": 1789797370380,
+      "pumpRunning": true,
+      "mode": "MANUAL",
+      "waterLevelPct": 56.30653,
       "pairedAt": "2026-09-18T19:24:16.887Z",
-      "lastSeen": "2026-09-18T19:24:16.887Z"
+      "lastSeen": "2026-09-19T05:56:10.380Z"
     },
     {
       "id": "esp32_pump_TEST_FRESH",
@@ -375,27 +372,27 @@
       "isOnline": false,
       "status": "OFFLINE",
       "lastHeartbeat": 0,
-      "pumpRunning": false,
-      "mode": "STANDBY",
+      "pumpRunning": true,
+      "mode": "MANUAL",
       "waterLevelPct": -1,
       "pairedAt": "2026-09-18T19:14:24.315Z",
       "lastSeen": "2026-09-18T19:14:24.315Z"
     }
   ],
   "liveState": {
-    "pumpRunning": false,
-    "mode": "AUTO",
-    "waterLevelPct": 72,
+    "pumpRunning": true,
+    "mode": "MANUAL",
+    "waterLevelPct": 56.30653,
     "volumeLiters": 3600,
     "totalCapacityLiters": 5000,
-    "flowRateLpm": 0,
-    "powerKw": 0,
+    "flowRateLpm": 18.5,
+    "powerKw": 1.45,
     "tdsPpm": 142,
     "tempC": 24.2,
-    "lastHeartbeat": 1789759394572,
-    "lastSeen": 1789759394572,
-    "_wasOnline": true,
-    "isOnline": true
+    "lastHeartbeat": 1789797370380,
+    "lastSeen": 1789797370380,
+    "_wasOnline": false,
+    "isOnline": false
   },
   "telemetryHistory": [
     {
@@ -479,5 +476,5 @@
       "pumpRunning": false
     }
   ],
-  "timestamp": 1789759456887
+  "timestamp": 1789798484037
 }

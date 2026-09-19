@@ -744,24 +744,24 @@ module.exports = async (req, res) => {
 
     if (!manifest) {
       manifest = {
-        version: '2.3.0',
-        build_number: 34,
+        version: '2.3.1',
+        build_number: 35,
         release_date: '2026-09-19',
         min_supported_version: '1.0.0',
-        download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.3.0_build34.apk',
+        download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.3.1_build35.apk',
         website_url: 'https://water-pump-controller.vercel.app',
-        sha256: 'e7e3cec0ea1cb18239f3b121990bff17e109f4e85fa039a16f090c15135c18d1',
-        title: 'HydroPulse v2.3.0 - Consolidated EMQX Cloud Broker & 3D Water Flow Animated Tank',
+        sha256: '92e71c78fee37c9a8395a0a5161fe3fe024e6c944b2798a4ef2e87b0919d5828',
+        title: 'HydroPulse v2.3.1 - Zero-Lockout Pump Control & Manual Override Actuation',
         changelog: [
-          'EMQX Cloud MQTT Consolidation: Unified the entire system across mobile app, web console, backend server, and ESP32 gateway firmware to a single high-throughput EMQX broker (broker.emqx.io:1883 / WSS: 8084). Removed legacy HiveMQ and Mosquitto brokers.',
-          '3D Water Flow Animated Tank: Engineered interactive spatial reservoir in Flutter with active cascading inflow jet, surface impact splash ripples, dynamic aeration micro-bubbles, and responsive 3D perspective rotation.',
-          'Dual-Mode Reservoir Visualizer: One-tap toggle between 3D Spatial Fluid Tank and 2D Calibrated Analytic Grid on Dashboard and Tank Control screens.',
-          'Direct In-App OTA Update Engine: Sub-second update discovery and package delivery powered by retained EMQX MQTT broadcast signals and multi-mirror CDN delivery.',
-          'Multi-Tenant Hardware Ownership & Instant Pair: Frictionless BLE gateway claim with automatic cloud synchronization and local preference migration.'
+          'Zero-Lockout Manual Actuation: Starting or toggling the pump immediately transitions system to MANUAL mode without getting blocked by AUTO mode safety deadlocks.',
+          'Permissive Command Dispatch: Removed artificial offline UI blockers, allowing dual-channel command transmission (EMQX MQTT + REST relay) with 5-second hardware ACK SLA.',
+          'Backend REST Relay Forwarding: Cloud /command endpoint now automatically forwards actuation commands to EMQX MQTT topics without offline rejection.',
+          'Firmware Manual Override: ESP32 Gateway automatically switches systemMode to MANUAL on explicit remote start, preventing sub-node disconnection cutoffs.',
+          'Offline Queueing & Multi-Topic Broadcast: Commands enqueued during brief network changes flush instantly upon broker connection.'
         ],
         is_critical: false,
         updatedAt: new Date().toISOString(),
-        file_size: 58542296
+        file_size: 58525728
       };
     }
 
@@ -1295,13 +1295,10 @@ module.exports = async (req, res) => {
           message: 'Access denied. You do not have ownership of this hardware pump controller.'
         });
       }
+      // Note: Do NOT reject command if offline in backend cache; dispatching command to MQTT broker is what reaches the hardware
       const isOnline = verifyHardwareOnline(dev);
       if (!isOnline) {
-        return res.status(400).json({
-          status: 'error',
-          code: 'DEVICE_OFFLINE',
-          message: `Pump controller '${devId}' is currently offline. The command was not sent.`
-        });
+        console.log(`[API Command] Notice: Device '${devId}' marked offline in backend cache; forwarding command to EMQX MQTT broker regardless.`);
       }
     }
 
@@ -1319,6 +1316,7 @@ module.exports = async (req, res) => {
 
     if (cmd === 'START' || cmd === 'START_PUMP' || cmd === 'PUMP_ON' || cmd === 'ON') {
       liveState.pumpRunning = true;
+      liveState.mode = 'MANUAL'; // Manual start switches system mode to MANUAL
       liveState.flowRateLpm = 18.5;
       liveState.powerKw = 1.45;
     } else if (cmd === 'STOP' || cmd === 'STOP_PUMP' || cmd === 'PUMP_OFF' || cmd === 'OFF' || cmd === 'EMERGENCY_STOP') {
@@ -1332,16 +1330,51 @@ module.exports = async (req, res) => {
       }
     }
     // Sync state across all registered devices (does not alter online verification)
-    for (const dev of devicesDb.values()) {
-      dev.pumpRunning = liveState.pumpRunning;
-      dev.mode = liveState.mode;
+    for (const d of devicesDb.values()) {
+      d.pumpRunning = liveState.pumpRunning;
+      d.mode = liveState.mode;
     }
     saveState();
+
+    // Broadcast command immediately via EMQX MQTT to physical hardware
+    const targetDevId = devId || (devicesDb.size > 0 ? Array.from(devicesDb.keys())[0] : 'esp32_pump_main');
+    const cmdId = body.command_id || body.commandId || `cmd_srv_${Date.now()}`;
+    const actionStr = (cmd === 'START' || cmd === 'START_PUMP' || cmd === 'PUMP_ON' || cmd === 'ON') 
+      ? 'START' 
+      : ((cmd === 'STOP' || cmd === 'STOP_PUMP' || cmd === 'PUMP_OFF' || cmd === 'OFF' || cmd === 'EMERGENCY_STOP') ? 'STOP' : cmd);
+
+    try {
+      const client = getMqttClient();
+      if (client) {
+        const mqttPayload = JSON.stringify({
+          action: cmd,
+          command: cmd,
+          commandId: cmdId,
+          command_id: cmdId,
+          parameters: parameters,
+          deviceId: targetDevId,
+          timestamp: Math.floor(Date.now() / 1000)
+        });
+        client.publish(`pump/${targetDevId}/command`, mqttPayload, { qos: 0 });
+        client.publish('pump/command', mqttPayload, { qos: 0 });
+        client.publish('pump/esp32_pump_AA69E0/command', mqttPayload, { qos: 0 });
+        client.publish('waterpump/esp32/control', mqttPayload, { qos: 0 });
+        client.publish(`devices/${targetDevId}/command`, mqttPayload, { qos: 0 });
+        // Plaintext fast-path
+        client.publish(`pump/${targetDevId}/command`, actionStr, { qos: 0 });
+        client.publish('pump/command', actionStr, { qos: 0 });
+        console.log(`[API Command Relay] Published ${cmd} (${actionStr}) via EMQX MQTT to ${targetDevId} and global command topics`);
+      }
+    } catch (mqttErr) {
+      console.warn('[API Command Relay] MQTT forward notice:', mqttErr.message);
+    }
 
     return res.status(200).json({
       status: 'success',
       data: {
         command: cmd,
+        action: actionStr,
+        command_id: cmdId,
         executed: true,
         pumpRunning: liveState.pumpRunning,
         mode: liveState.mode,

@@ -180,16 +180,6 @@ class _PumpControlScreenState extends ConsumerState<PumpControlScreen> {
                         // Big Circular Toggle Button (Confirmed by Hardware ACK)
                         GestureDetector(
                           onTap: () {
-                            if (!isOnline) {
-                              ScaffoldMessenger.of(context).clearSnackBars();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  backgroundColor: AppTheme.accentRose,
-                                  content: Text('🔒 Hardware Offline • Connect or power on ESP32 first.'),
-                                ),
-                              );
-                              return;
-                            }
                             if (isCommandInFlight) {
                               ScaffoldMessenger.of(context).clearSnackBars();
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -220,19 +210,14 @@ class _PumpControlScreenState extends ConsumerState<PumpControlScreen> {
                             height: 140,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              gradient: !isOnline
-                                  ? null
-                                  : (isCommandInFlight
-                                      ? const LinearGradient(colors: [Color(0xFFD97706), Color(0xFFB45309)])
-                                      : (_isPumpRunning ? AppTheme.dangerGradient : AppTheme.emeraldGradient)),
-                              color: !isOnline ? const Color(0xFF1E293B) : null,
+                              gradient: isCommandInFlight
+                                  ? const LinearGradient(colors: [Color(0xFFD97706), Color(0xFFB45309)])
+                                  : (_isPumpRunning ? AppTheme.dangerGradient : AppTheme.emeraldGradient),
                               boxShadow: [
                                 BoxShadow(
-                                  color: (!isOnline
-                                          ? Colors.black26
-                                          : (isCommandInFlight
-                                              ? const Color(0xFFF59E0B)
-                                              : (_isPumpRunning ? AppTheme.accentRose : AppTheme.accentEmerald)))
+                                  color: (isCommandInFlight
+                                          ? const Color(0xFFF59E0B)
+                                          : (_isPumpRunning ? AppTheme.accentRose : AppTheme.accentEmerald))
                                       .withOpacity(0.35),
                                   blurRadius: 32,
                                   spreadRadius: 4,
@@ -240,34 +225,30 @@ class _PumpControlScreenState extends ConsumerState<PumpControlScreen> {
                               ],
                             ),
                             child: Center(
-                              child: !isOnline
-                                  ? const Icon(Icons.cloud_off_rounded, size: 64, color: AppTheme.darkTextTertiary)
-                                  : (isCommandInFlight
-                                      ? const SizedBox(
-                                          width: 48,
-                                          height: 48,
-                                          child: CircularProgressIndicator(
-                                            color: Colors.white,
-                                            strokeWidth: 4,
-                                          ),
-                                        )
-                                      : Icon(
-                                          _isPumpRunning ? Icons.power_settings_new_rounded : Icons.play_arrow_rounded,
-                                          size: 64,
-                                          color: Colors.white,
-                                        )),
+                              child: isCommandInFlight
+                                  ? const SizedBox(
+                                      width: 48,
+                                      height: 48,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 4,
+                                      ),
+                                    )
+                                  : Icon(
+                                      _isPumpRunning ? Icons.power_settings_new_rounded : Icons.play_arrow_rounded,
+                                      size: 64,
+                                      color: Colors.white,
+                                    ),
                             ),
                           ),
                         ),
                         const SizedBox(height: 24),
                         Text(
-                          !isOnline
-                              ? 'Hardware Offline • Control Locked'
-                              : (isCommandInFlight
-                                  ? (pendingAction == 'ON' || hardwareStateService.lastCommand?.command == 'PUMP_ON'
-                                      ? 'Hardware Starting Relay...'
-                                      : 'Hardware Stopping Relay...')
-                                  : (_isPumpRunning ? 'Tap to STOP Pump' : 'Tap to START Pump')),
+                          isCommandInFlight
+                              ? (pendingAction == 'ON' || hardwareStateService.lastCommand?.command == 'PUMP_ON'
+                                  ? 'Hardware Starting Relay...'
+                                  : 'Hardware Stopping Relay...')
+                              : (_isPumpRunning ? 'Tap to STOP Pump' : 'Tap to START Pump'),
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.7),
                             fontWeight: FontWeight.w600,

@@ -861,7 +861,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               icon: const Icon(Icons.open_in_browser_rounded, size: 16),
               label: const Text('Download APK', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
               onPressed: () async {
-                final target = _latestVersionInfo?.downloadUrl ?? 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.9_build33.apk';
+                final target = _latestVersionInfo?.downloadUrl ?? 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.3.1_build35.apk';
                 final uri = Uri.parse(target);
                 if (await canLaunchUrl(uri)) {
                   await launchUrl(uri, mode: LaunchMode.externalApplication);

@@ -76,7 +76,6 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
     final isAuto = widget.mode.toUpperCase() == 'AUTO';
     final isOnline = widget.mainNodeStatus != NodeStatus.offline;
     final isSubOnline = widget.subNodeStatus != NodeStatus.offline;
-    final isLocked = isAuto && !isSubOnline;
 
     final clampedPct = widget.waterLevelPct.clamp(0.0, 100.0);
     final volume = widget.waterVolumeLiters > 0
@@ -506,33 +505,23 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
                   height: 52,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: isLocked
-                          ? const Color(0xFF334155)
-                          : (widget.isPumpRunning ? AppTheme.danger : AppTheme.accent),
+                      backgroundColor: widget.isPumpRunning ? AppTheme.danger : AppTheme.accent,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       elevation: widget.isPumpRunning ? 4 : 0,
                     ),
-                    onPressed: isLocked
-                        ? () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Tank sensor offline. Switch to MANUAL to override safety interlock.'),
-                                backgroundColor: AppTheme.warning,
-                              ),
-                            );
-                          }
-                        : () {
-                            HapticFeedback.mediumImpact();
-                            widget.onTogglePump();
-                          },
+                    onPressed: () {
+                      HapticFeedback.mediumImpact();
+                      if (isAuto && !widget.isPumpRunning) {
+                        widget.onModeChanged('MANUAL');
+                      }
+                      widget.onTogglePump();
+                    },
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          isLocked
-                              ? Icons.lock_rounded
-                              : (widget.isPumpRunning ? Icons.stop_circle_rounded : Icons.play_circle_filled_rounded),
+                          widget.isPumpRunning ? Icons.stop_circle_rounded : Icons.play_circle_filled_rounded,
                           size: 22,
                         ),
                         const SizedBox(width: 10),
@@ -541,15 +530,13 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              isLocked
-                                  ? 'ACTUATOR LOCKED (SENSOR OFFLINE)'
-                                  : (widget.isPumpRunning ? 'STOP PUMP ACTUATOR' : 'START PUMP ACTUATOR'),
+                              widget.isPumpRunning ? 'STOP PUMP ACTUATOR' : 'START PUMP ACTUATOR',
                               style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, letterSpacing: 0.4),
                             ),
                             Text(
-                              isLocked
-                                  ? 'Manual mode required for blind actuation'
-                                  : (widget.isPumpRunning ? 'Active pumping: 18.5 L/min' : 'Standby · Instant command dispatch'),
+                              widget.isPumpRunning
+                                  ? 'Active pumping: 18.5 L/min'
+                                  : (isAuto ? 'Manual override · Tap to start' : 'Standby · Instant command dispatch'),
                               style: const TextStyle(fontSize: 10.5, color: Colors.white70),
                             ),
                           ],

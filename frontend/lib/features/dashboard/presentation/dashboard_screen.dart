@@ -93,7 +93,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   @override
   Widget build(BuildContext context) {
     final device = hardwareStateService.activeDevice;
-    final isOnline = hardwareStateService.isHardwareOnline;
     final sensorData = hardwareStateService.sensorData;
     final pumpStatus = hardwareStateService.pumpStatus;
 
@@ -214,49 +213,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                       systemHealth: hardwareStateService.systemHealth,
                       commandState: hardwareStateService.lastCommand?.state ?? CommandTransitState.idle,
                       onModeChanged: (newMode) {
-                        if (!isOnline) {
-                          ScaffoldMessenger.of(context).clearSnackBars();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('⚠️ Hardware Offline • Cannot switch mode.'),
-                              backgroundColor: AppTheme.danger,
-                            ),
-                          );
-                          return;
-                        }
                         hardwareStateService.setMode(newMode);
                       },
                       onTogglePump: () {
-                        if (!isOnline) {
-                          ScaffoldMessenger.of(context).clearSnackBars();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('🔒 Hardware Offline • Power on or connect ESP32 first.'),
-                              backgroundColor: AppTheme.danger,
-                            ),
-                          );
-                          return;
-                        }
-                        if (device.mode.toUpperCase() == 'AUTO' && hardwareStateService.subNodeStatus == NodeStatus.offline) {
-                          ScaffoldMessenger.of(context).clearSnackBars();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text('⚠️ Tank sensor disconnected • Motor locked in AUTO mode for safety.'),
-                              backgroundColor: AppTheme.warning,
-                              action: SnackBarAction(
-                                label: 'Switch to Manual',
-                                textColor: Colors.white,
-                                onPressed: () {
-                                  hardwareStateService.setMode('MANUAL');
-                                },
-                              ),
-                            ),
-                          );
-                          return;
-                        }
                         if (isPumpOn) {
                           _sendPumpCommand('STOP_PUMP');
                         } else {
+                          if (device.mode.toUpperCase() == 'AUTO') {
+                            hardwareStateService.setMode('MANUAL');
+                          }
                           _sendPumpCommand('START_PUMP');
                         }
                       },

@@ -627,7 +627,7 @@ class HardwareStateService extends ChangeNotifier {
     }
   }
 
-  // 1. Physical Hardware Connection State — Realistic IoT Timing (30s Active / 60s Stale)
+  // 1. Physical Hardware Connection State — Realistic IoT Timing (45s Active / 90s Stale)
   NodeStatus get mainNodeStatus {
     if (_activeDevice == null) return NodeStatus.offline;
 
@@ -636,22 +636,22 @@ class HardwareStateService extends ChangeNotifier {
     // A. Direct verified hardware heartbeat (via MQTT)
     if (_lastMainNodeHeartbeat != null) {
       final diffMs = now.difference(_lastMainNodeHeartbeat!).inMilliseconds;
-      if (diffMs <= 30000) return NodeStatus.online;
-      if (diffMs <= 60000) return NodeStatus.stale;
+      if (diffMs <= 45000) return NodeStatus.online;
+      if (diffMs <= 90000) return NodeStatus.stale;
       return NodeStatus.offline;
     }
 
-    // B. Cloud Backend Verification Failover (REST Watchdog within 30s)
+    // B. Cloud Backend Verification Failover (REST Watchdog within 45s)
     if (_lastCloudVerifiedOnline != null) {
       final diffMs = now.difference(_lastCloudVerifiedOnline!).inMilliseconds;
-      if (diffMs <= 30000) return NodeStatus.online;
-      if (diffMs <= 60000) return NodeStatus.stale;
+      if (diffMs <= 45000) return NodeStatus.online;
+      if (diffMs <= 90000) return NodeStatus.stale;
     }
 
     // C. If active device model is marked ONLINE and was seen recently
     if (_activeDevice!.status.toUpperCase() == 'ONLINE') {
       final diffMs = now.difference(_activeDevice!.lastSeen).inMilliseconds;
-      if (diffMs <= 45000) return NodeStatus.online;
+      if (diffMs <= 60000) return NodeStatus.online;
     }
 
     if (_isVerifyingStatus) return NodeStatus.stale;
@@ -684,7 +684,7 @@ class HardwareStateService extends ChangeNotifier {
 
   bool get isHardwareOnline {
     if (_activeDevice == null) return false;
-    return mainNodeStatus == NodeStatus.online;
+    return mainNodeStatus == NodeStatus.online || mainNodeStatus == NodeStatus.stale;
   }
   bool get isSubNodeOnline => subNodeStatus == NodeStatus.online;
   String? get pendingCommandAction => _pendingCommandAction;
@@ -743,6 +743,9 @@ class HardwareStateService extends ChangeNotifier {
         final cleanMac = _activeDevice!.macAddress.toLowerCase().replaceAll(':', '');
         if (cleanIncoming.contains(cleanMac) || cleanMac.contains(cleanIncoming)) return true;
       }
+
+      // Single active device paired: accept hardware updates
+      return true;
     }
 
     return false;
@@ -1677,15 +1680,14 @@ class HardwareStateService extends ChangeNotifier {
       return;
     }
 
-    if (!isHardwareOnline) {
-      addLiveAlert('Control Locked', 'ESP32 hardware is offline. Ensure device is powered on.', 'error', level: AlertLevel.danger);
-      notifyListeners();
-      return;
-    }
-
     final isTurningOn = (normCmd == 'START_PUMP' || normCmd == 'PUMP_ON' || normCmd == 'ON');
     final newState = isTurningOn ? 'ON' : 'OFF';
     _pendingCommandAction = newState;
+
+    // Explicit manual actuation: ensure system mode is switched to MANUAL so firmware doesn't trip on AUTO rules
+    if (isTurningOn && _activeDevice?.mode != 'MANUAL') {
+      setMode('MANUAL');
+    }
 
     final cmdId = 'cmd_${DateTime.now().millisecondsSinceEpoch}_${(DateTime.now().microsecond % 1000)}';
     _lastCommand = PendingCommand(
@@ -1713,6 +1715,7 @@ class HardwareStateService extends ChangeNotifier {
       'commandId': cmdId,
       'action': isTurningOn ? 'START' : 'STOP',
       'command': command,
+      'mode': 'MANUAL',
       ...?params,
     };
     mqttService.publishCommand(
@@ -1733,8 +1736,6 @@ class HardwareStateService extends ChangeNotifier {
       'parameters': cmdPayload,
     }).ignore();
 
-    // NOTICE: Do NOT optimistically update _activeDevice!.pumpState or _pumpStatus!
-    // Hardware reports actual hardware state upon ACK or heartbeat.
     notifyListeners();
   }
 

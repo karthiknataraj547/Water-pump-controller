@@ -202,9 +202,12 @@ class MqttService {
     debugPrint('[MQTT TX Retained] Published to $topic (retain: true)');
   }
 
+  final List<VoidCallback> _pendingCommandQueue = [];
+
   void publishCommand(String userId, String deviceId, String command, Map<String, dynamic> params) {
     if (_client == null || !isConnected) {
-      debugPrint('[MQTT] Cannot publish command: MQTT Client disconnected. Triggering auto-reconnect...');
+      debugPrint('[MQTT] Cannot publish command immediately: MQTT Client disconnected. Enqueuing for connect flush...');
+      _pendingCommandQueue.add(() => publishCommand(userId, deviceId, command, params));
       connect();
       return;
     }
@@ -227,10 +230,11 @@ class MqttService {
     final builder = MqttClientPayloadBuilder();
     builder.addString(payloadJson);
 
-    // Instant zero-delay dispatch (QoS 0) directly to hardware topic without network roundtrip stall
+    // Instant zero-delay dispatch (QoS 0) directly to hardware topics
     _client!.publishMessage('pump/$deviceId/command', MqttQos.atMostOnce, builder.payload!);
     _client!.publishMessage('pump/esp32_pump_AA69E0/command', MqttQos.atMostOnce, builder.payload!);
     _client!.publishMessage('pump/command', MqttQos.atMostOnce, builder.payload!);
+    _client!.publishMessage('pump/$userId/$deviceId/command', MqttQos.atMostOnce, builder.payload!);
     _client!.publishMessage('devices/$deviceId/command', MqttQos.atMostOnce, builder.payload!);
     _client!.publishMessage('waterpump/esp32/control', MqttQos.atMostOnce, builder.payload!);
 
@@ -249,6 +253,8 @@ class MqttService {
     _client!.publishMessage('pump/$deviceId/command', MqttQos.atMostOnce, rawBuilder.payload!);
     _client!.publishMessage('pump/esp32_pump_AA69E0/command', MqttQos.atMostOnce, rawBuilder.payload!);
     _client!.publishMessage('pump/command', MqttQos.atMostOnce, rawBuilder.payload!);
+    _client!.publishMessage('pump/$userId/$deviceId/command', MqttQos.atMostOnce, rawBuilder.payload!);
+    _client!.publishMessage('waterpump/esp32/control', MqttQos.atMostOnce, rawBuilder.payload!);
 
     debugPrint('[MQTT Ultra-Fast TX Command <2ms] $command (Raw: $rawAction) to $deviceId (ID: $cmdId)');
   }
@@ -329,6 +335,19 @@ class MqttService {
     connectionNotifier.value = true;
     _reconnectTimer?.cancel();
     debugPrint('[MQTT] Connected to broker ($currentBroker) successfully.');
+
+    // Flush any pending commands queued during reconnection
+    if (_pendingCommandQueue.isNotEmpty) {
+      final queue = List<VoidCallback>.from(_pendingCommandQueue);
+      _pendingCommandQueue.clear();
+      for (final cmd in queue) {
+        try {
+          cmd();
+        } catch (e) {
+          debugPrint('[MQTT] Error executing queued command: $e');
+        }
+      }
+    }
   }
 
   void _onDisconnected() {
