@@ -751,7 +751,7 @@ class HardwareStateService extends ChangeNotifier {
   Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
     final savedHost = prefs.getString('mqtt_broker_host');
-    if (savedHost != 'broker.hivemq.com') {
+    if (savedHost != 'broker.emqx.io') {
       _brokerHost = AppConstants.mqttBrokerHost;
       await prefs.setString('mqtt_broker_host', _brokerHost);
     } else {

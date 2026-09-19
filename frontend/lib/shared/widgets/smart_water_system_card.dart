@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/hardware/hardware_state_service.dart';
+import 'spatial_water_tank_3d.dart';
 
 class SmartWaterSystemCard extends StatefulWidget {
   final double waterLevelPct;
@@ -48,6 +49,7 @@ class SmartWaterSystemCard extends StatefulWidget {
 class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
     with SingleTickerProviderStateMixin {
   late AnimationController _waveController;
+  bool _show3DTank = true;
 
   @override
   void initState() {
@@ -173,21 +175,68 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
                     ),
                   ],
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF0B111E) : const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    isAuto ? 'MODE: AUTO' : 'MODE: MANUAL',
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.6,
-                      color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    InkWell(
+                      onTap: () => setState(() => _show3DTank = !_show3DTank),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _show3DTank
+                              ? AppTheme.primary.withOpacity(0.16)
+                              : (isDark ? const Color(0xFF0B111E) : const Color(0xFFF1F5F9)),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: _show3DTank ? AppTheme.primary.withOpacity(0.5) : Colors.transparent,
+                            width: 0.8,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _show3DTank ? Icons.view_in_ar_rounded : Icons.grid_view_rounded,
+                              size: 11,
+                              color: _show3DTank
+                                  ? AppTheme.primary
+                                  : (isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _show3DTank ? '3D TANK' : '2D GRID',
+                              style: TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.5,
+                                color: _show3DTank
+                                    ? AppTheme.primary
+                                    : (isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF0B111E) : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        isAuto ? 'MODE: AUTO' : 'MODE: MANUAL',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.6,
+                          color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -202,107 +251,115 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
               height: 220,
               child: Row(
                 children: [
-                  // Calibrated Reservoir Cross-Section Tank
+                  // Calibrated Reservoir Cross-Section Tank (3D Spatial or 2D Analytic)
                   Expanded(
                     flex: 5,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF090E17) : const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFCBD5E1),
-                          width: 1.0,
-                        ),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: Stack(
-                        children: [
-                          // Background Grid & Metric Graduations
-                          Positioned.fill(
-                            child: CustomPaint(
-                              painter: _ReservoirTicksPainter(
-                                isDark: isDark,
-                                maxCapacity: widget.totalCapacityLiters,
+                    child: _show3DTank
+                        ? SpatialWaterTank3D(
+                            levelPercentage: clampedPct,
+                            height: 220,
+                            isFilling: widget.isPumpRunning,
+                            totalCapacityLiters: widget.totalCapacityLiters,
+                            showGestureTip: true,
+                          )
+                        : Container(
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF090E17) : const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFCBD5E1),
+                                width: 1.0,
                               ),
                             ),
-                          ),
-
-                          // Animated Fluid Body
-                          AnimatedBuilder(
-                            animation: _waveController,
-                            builder: (context, _) {
-                              return CustomPaint(
-                                size: Size.infinite,
-                                painter: _FluidReservoirPainter(
-                                  fillPct: clampedPct / 100.0,
-                                  waveProgress: _waveController.value,
-                                  isPumpRunning: widget.isPumpRunning,
-                                  isDark: isDark,
-                                ),
-                              );
-                            },
-                          ),
-
-                          // Threshold Markers Overlay (Auto-Stop 95%, Auto-Start 25%)
-                          Positioned(
-                            top: 220 * 0.05,
-                            left: 0,
-                            right: 0,
-                            child: _buildThresholdMarker('95% AUTO-STOP', AppTheme.accent, isDark),
-                          ),
-                          Positioned(
-                            top: 220 * 0.75,
-                            left: 0,
-                            right: 0,
-                            child: _buildThresholdMarker('25% AUTO-START', AppTheme.warning, isDark),
-                          ),
-
-                          // Center Volume Telemetry Display
-                          Center(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: BackdropFilter(
-                                filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: (isDark ? const Color(0xFF0B1220) : Colors.white).withOpacity(0.82),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: (isDark ? Colors.white : Colors.black).withOpacity(0.12),
-                                      width: 0.8,
+                            clipBehavior: Clip.antiAlias,
+                            child: Stack(
+                              children: [
+                                // Background Grid & Metric Graduations
+                                Positioned.fill(
+                                  child: CustomPaint(
+                                    painter: _ReservoirTicksPainter(
+                                      isDark: isDark,
+                                      maxCapacity: widget.totalCapacityLiters,
                                     ),
                                   ),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        '${clampedPct.toStringAsFixed(1)}%',
-                                        style: TextStyle(
-                                          fontSize: 26,
-                                          fontWeight: FontWeight.w800,
-                                          letterSpacing: -0.8,
-                                          color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
-                                          fontFeatures: const [FontFeature.tabularFigures()],
+                                ),
+
+                                // Animated Fluid Body
+                                AnimatedBuilder(
+                                  animation: _waveController,
+                                  builder: (context, _) {
+                                    return CustomPaint(
+                                      size: Size.infinite,
+                                      painter: _FluidReservoirPainter(
+                                        fillPct: clampedPct / 100.0,
+                                        waveProgress: _waveController.value,
+                                        isPumpRunning: widget.isPumpRunning,
+                                        isDark: isDark,
+                                      ),
+                                    );
+                                  },
+                                ),
+
+                                // Threshold Markers Overlay (Auto-Stop 95%, Auto-Start 25%)
+                                Positioned(
+                                  top: 220 * 0.05,
+                                  left: 0,
+                                  right: 0,
+                                  child: _buildThresholdMarker('95% AUTO-STOP', AppTheme.accent, isDark),
+                                ),
+                                Positioned(
+                                  top: 220 * 0.75,
+                                  left: 0,
+                                  right: 0,
+                                  child: _buildThresholdMarker('25% AUTO-START', AppTheme.warning, isDark),
+                                ),
+
+                                // Center Volume Telemetry Display
+                                Center(
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: BackdropFilter(
+                                      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                        decoration: BoxDecoration(
+                                          color: (isDark ? const Color(0xFF0B1220) : Colors.white).withOpacity(0.82),
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: (isDark ? Colors.white : Colors.black).withOpacity(0.12),
+                                            width: 0.8,
+                                          ),
+                                        ),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              '${clampedPct.toStringAsFixed(1)}%',
+                                              style: TextStyle(
+                                                fontSize: 26,
+                                                fontWeight: FontWeight.w800,
+                                                letterSpacing: -0.8,
+                                                color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
+                                                fontFeatures: const [FontFeature.tabularFigures()],
+                                              ),
+                                            ),
+                                            Text(
+                                              '${volume.toStringAsFixed(0)} / ${widget.totalCapacityLiters.toStringAsFixed(0)} L',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      Text(
-                                        '${volume.toStringAsFixed(0)} / ${widget.totalCapacityLiters.toStringAsFixed(0)} L',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                          color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
-                                        ),
-                                      ),
-                                    ],
+                                    ),
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
                           ),
-                        ],
-                      ),
-                    ),
                   ),
 
                   const SizedBox(width: 16),

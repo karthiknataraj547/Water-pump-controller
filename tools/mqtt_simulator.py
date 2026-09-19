@@ -12,7 +12,7 @@ import random
 import threading
 import paho.mqtt.client as mqtt
 
-BROKER_HOST = "localhost"
+BROKER_HOST = "broker.emqx.io"
 BROKER_PORT = 1883
 USER_ID = "usr_demo_001"
 DEVICE_ID = "esp32_pump_94B97E"
@@ -38,7 +38,7 @@ running_duration_sec = 0
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
-        print(f"[SIMULATOR] ✅ Connected to Mosquitto MQTT Broker at {BROKER_HOST}:{BROKER_PORT}")
+        print(f"[SIMULATOR] ✅ Connected to EMQX MQTT Broker at {BROKER_HOST}:{BROKER_PORT}")
         cmd_topic = f"pump/{USER_ID}/{DEVICE_ID}/command"
         cfg_topic = f"pump/{USER_ID}/{DEVICE_ID}/config"
         client.subscribe([(cmd_topic, 1), (cfg_topic, 1)])
@@ -191,7 +191,7 @@ def main():
     try:
         client.connect(BROKER_HOST, BROKER_PORT, 60)
     except Exception as e:
-        print(f"[SIMULATOR] Could not connect to MQTT Broker ({e}). Ensure Mosquitto is running on port 1883.")
+        print(f"[SIMULATOR] Could not connect to MQTT Broker ({e}). Ensure broker.emqx.io is reachable on port 1883.")
         return
 
     telemetry_thread = threading.Thread(target=telemetry_loop, args=(client,), daemon=True)

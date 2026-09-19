@@ -178,7 +178,7 @@ function matchDevice(dev, incomingDevId) {
 }
 
 // ==============================================================================
-// Active MQTT Client & Hardware Verification Engine (broker.hivemq.com:1883)
+// Active MQTT Client & Hardware Verification Engine (broker.emqx.io:1883)
 // ==============================================================================
 const DB_SYNC_TOPIC = 'hydropulse/v2/system/db_sync';
 const DB_CRYPTO_KEY = crypto.scryptSync('hydropulse_super_secret_db_2026', 'hydropulse_salt', 32);
@@ -219,7 +219,7 @@ function getMqttClient() {
   if (mqttClient) return mqttClient;
   try {
     const mqtt = require('mqtt');
-    mqttClient = mqtt.connect('mqtt://broker.hivemq.com:1883', {
+    mqttClient = mqtt.connect(process.env.MQTT_BROKER_URL || 'mqtt://broker.emqx.io:1883', {
       clientId: 'api_gw_' + Math.random().toString(16).slice(2, 8),
       clean: true,
       reconnectPeriod: 2500,
@@ -227,7 +227,7 @@ function getMqttClient() {
     });
 
     mqttClient.on('connect', () => {
-      console.log('[API MQTT] Connected to broker.hivemq.com:1883');
+      console.log('[API MQTT] Connected to broker.emqx.io:1883');
       mqttClient.subscribe([
         'pump/pong',
         'pump/+/pong',
@@ -744,24 +744,24 @@ module.exports = async (req, res) => {
 
     if (!manifest) {
       manifest = {
-        version: '2.2.9',
-        build_number: 33,
+        version: '2.3.0',
+        build_number: 34,
         release_date: '2026-09-19',
         min_supported_version: '1.0.0',
-        download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.2.9_build33.apk',
+        download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.3.0_build34.apk',
         website_url: 'https://water-pump-controller.vercel.app',
-        sha256: 'b414864c038531e95f22bfbaf312a23ddc34c4f35c6ff04f9a2afdfc9ad1b2ff',
-        title: 'HydroPulse v2.2.9 - Hardware Auto-Provisioning, Cloud Gateway Pairing & Fast OTA Update Engine',
+        sha256: 'e7e3cec0ea1cb18239f3b121990bff17e109f4e85fa039a16f090c15135c18d1',
+        title: 'HydroPulse v2.3.0 - Consolidated EMQX Cloud Broker & 3D Water Flow Animated Tank',
         changelog: [
-          'Hardware Provisioning & Cloud Registration: Resolved ESP32 BLE provisioning post-registration bug where newly provisioned hardware failed to register on the cloud backend and appear on user accounts.',
-          'Multi-Tenant Hardware Ownership: Real-time user-hardware claiming with seamless state sync between Flutter mobile app and web console.',
-          'Direct In-App OTA Update Engine: Instant multi-mirror package delivery (Vercel Edge CDN, GitHub Raw, and direct cloud API) with real-time HiveMQ MQTT broadcast notifications.',
-          'Unpaired State System Access: Complete access to System Settings, App Update Engine, and App Info diagnostics prior to hardware pairing.',
-          'Industrial Console & 3D Reservoir Telemetry: Engineering-grade Linear/Tesla Energy obsidian interface with calibrated 0-5000L volumetric tracking.'
+          'EMQX Cloud MQTT Consolidation: Unified the entire system across mobile app, web console, backend server, and ESP32 gateway firmware to a single high-throughput EMQX broker (broker.emqx.io:1883 / WSS: 8084). Removed legacy HiveMQ and Mosquitto brokers.',
+          '3D Water Flow Animated Tank: Engineered interactive spatial reservoir in Flutter with active cascading inflow jet, surface impact splash ripples, dynamic aeration micro-bubbles, and responsive 3D perspective rotation.',
+          'Dual-Mode Reservoir Visualizer: One-tap toggle between 3D Spatial Fluid Tank and 2D Calibrated Analytic Grid on Dashboard and Tank Control screens.',
+          'Direct In-App OTA Update Engine: Sub-second update discovery and package delivery powered by retained EMQX MQTT broadcast signals and multi-mirror CDN delivery.',
+          'Multi-Tenant Hardware Ownership & Instant Pair: Frictionless BLE gateway claim with automatic cloud synchronization and local preference migration.'
         ],
         is_critical: false,
         updatedAt: new Date().toISOString(),
-        file_size: 58427188
+        file_size: 58542296
       };
     }
 

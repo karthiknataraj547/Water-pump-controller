@@ -28,7 +28,7 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         PORT: 4000,
-        MQTT_BROKER_URL: 'mqtt://broker.hivemq.com:1883',
+        MQTT_BROKER_URL: 'mqtt://broker.emqx.io:1883',
         CLOUD_API_URL: 'https://water-pump-controller.vercel.app/api/v1',
         DATABASE_URL: 'postgresql://iot_user:iot_password@localhost:5432/water_pump_db?schema=public'
       }

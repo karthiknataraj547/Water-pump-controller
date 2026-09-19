@@ -9,7 +9,7 @@ const handler = require('../api/index.js');
 const mqtt = require(path.join(__dirname, '..', 'backend', 'node_modules', 'mqtt'));
 
 const PORT = 3299;
-const BROKER_URL = 'mqtt://broker.hivemq.com:1883';
+const BROKER_URL = 'mqtt://broker.emqx.io:1883';
 const TEST_DEV_ID = `esp32_e2e_${Date.now()}`;
 
 const TOPIC_CMD = `pump/${TEST_DEV_ID}/command`;
@@ -84,7 +84,7 @@ async function run32StepTest() {
       macAddress: '24:6F:28:B2:A4:99'
     }, token);
 
-    // Connect simulated hardware to HiveMQ
+    // Connect simulated hardware to EMQX
     hwNode = mqtt.connect(BROKER_URL, { clientId: `${TEST_DEV_ID}_sim_hw`, clean: true });
     appMqtt = mqtt.connect(BROKER_URL, { clientId: `${TEST_DEV_ID}_sim_app`, clean: true });
 
@@ -154,7 +154,7 @@ async function run32StepTest() {
     stepResult(6, 'Press START Command', startAck.status === 'RUNNING');
 
     // 7. Measure latency
-    stepResult(7, 'Measure START Latency', startLatency < 400, `${startLatency} ms (HiveMQ Cloud WAN)`);
+    stepResult(7, 'Measure START Latency', startLatency < 400, `${startLatency} ms (EMQX Cloud WAN)`);
 
     // 8. Confirm physical relay
     stepResult(8, 'Confirm Physical Relay State ON', physicalRelay === true, 'GPIO Relay line energized');
@@ -183,7 +183,7 @@ async function run32StepTest() {
     stepResult(10, 'Press STOP Command', stopAck.status === 'STOPPED');
 
     // 11. Measure latency
-    stepResult(11, 'Measure STOP Latency', stopLatency < 400, `${stopLatency} ms (HiveMQ Cloud WAN)`);
+    stepResult(11, 'Measure STOP Latency', stopLatency < 400, `${stopLatency} ms (EMQX Cloud WAN)`);
 
     // 12. Confirm physical relay OFF
     stepResult(12, 'Confirm Physical Relay State OFF', physicalRelay === false, 'GPIO Relay line de-energized');

@@ -2114,8 +2114,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const brokerUrl = window.location.protocol === 'https:'
-        ? 'wss://broker.hivemq.com:8884/mqtt'
-        : 'ws://broker.hivemq.com:8000/mqtt';
+        ? 'wss://broker.emqx.io:8084/mqtt'
+        : 'ws://broker.emqx.io:8083/mqtt';
 
       const clientId = 'hydropulse_web_' + Math.random().toString(16).substring(2, 8);
       mqttClient = mqtt.connect(brokerUrl, {
@@ -2126,7 +2126,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       mqttClient.on('connect', () => {
-        console.log('[MQTT] Connected to HiveMQ Cloud Broker via WebSocket');
+        console.log('[MQTT] Connected to EMQX Cloud Broker via WebSocket');
         updateMqttStatusBadge(true);
         if (userDevices && userDevices.length === 0) {
           updateHardwareStatusBadge(false, 0);

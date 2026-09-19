@@ -68,7 +68,7 @@
 #define NVS_NAMESPACE          "pump_config"
 
 // Networking & Cloud Defaults
-#define DEFAULT_MQTT_BROKER    "broker.hivemq.com"
+#define DEFAULT_MQTT_BROKER    "broker.emqx.io"
 #define DEFAULT_MQTT_PORT      1883
 #define STATUS_REPORT_INTERVAL 500      // 500ms dedicated Main Node heartbeat for <300ms SLA
 #define SUB_NODE_TIMEOUT_MS    1500     // 1.5s timeout for 150ms ESP8266 Sub Node streaming (fast failover)
@@ -163,8 +163,8 @@ unsigned long lastSensorPacketTime = 0;
 TaskHandle_t TaskNetworkHandle = NULL;
 TaskHandle_t TaskControlHandle = NULL;
 
-// Cloud Broker Failover Pool (Prioritizing EMQX Cloud MQTT broker for low-latency synchronized communication)
-const char* CLOUD_BROKERS[] = {"broker.emqx.io", "broker.hivemq.com", "test.mosquitto.org"};
+// Dedicated EMQX Cloud Broker for ultra-low latency synchronized communication
+const char* CLOUD_BROKERS[] = {"broker.emqx.io"};
 int currentBrokerIdx = 0;
 unsigned long lastMqttRetry = 0;
 
@@ -865,8 +865,8 @@ void TaskNetwork(void *pvParameters) {
     if (!mqttClient.connected()) {
       if (millis() - lastMqttRetry >= 1000) {
         lastMqttRetry = millis();
-        static const char* CLOUD_BROKERS[] = { DEFAULT_MQTT_BROKER, "test.mosquitto.org", "broker.emqx.io" };
-        static const int NUM_BROKERS = 3;
+        static const char* CLOUD_BROKERS[] = { DEFAULT_MQTT_BROKER };
+        static const int NUM_BROKERS = 1;
         static int currentBrokerIdx = 0;
         static int consecutiveFailures = 0;
 

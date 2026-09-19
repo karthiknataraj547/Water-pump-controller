@@ -178,7 +178,7 @@ let mqttClient = null;
 try {
   const mqtt = require('mqtt');
   const CLOUD_API_URL = process.env.CLOUD_API_URL || 'https://water-pump-controller.vercel.app/api/v1';
-  const BROKER_HOST = process.env.MQTT_BROKER || 'broker.hivemq.com';
+  const BROKER_HOST = process.env.MQTT_BROKER || 'broker.emqx.io';
   const BROKER_PORT = process.env.MQTT_PORT || 1883;
 
   mqttClient = mqtt.connect(`mqtt://${BROKER_HOST}:${BROKER_PORT}`, {

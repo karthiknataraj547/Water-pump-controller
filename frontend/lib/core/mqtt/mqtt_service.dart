@@ -10,7 +10,7 @@ import '../constants/app_constants.dart';
 class MqttService {
   MqttServerClient? _client;
   bool isConnected = false;
-  String currentBroker = 'broker.hivemq.com';
+  String currentBroker = 'broker.emqx.io';
   final ValueNotifier<bool> connectionNotifier = ValueNotifier<bool>(false);
 
   final _statusController = StreamController<Map<String, dynamic>>.broadcast();
@@ -29,33 +29,8 @@ class MqttService {
   Stream<Map<String, dynamic>> get deviceStream => _deviceController.stream;
   Stream<Map<String, dynamic>> get appUpdateStream => _appUpdateController.stream;
 
-  // Ultra-Low Latency Cloud Broker targets (< 50ms dispatch)
-  // HiveMQ connects in < 100ms with 100% stability
+  // Unified EMQX Broker Target (< 50ms dispatch)
   static const List<Map<String, dynamic>> brokerTargets = [
-    {
-      'server': 'broker.hivemq.com',
-      'host': 'broker.hivemq.com',
-      'label': 'HiveMQ Cloud TCP (Port 1883)',
-      'port': 1883,
-      'isTls': false,
-      'useWebSocket': false,
-    },
-    {
-      'server': 'ws://broker.hivemq.com:8000/mqtt',
-      'host': 'broker.hivemq.com',
-      'label': 'HiveMQ WebSocket (Port 8000)',
-      'port': 8000,
-      'isTls': false,
-      'useWebSocket': true,
-    },
-    {
-      'server': 'test.mosquitto.org',
-      'host': 'test.mosquitto.org',
-      'label': 'Mosquitto Cloud TCP (Port 1883)',
-      'port': 1883,
-      'isTls': false,
-      'useWebSocket': false,
-    },
     {
       'server': 'broker.emqx.io',
       'host': 'broker.emqx.io',
@@ -63,6 +38,14 @@ class MqttService {
       'port': 1883,
       'isTls': false,
       'useWebSocket': false,
+    },
+    {
+      'server': 'ws://broker.emqx.io:8083/mqtt',
+      'host': 'broker.emqx.io',
+      'label': 'EMQX WebSocket (Port 8083)',
+      'port': 8083,
+      'isTls': false,
+      'useWebSocket': true,
     },
   ];
 
@@ -87,14 +70,14 @@ class MqttService {
     _lastPass = password;
 
     List<Map<String, dynamic>> targetsToTry = [];
-    if (host != null && host.isNotEmpty && host != 'broker.emqx.io' && host != 'broker.hivemq.com' && host != 'test.mosquitto.org') {
-      final isWs = port == 8083 || port == 8084 || port == 8000 || port == 8080 || host.startsWith('ws://') || host.startsWith('wss://');
+    if (host != null && host.isNotEmpty && host != 'broker.emqx.io') {
+      final isWs = port == 8083 || port == 8084 || port == 8080 || host.startsWith('ws://') || host.startsWith('wss://');
       final isTls = port == 8883;
       final targetP = port ?? (isWs ? 8083 : (isTls ? 8883 : AppConstants.mqttBrokerPort));
       targetsToTry.add({
         'server': host.replaceAll('ws://', '').replaceAll('wss://', '').split('/').first.split(':').first,
         'host': host.replaceAll('ws://', '').replaceAll('wss://', '').split('/').first.split(':').first,
-        'label': 'Custom Broker',
+        'label': 'Custom EMQX Broker',
         'port': targetP,
         'isTls': isTls,
         'useWebSocket': isWs,

@@ -7,7 +7,7 @@
 const path = require('path');
 const mqtt = require(path.join(__dirname, '..', 'backend', 'node_modules', 'mqtt'));
 
-const BROKER_URL = 'mqtt://broker.hivemq.com:1883';
+const BROKER_URL = 'mqtt://broker.emqx.io:1883';
 const TEST_DEV_ID = `esp32_test_${Date.now()}`;
 const TOPIC_CMD = `pump/${TEST_DEV_ID}/command`;
 const TOPIC_STATUS = `pump/${TEST_DEV_ID}/status`;
@@ -27,7 +27,7 @@ async function runSuite2() {
   console.log('================================================================\n');
 
   // Step 1: Initialize Simulated Hardware Gateway Node
-  console.log(`1. Connecting Hardware Node Simulator (${TEST_DEV_ID}) to HiveMQ...`);
+  console.log(`1. Connecting Hardware Node Simulator (${TEST_DEV_ID}) to EMQX...`);
   const hardwareNode = mqtt.connect(BROKER_URL, {
     clientId: `${TEST_DEV_ID}_hw`,
     clean: true,
@@ -40,7 +40,7 @@ async function runSuite2() {
   });
 
   // Step 2: Initialize Mobile / Web Client Controller
-  console.log('2. Connecting Controller Client to HiveMQ...');
+  console.log('2. Connecting Controller Client to EMQX...');
   const appClient = mqtt.connect(BROKER_URL, {
     clientId: `client_controller_${Date.now()}`,
     clean: true
@@ -50,8 +50,8 @@ async function runSuite2() {
     new Promise(res => hardwareNode.on('connect', res)),
     new Promise(res => appClient.on('connect', res))
   ]);
-  console.log('✓ Both MQTT clients connected to broker.hivemq.com:1883\n');
-  record('TC-MQTT-001', 'MQTT Broker Connection Established', true, 'Connected to HiveMQ Cloud');
+  console.log('✓ Both MQTT clients connected to broker.emqx.io:1883\n');
+  record('TC-MQTT-001', 'MQTT Broker Connection Established', true, 'Connected to EMQX Cloud');
 
   // Hardware Simulator State
   let physicalRelayState = false; // False = OFF, True = ON

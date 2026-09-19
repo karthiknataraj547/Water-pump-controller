@@ -19,9 +19,7 @@ const TOPICS = [
 ];
 
 const BROKERS = [
-  { url: 'mqtt://broker.emqx.io:1883', name: 'EMQX Cloud' },
-  { url: 'mqtt://broker.hivemq.com:1883', name: 'HiveMQ Cloud' },
-  { url: 'mqtt://test.mosquitto.org:1883', name: 'Mosquitto Public' }
+  { url: 'mqtt://broker.emqx.io:1883', name: 'EMQX Cloud' }
 ];
 
 const payloadString = JSON.stringify(versionData);

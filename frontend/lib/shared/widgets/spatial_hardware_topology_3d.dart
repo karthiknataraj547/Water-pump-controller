@@ -119,7 +119,7 @@ class _SpatialHardwareTopology3DState extends State<SpatialHardwareTopology3D>
                 // Node 1: Cloud MQTT Broker
                 _buildTopologyNode(
                   'Cloud Broker',
-                  'broker.hivemq.com',
+                  'broker.emqx.io',
                   Icons.cloud_outlined,
                   AppTheme.primary,
                   isDark,
