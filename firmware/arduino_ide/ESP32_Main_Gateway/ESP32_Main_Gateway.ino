@@ -62,7 +62,7 @@
 #define PIN_LED_PUMP           4    // Green pump running LED
 #define PIN_BUZZER             5    // Piezo alert buzzer
 
-#define FIRMWARE_VERSION       "2.2.3"
+#define FIRMWARE_VERSION       "2.3.3"
 #define DEFAULT_DEVICE_PREFIX  "esp32_pump_"
 #define BLE_DEVICE_PREFIX      "PumpController-"
 #define NVS_NAMESPACE          "pump_config"
@@ -470,6 +470,8 @@ void publishFastAckAndStatus(const char* cmdId, const char* reason, bool success
 
   // 1. Instant Hardware Command ACK (Matching user protocol)
   StaticJsonDocument<384> ack;
+  ack["deviceId"] = deviceId;
+  ack["device_id"] = deviceId;
   ack["command_id"] = id;
   ack["commandId"] = id;
   ack["action"] = reason;
@@ -902,6 +904,7 @@ void TaskNetwork(void *pvParameters) {
 
         const char* targetBroker = CLOUD_BROKERS[currentBrokerIdx];
         mqttClient.setServer(targetBroker, DEFAULT_MQTT_PORT);
+        mqttClient.setBufferSize(2048);
 
         String clientId = deviceId + "_" + String(random(1000, 9999));
         String lwtPayload = "{\"device_id\":\"" + deviceId + "\",\"deviceId\":\"" + deviceId + "\",\"status\":\"offline\",\"isOnline\":false,\"pump\":false,\"pumpRunning\":false,\"pumpState\":\"STOPPED\",\"subNodeOnline\":false,\"waterLevel\":-1,\"timestamp\":" + String(millis() / 1000) + "}";
@@ -1357,7 +1360,7 @@ void setup() {
   // 4. MQTT Client Setup (Ultra-low latency keepalive & timeout)
   mqttClient.setServer(DEFAULT_MQTT_BROKER, DEFAULT_MQTT_PORT);
   mqttClient.setCallback(mqttCallback);
-  mqttClient.setBufferSize(1024);
+  mqttClient.setBufferSize(2048);
   mqttClient.setKeepAlive(5);
   mqttClient.setSocketTimeout(3);
 

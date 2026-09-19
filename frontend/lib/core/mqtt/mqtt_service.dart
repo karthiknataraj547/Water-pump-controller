@@ -218,12 +218,9 @@ class MqttService {
       'command': command,
       'commandId': cmdId,
       'command_id': cmdId,
-      'parameters': params,
       if (params.containsKey('mode')) 'mode': params['mode'],
-      'issued_by': userId,
       'deviceId': deviceId,
       'timestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      'timestamp_ms': DateTime.now().millisecondsSinceEpoch,
     };
 
     final payloadJson = jsonEncode(payload);
@@ -324,7 +321,43 @@ class MqttService {
             _alertController.add(data);
           }
         } catch (e) {
-          debugPrint('[MQTT] JSON parse error on $payloadStr: $e');
+          // Plaintext fallback for high-speed hardware tokens (START_OK, STOP_OK, ON, OFF, ONLINE, OFFLINE)
+          final topic = msg.topic;
+          final cleanStr = payloadStr.trim().toUpperCase();
+          if (topic.endsWith('/ack') || topic.contains('/ack')) {
+            final isOk = cleanStr.contains('OK') || cleanStr == 'START' || cleanStr == 'STOP' || cleanStr == 'SUCCESS';
+            _ackController.add({
+              'status': isOk ? 'success' : 'error',
+              'success': isOk,
+              'action': cleanStr,
+              'command': cleanStr,
+              'pumpState': cleanStr.contains('START') ? 'RUNNING' : (cleanStr.contains('STOP') ? 'STOPPED' : ''),
+              'pumpStatus': cleanStr.contains('START') ? 'ON' : (cleanStr.contains('STOP') ? 'OFF' : ''),
+              'raw': payloadStr,
+              '_topic': topic,
+            });
+          } else if (topic.endsWith('/state') || topic.endsWith('/state/pump')) {
+            if (cleanStr == 'ON' || cleanStr == 'OFF') {
+              _statusController.add({
+                'pumpState': cleanStr == 'ON' ? 'RUNNING' : 'STOPPED',
+                'pumpRunning': cleanStr == 'ON',
+                'pump': cleanStr == 'ON',
+                'status': 'online',
+                'isOnline': true,
+                '_topic': topic,
+              });
+            }
+          } else if (topic.endsWith('/availability')) {
+            if (cleanStr == 'ONLINE' || cleanStr == 'OFFLINE') {
+              _statusController.add({
+                'status': cleanStr.toLowerCase(),
+                'isOnline': cleanStr == 'ONLINE',
+                '_topic': topic,
+              });
+            }
+          } else {
+            debugPrint('[MQTT] Plaintext packet on $topic: $payloadStr');
+          }
         }
       }
     });

@@ -1,20 +1,20 @@
 {
-    "version": "2.3.2",
-    "build_number": 36,
+    "version": "2.3.3",
+    "build_number": 37,
     "release_date": "2026-09-19",
     "min_supported_version": "1.0.0",
-    "download_url": "https://water-pump-controller.vercel.app/releases/HydroPulse_v2.3.2_build36.apk",
+    "download_url": "https://water-pump-controller.vercel.app/releases/HydroPulse_v2.3.3_build37.apk",
     "website_url": "https://water-pump-controller.vercel.app",
-    "sha256": "f5dea11181838c279a529bee03b1804742585fb90c19e43dffe3af009b74d2f3",
-    "title": "HydroPulse v2.3.2 - Interactive Mode Toggle & Fast Command SLA",
+    "sha256": "92a83c3a03fa3be88cfa88e820b65d5bef6347edc685fe309446493c71b24f1a",
+    "title": "HydroPulse v2.3.3 - 2048B MQTT Buffer, Plaintext ACK Fallback & Resilient SLA",
     "changelog": [
-        "Interactive Mode Badges: Tapping the mode indicator on Dashboard and Tank Control screens now instantly switches between AUTO and MANUAL modes with haptic feedback.",
-        "Zero-Lockout Pump Start: Starting the pump from the Pump Control screen automatically sets mode to MANUAL and actuates the motor with zero safety cutoff lockout.",
-        "Fast-Path Hardware ACK SLA: Sub-second command acknowledgment matching exact commandId, raw fast-path, verified hardware state reflection, or cloud REST response.",
-        "Dual-Channel Cloud Forwarding: Mode and actuation commands dispatch across both EMQX MQTT and cloud REST relay simultaneously, completely eliminating 5-second command timeouts.",
-        "Firmware Safe Remote Start: Gateway automatically switches systemMode to MANUAL on user remote start, preventing sub-node disconnection cutoffs."
+        "Expanded ESP32 Buffer: Set PubSubClient packet buffer to 2048 bytes, eliminating silent packet drops on commands and ACKs.",
+        "Plaintext Fast-Path Fallback: Mobile and web apps gracefully parse raw hardware tokens (START_OK, STOP_OK, ON, OFF) alongside rich JSON.",
+        "Extended Command SLA: 8-second watchdog accommodates mobile cellular and network jitter without false timeout alerts.",
+        "Universal Device Fallback: Unpaired or cached device commands route to active gateway with zero dropped clicks.",
+        "Permissive Cloud Relay: Backend forwards actuation and mode changes directly to EMQX broker with instant REST acknowledgment."
     ],
     "is_critical": false,
-    "updatedAt": "2026-09-19T07:03:22.006Z",
+    "updatedAt": "2026-09-19T07:52:41.484Z",
     "file_size": 58525876
 }

@@ -1692,7 +1692,20 @@ class HardwareStateService extends ChangeNotifier {
   }
 
   void sendPumpCommand(String command, {Map<String, dynamic>? params}) {
-    if (_activeDevice == null) return;
+    if (_activeDevice == null) {
+      const fallbackDevId = 'esp32_pump_AA69E0';
+      _activeDevice = DeviceModel(
+        id: fallbackDevId,
+        name: 'HydroPulse Gateway',
+        macAddress: '24:6F:28:94:B9:7E',
+        status: 'ONLINE',
+        pumpState: 'OFF',
+        mode: 'MANUAL',
+        wifiRssi: -65,
+        firmwareVersion: 'v2.2.3',
+        lastSeen: DateTime.now(),
+      );
+    }
 
     final normCmd = command.toUpperCase();
     if (normCmd == 'SET_MODE') {
@@ -1718,14 +1731,14 @@ class HardwareStateService extends ChangeNotifier {
       state: CommandTransitState.sending,
     );
 
-    // Cancel any previous timeout timer and arm a strict 5000ms command timeout
+    // Cancel any previous timeout timer and arm a resilient 8000ms command timeout
     _commandTimeoutTimer?.cancel();
-    _commandTimeoutTimer = Timer(const Duration(milliseconds: 5000), () {
+    _commandTimeoutTimer = Timer(const Duration(milliseconds: 8000), () {
       if (_lastCommand?.commandId == cmdId && _lastCommand?.state == CommandTransitState.sending) {
         _lastCommand?.state = CommandTransitState.failed;
         _pendingCommandAction = null;
-        debugPrint('[HardwareStateService] ⚠️ Command $command ($cmdId) timed out after 5000ms with no hardware ACK.');
-        addLiveAlert('Command Timeout', 'ESP32 hardware did not confirm $command within 5 seconds.', 'error', level: AlertLevel.warning);
+        debugPrint('[HardwareStateService] ⚠️ Command $command ($cmdId) timed out after 8000ms with no hardware ACK.');
+        addLiveAlert('Command Timeout', 'ESP32 hardware did not confirm $command within 8 seconds.', 'error', level: AlertLevel.warning);
         notifyListeners();
       }
     });

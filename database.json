@@ -308,7 +308,7 @@
       "firmwareVersion": "v2.1.8",
       "wifiRssi": -58,
       "lastHeartbeat": 0,
-      "pumpRunning": false
+      "pumpRunning": true
     },
     {
       "id": "esp32_pump_AA69E0",
@@ -320,12 +320,12 @@
       "userEmail": "karthiknataraj547@gmail.com",
       "isOnline": true,
       "status": "ONLINE",
-      "lastHeartbeat": 1789801593487,
-      "pumpRunning": false,
+      "lastHeartbeat": 1789803823949,
+      "pumpRunning": true,
       "mode": "AUTO",
-      "waterLevelPct": 56.30653,
+      "waterLevelPct": 29.24866,
       "pairedAt": "2026-09-19T05:35:46.887Z",
-      "lastSeen": "2026-09-19T07:06:33.487Z"
+      "lastSeen": "2026-09-19T07:43:43.949Z"
     },
     {
       "id": "esp32_pump_AA69E0",
@@ -337,12 +337,12 @@
       "userEmail": "test_wizard_1789759361981@hydropulse.io",
       "isOnline": true,
       "status": "ONLINE",
-      "lastHeartbeat": 1789801593487,
-      "pumpRunning": false,
+      "lastHeartbeat": 1789803823949,
+      "pumpRunning": true,
       "mode": "AUTO",
-      "waterLevelPct": 56.30653,
+      "waterLevelPct": 29.24866,
       "pairedAt": "2026-09-18T19:22:42.138Z",
-      "lastSeen": "2026-09-19T07:06:33.487Z"
+      "lastSeen": "2026-09-19T07:43:43.949Z"
     },
     {
       "id": "esp32_pump_AA69E0",
@@ -354,12 +354,12 @@
       "userEmail": "wizard_user_1789759456766@hydropulse.io",
       "isOnline": true,
       "status": "ONLINE",
-      "lastHeartbeat": 1789801593487,
-      "pumpRunning": false,
+      "lastHeartbeat": 1789803823949,
+      "pumpRunning": true,
       "mode": "AUTO",
-      "waterLevelPct": 56.30653,
+      "waterLevelPct": 29.24866,
       "pairedAt": "2026-09-18T19:24:16.887Z",
-      "lastSeen": "2026-09-19T07:06:33.487Z"
+      "lastSeen": "2026-09-19T07:43:43.949Z"
     },
     {
       "id": "esp32_pump_TEST_FRESH",
@@ -372,7 +372,7 @@
       "isOnline": false,
       "status": "OFFLINE",
       "lastHeartbeat": 0,
-      "pumpRunning": false,
+      "pumpRunning": true,
       "mode": "AUTO",
       "waterLevelPct": -1,
       "pairedAt": "2026-09-18T19:14:24.315Z",
@@ -381,16 +381,16 @@
   ],
   "liveState": {
     "pumpRunning": true,
-    "mode": "MANUAL",
-    "waterLevelPct": 56.30653,
+    "mode": "AUTO",
+    "waterLevelPct": 29.24866,
     "volumeLiters": 3600,
     "totalCapacityLiters": 5000,
     "flowRateLpm": 18.5,
     "powerKw": 1.45,
     "tdsPpm": 142,
     "tempC": 24.2,
-    "lastHeartbeat": 1789801594301,
-    "lastSeen": 1789801594301,
+    "lastHeartbeat": 1789803825746,
+    "lastSeen": 1789803825746,
     "_wasOnline": true,
     "isOnline": true
   },
@@ -476,5 +476,5 @@
       "pumpRunning": false
     }
   ],
-  "timestamp": 1789801594428
+  "timestamp": 1789803825963
 }
