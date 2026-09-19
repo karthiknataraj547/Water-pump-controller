@@ -212,7 +212,7 @@ class MqttService {
       return;
     }
 
-    final cmdId = 'cmd_${const Uuid().v4().substring(0, 8)}';
+    final cmdId = (params['command_id'] ?? params['commandId'] ?? 'cmd_${const Uuid().v4().substring(0, 8)}').toString();
     final payload = {
       'action': command,
       'command': command,

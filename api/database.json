@@ -304,11 +304,11 @@
       "isOnline": false,
       "status": "OFFLINE",
       "pumpState": "OFF",
-      "mode": "MANUAL",
+      "mode": "AUTO",
       "firmwareVersion": "v2.1.8",
       "wifiRssi": -58,
-      "lastHeartbeat": 1789759394564,
-      "pumpRunning": true
+      "lastHeartbeat": 0,
+      "pumpRunning": false
     },
     {
       "id": "esp32_pump_AA69E0",
@@ -318,14 +318,14 @@
       "macAddress": "A0:A3:B3:AA:69:E2",
       "userId": "karthiknataraj547@gmail.com",
       "userEmail": "karthiknataraj547@gmail.com",
-      "isOnline": false,
-      "status": "OFFLINE",
-      "lastHeartbeat": 1789797370386,
-      "pumpRunning": true,
-      "mode": "MANUAL",
-      "waterLevelPct": 72,
+      "isOnline": true,
+      "status": "ONLINE",
+      "lastHeartbeat": 1789801593487,
+      "pumpRunning": false,
+      "mode": "AUTO",
+      "waterLevelPct": 56.30653,
       "pairedAt": "2026-09-19T05:35:46.887Z",
-      "lastSeen": "2026-09-19T05:35:46.887Z"
+      "lastSeen": "2026-09-19T07:06:33.487Z"
     },
     {
       "id": "esp32_pump_AA69E0",
@@ -335,14 +335,14 @@
       "macAddress": "A0:A3:B3:AA:69:E2",
       "userId": "usr_1789759362105_522",
       "userEmail": "test_wizard_1789759361981@hydropulse.io",
-      "isOnline": false,
-      "status": "OFFLINE",
-      "lastHeartbeat": 1789797370380,
-      "pumpRunning": true,
-      "mode": "MANUAL",
+      "isOnline": true,
+      "status": "ONLINE",
+      "lastHeartbeat": 1789801593487,
+      "pumpRunning": false,
+      "mode": "AUTO",
       "waterLevelPct": 56.30653,
       "pairedAt": "2026-09-18T19:22:42.138Z",
-      "lastSeen": "2026-09-19T05:56:10.380Z"
+      "lastSeen": "2026-09-19T07:06:33.487Z"
     },
     {
       "id": "esp32_pump_AA69E0",
@@ -352,14 +352,14 @@
       "macAddress": "A0:A3:B3:AA:69:E2",
       "userId": "usr_1789759456837_755",
       "userEmail": "wizard_user_1789759456766@hydropulse.io",
-      "isOnline": false,
-      "status": "OFFLINE",
-      "lastHeartbeat": 1789797370380,
-      "pumpRunning": true,
-      "mode": "MANUAL",
+      "isOnline": true,
+      "status": "ONLINE",
+      "lastHeartbeat": 1789801593487,
+      "pumpRunning": false,
+      "mode": "AUTO",
       "waterLevelPct": 56.30653,
       "pairedAt": "2026-09-18T19:24:16.887Z",
-      "lastSeen": "2026-09-19T05:56:10.380Z"
+      "lastSeen": "2026-09-19T07:06:33.487Z"
     },
     {
       "id": "esp32_pump_TEST_FRESH",
@@ -372,8 +372,8 @@
       "isOnline": false,
       "status": "OFFLINE",
       "lastHeartbeat": 0,
-      "pumpRunning": true,
-      "mode": "MANUAL",
+      "pumpRunning": false,
+      "mode": "AUTO",
       "waterLevelPct": -1,
       "pairedAt": "2026-09-18T19:14:24.315Z",
       "lastSeen": "2026-09-18T19:14:24.315Z"
@@ -389,10 +389,10 @@
     "powerKw": 1.45,
     "tdsPpm": 142,
     "tempC": 24.2,
-    "lastHeartbeat": 1789797370380,
-    "lastSeen": 1789797370380,
-    "_wasOnline": false,
-    "isOnline": false
+    "lastHeartbeat": 1789801594301,
+    "lastSeen": 1789801594301,
+    "_wasOnline": true,
+    "isOnline": true
   },
   "telemetryHistory": [
     {
@@ -476,5 +476,5 @@
       "pumpRunning": false
     }
   ],
-  "timestamp": 1789798484037
+  "timestamp": 1789801594428
 }

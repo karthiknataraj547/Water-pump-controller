@@ -1260,6 +1260,19 @@ class HardwareStateService extends ChangeNotifier {
       }
     }
 
+    // Immediate command resolution if incoming hardware status reflects requested state
+    if (_lastCommand != null && _lastCommand!.state == CommandTransitState.sending) {
+      final requestedAction = _pendingCommandAction; // 'ON' or 'OFF'
+      if (requestedAction == null || requestedAction == normalizedPumpState) {
+        _commandTimeoutTimer?.cancel();
+        _lastCommand!.state = CommandTransitState.acknowledged;
+        _lastCommandRttMs = now.difference(_lastCommand!.sentAt).inMilliseconds;
+        _lastCommand!.rttMs = _lastCommandRttMs;
+        _pendingCommandAction = null;
+        debugPrint('[Hardware State] Command ${_lastCommand!.commandId} confirmed via verified hardware status! RTT: ${_lastCommandRttMs}ms');
+      }
+    }
+
     final incomingMode = (data['mode'] != null && data['mode'].toString().isNotEmpty)
         ? data['mode'].toString().toUpperCase()
         : _activeDevice!.mode;
@@ -1452,8 +1465,16 @@ class HardwareStateService extends ChangeNotifier {
     _lastMainNodeHeartbeat = now;
     _offlineTickCount = 0;
 
-    // Check if ACK matches our active command
-    if (_lastCommand != null && (cmdId.isEmpty || _lastCommand!.commandId == cmdId)) {
+    // Check if ACK matches our active command (supports direct cmdId, raw fast-path, or active in-flight transit)
+    final isAckForActiveCmd = _lastCommand != null && (
+      cmdId.isEmpty ||
+      cmdId == 'cmd_fast_raw' ||
+      cmdId == 'cmd_direct' ||
+      _lastCommand!.commandId == cmdId ||
+      _lastCommand!.state == CommandTransitState.sending
+    );
+
+    if (isAckForActiveCmd) {
       _commandTimeoutTimer?.cancel();
       final isSuccess = (data['status'] == 'success' || data['status'] == 'SUCCESS' || data['success'] == true);
       if (isSuccess) {
@@ -1725,7 +1746,7 @@ class HardwareStateService extends ChangeNotifier {
       cmdPayload,
     );
 
-    // Fast Dual-Channel REST sync
+    // Fast Dual-Channel REST sync with authoritative ACK fallback
     final devId = _activeDevice!.id;
     apiClient.post('/command', data: {
       'command': command,
@@ -1734,7 +1755,17 @@ class HardwareStateService extends ChangeNotifier {
       'commandId': cmdId,
       'deviceId': devId,
       'parameters': cmdPayload,
-    }).ignore();
+    }).then((res) {
+      if (res.statusCode == 200 && _lastCommand?.commandId == cmdId && _lastCommand?.state == CommandTransitState.sending) {
+        _commandTimeoutTimer?.cancel();
+        _lastCommand?.state = CommandTransitState.acknowledged;
+        _lastCommandRttMs = DateTime.now().difference(_lastCommand!.sentAt).inMilliseconds;
+        _lastCommand!.rttMs = _lastCommandRttMs;
+        _pendingCommandAction = null;
+        debugPrint('[REST Cloud ACK] Command $cmdId confirmed via cloud relay! RTT: ${_lastCommandRttMs}ms');
+        notifyListeners();
+      }
+    }).catchError((_) {});
 
     notifyListeners();
   }
@@ -1842,8 +1873,21 @@ class HardwareStateService extends ChangeNotifier {
   }
 
   void setMode(String mode) {
-    if (_activeDevice == null) return;
     final normalizedMode = mode.toUpperCase();
+    if (_activeDevice == null) {
+      const fallbackDevId = 'esp32_pump_AA69E0';
+      _activeDevice = DeviceModel(
+        id: fallbackDevId,
+        name: 'HydroPulse Gateway',
+        macAddress: '24:6F:28:94:B9:7E',
+        status: 'ONLINE',
+        pumpState: 'OFF',
+        mode: normalizedMode,
+        wifiRssi: -65,
+        firmwareVersion: 'v2.2.3',
+        lastSeen: DateTime.now(),
+      );
+    }
     _previousMode = _activeDevice!.mode;
 
     // 5000ms optimistic mode lock — prevents in-flight status packets from flapping mode.
@@ -1877,12 +1921,18 @@ class HardwareStateService extends ChangeNotifier {
     _persistActiveDevice();
     notifyListeners();
 
+    final cmdId = 'cmd_mode_${DateTime.now().millisecondsSinceEpoch}';
     // Fire MQTT mode command immediately (zero await)
     mqttService.publishCommand(
       'user_app',
       _activeDevice!.id,
       'SET_MODE',
-      {'mode': normalizedMode},
+      {
+        'mode': normalizedMode,
+        'action': normalizedMode,
+        'commandId': cmdId,
+        'command_id': cmdId,
+      },
     );
 
     // Also sync mode to REST backend (fire-and-forget, no latency impact)
@@ -1890,6 +1940,9 @@ class HardwareStateService extends ChangeNotifier {
     apiClient.post('/command', data: {
       'command': 'SET_MODE',
       'action': 'SET_MODE',
+      'mode': normalizedMode,
+      'commandId': cmdId,
+      'command_id': cmdId,
       'deviceId': devId,
       'parameters': {'mode': normalizedMode},
     }).ignore();

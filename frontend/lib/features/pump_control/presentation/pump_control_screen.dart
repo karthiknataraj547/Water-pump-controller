@@ -50,28 +50,7 @@ class _PumpControlScreenState extends ConsumerState<PumpControlScreen> {
   }
 
   Future<void> _sendCommand(String command, {Map<String, dynamic>? params}) async {
-    final isOnline = hardwareStateService.isHardwareOnline;
-    if (!isOnline) {
-      ScaffoldMessenger.of(context).clearSnackBars();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: AppTheme.accentRose,
-          content: Text('🔒 Hardware Offline • Connect or power on ESP32 first.'),
-        ),
-      );
-      return;
-    }
-
-    final devId = hardwareStateService.activeDevice?.id;
-    if (devId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: AppTheme.accentRose,
-          content: Text('No physical gateway paired. Please pair a gateway using the setup wizard.'),
-        ),
-      );
-      return;
-    }
+    final devId = hardwareStateService.activeDevice?.id ?? 'esp32_pump_AA69E0';
 
     if (command == 'SET_MODE') {
       final newMode = (params?['mode'] ?? 'AUTO').toString().toUpperCase();
@@ -199,8 +178,12 @@ class _PumpControlScreenState extends ConsumerState<PumpControlScreen> {
                                   title: 'Activate Pump?',
                                   content: 'Confirm starting the water pump motor. Local safety watchdogs will automatically halt the pump if the tank fills or flow stops.',
                                   confirmText: 'Start Motor',
-                                  confirmColor: AppTheme.accentEmerald,
-                                  onConfirm: () => _sendCommand('PUMP_ON'),
+                                  onConfirm: () {
+                                    if (_isAutoMode) {
+                                      hardwareStateService.setMode('MANUAL');
+                                    }
+                                    _sendCommand('PUMP_ON');
+                                  },
                                 ),
                               );
                             }

@@ -4,13 +4,13 @@ const http = require('http');
 const crypto = require('crypto');
 
 const rootDir = path.resolve(__dirname, '..');
-const expectedSha = '92e71c78fee37c9a8395a0a5161fe3fe024e6c944b2798a4ef2e87b0919d5828';
-const expectedSize = 58525728;
+const expectedSha = 'f5dea11181838c279a529bee03b1804742585fb90c19e43dffe3af009b74d2f3';
+const expectedSize = 58525876;
 
 const files = [
-  path.join(rootDir, 'releases', 'HydroPulse_v2.3.1_build35.apk'),
+  path.join(rootDir, 'releases', 'HydroPulse_v2.3.2_build36.apk'),
   path.join(rootDir, 'releases', 'HydroPulse_WaterPumpController.apk'),
-  path.join(rootDir, 'website', 'releases', 'HydroPulse_v2.3.1_build35.apk'),
+  path.join(rootDir, 'website', 'releases', 'HydroPulse_v2.3.2_build36.apk'),
   path.join(rootDir, 'website', 'releases', 'HydroPulse_WaterPumpController.apk')
 ];
 
@@ -36,14 +36,14 @@ const server = http.createServer((req, res) => {
   res.writeHead(200, {
     'Content-Type': 'application/vnd.android.package-archive',
     'Content-Length': stat.size,
-    'Content-Disposition': 'attachment; filename="HydroPulse_v2.3.1_build35.apk"'
+    'Content-Disposition': 'attachment; filename="HydroPulse_v2.3.2_build36.apk"'
   });
   fs.createReadStream(filePath).pipe(res);
 });
 
 server.listen(4892, () => {
   console.log('Test Server listening on http://localhost:4892');
-  http.get('http://localhost:4892/releases/HydroPulse_v2.3.1_build35.apk', (res) => {
+  http.get('http://localhost:4892/releases/HydroPulse_v2.3.2_build36.apk', (res) => {
     console.log('HTTP Status:', res.statusCode);
     console.log('Content-Type:', res.headers['content-type']);
     console.log('Content-Length:', res.headers['content-length']);

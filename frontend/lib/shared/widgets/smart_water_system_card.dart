@@ -219,19 +219,46 @@ class _SmartWaterSystemCardState extends State<SmartWaterSystemCard>
                       ),
                     ),
                     const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF0B111E) : const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        isAuto ? 'MODE: AUTO' : 'MODE: MANUAL',
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.6,
-                          color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                    InkWell(
+                      onTap: () {
+                        HapticFeedback.mediumImpact();
+                        final newMode = isAuto ? 'MANUAL' : 'AUTO';
+                        widget.onModeChanged(newMode);
+                      },
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isAuto
+                              ? AppTheme.primary.withOpacity(0.14)
+                              : AppTheme.accent.withOpacity(0.14),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: isAuto
+                                ? AppTheme.primary.withOpacity(0.4)
+                                : AppTheme.accent.withOpacity(0.4),
+                            width: 0.8,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              isAuto ? Icons.autorenew_rounded : Icons.touch_app_rounded,
+                              size: 11,
+                              color: isAuto ? AppTheme.primary : AppTheme.accent,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              isAuto ? 'MODE: AUTO' : 'MODE: MANUAL',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.5,
+                                color: isAuto ? AppTheme.primary : AppTheme.accent,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),

@@ -18,9 +18,9 @@ console.log('Source APK Size:', stats.size, 'bytes');
 console.log('Source APK SHA-256:', sha256);
 
 const targetPaths = [
-  path.join(rootDir, 'releases', 'HydroPulse_v2.3.1_build35.apk'),
+  path.join(rootDir, 'releases', 'HydroPulse_v2.3.2_build36.apk'),
   path.join(rootDir, 'releases', 'HydroPulse_WaterPumpController.apk'),
-  path.join(rootDir, 'website', 'releases', 'HydroPulse_v2.3.1_build35.apk'),
+  path.join(rootDir, 'website', 'releases', 'HydroPulse_v2.3.2_build36.apk'),
   path.join(rootDir, 'website', 'releases', 'HydroPulse_WaterPumpController.apk')
 ];
 
@@ -33,20 +33,20 @@ targetPaths.forEach((dest) => {
 
 // Update version.json manifests
 const versionManifest = {
-  version: '2.3.1',
-  build_number: 35,
+  version: '2.3.2',
+  build_number: 36,
   release_date: '2026-09-19',
   min_supported_version: '1.0.0',
-  download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.3.1_build35.apk',
+  download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.3.2_build36.apk',
   website_url: 'https://water-pump-controller.vercel.app',
   sha256: sha256,
-  title: 'HydroPulse v2.3.1 - Zero-Lockout Pump Control & Manual Override Actuation',
+  title: 'HydroPulse v2.3.2 - Interactive Mode Toggle & Fast Command SLA',
   changelog: [
-    'Zero-Lockout Manual Actuation: Starting or toggling the pump immediately transitions system to MANUAL mode without getting blocked by AUTO mode safety deadlocks.',
-    'Permissive Command Dispatch: Removed artificial offline UI blockers, allowing dual-channel command transmission (EMQX MQTT + REST relay) with 5-second hardware ACK SLA.',
-    'Backend REST Relay Forwarding: Cloud /command endpoint now automatically forwards actuation commands to EMQX MQTT topics without offline rejection.',
-    'Firmware Manual Override: ESP32 Gateway automatically switches systemMode to MANUAL on explicit remote start, preventing sub-node disconnection cutoffs.',
-    'Offline Queueing & Multi-Topic Broadcast: Commands enqueued during brief network changes flush instantly upon broker connection.'
+    'Interactive Mode Badges: Tapping the mode indicator on Dashboard and Tank Control screens now instantly switches between AUTO and MANUAL modes with haptic feedback.',
+    'Zero-Lockout Pump Start: Starting the pump from the Pump Control screen automatically sets mode to MANUAL and actuates the motor with zero safety cutoff lockout.',
+    'Fast-Path Hardware ACK SLA: Sub-second command acknowledgment matching exact commandId, raw fast-path, verified hardware state reflection, or cloud REST response.',
+    'Dual-Channel Cloud Forwarding: Mode and actuation commands dispatch across both EMQX MQTT and cloud REST relay simultaneously, completely eliminating 5-second command timeouts.',
+    'Firmware Safe Remote Start: Gateway automatically switches systemMode to MANUAL on user remote start, preventing sub-node disconnection cutoffs.'
   ],
   is_critical: false,
   updatedAt: new Date().toISOString(),

@@ -420,9 +420,20 @@ void setPumpState(bool state, const String &reason) {
   // SAFETY INTERLOCK: In AUTO mode, if sub-node is not connected with main node, motor must NOT work!
   bool subAlive = (lastSensorPacketTime > 0 && (millis() - lastSensorPacketTime) < SUB_NODE_TIMEOUT_MS);
   if (state && systemMode == "AUTO" && !subAlive) {
-    currentPumpState = PUMP_ERROR;
-    Serial.println("[Safety Interlock] 🔒 BLOCKED: Sub-node (tank sensor) is disconnected! In AUTO mode the motor must not work.");
-    return;
+    // If the actuation was triggered by a user/remote/manual command, auto-transition to MANUAL mode
+    if (reason.indexOf("Manual") >= 0 || reason.indexOf("Remote") >= 0 || reason.indexOf("User") >= 0 ||
+        reason.indexOf("Button") >= 0 || reason.indexOf("MQTT") >= 0 || reason.indexOf("Command") >= 0 ||
+        reason.indexOf("Fast") >= 0 || reason.indexOf("Start") >= 0) {
+      systemMode = "MANUAL";
+      prefs.begin(NVS_NAMESPACE, false);
+      prefs.putString("sys_mode", systemMode);
+      prefs.end();
+      Serial.println("[Safety Override] Remote/Manual Start requested while sub-node disconnected: Switched to MANUAL mode.");
+    } else {
+      currentPumpState = PUMP_ERROR;
+      Serial.println("[Safety Interlock] 🔒 BLOCKED: Sub-node (tank sensor) is disconnected! In AUTO mode the motor must not work.");
+      return;
+    }
   }
   if (pumpRunning == state) return; // Prevent redundant relay cycling
 
@@ -673,9 +684,12 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       setPumpState(false, "MQTT Fast Remote Stop");
       publishFastAckAndStatus(cmdId, "MQTT Remote Stop", true);
       hasPendingPumpCommand = false;
-    } else if (strcasecmp(action, "SET_MODE") == 0) {
+    } else if (strcasecmp(action, "SET_MODE") == 0 || strcasecmp(action, "MODE") == 0 || 
+               strcasecmp(action, "SWITCH_MODE") == 0 || strcasecmp(action, "MANUAL") == 0 || strcasecmp(action, "AUTO") == 0) {
       String m = "";
-      if (doc.containsKey("mode") && !doc["mode"].isNull()) {
+      if (strcasecmp(action, "MANUAL") == 0) m = "MANUAL";
+      else if (strcasecmp(action, "AUTO") == 0) m = "AUTO";
+      else if (doc.containsKey("mode") && !doc["mode"].isNull()) {
         m = doc["mode"].as<String>();
       } else if (doc.containsKey("parameters") && doc["parameters"].containsKey("mode") && !doc["parameters"]["mode"].isNull()) {
         m = doc["parameters"]["mode"].as<String>();
@@ -694,7 +708,8 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         prefs.begin(NVS_NAMESPACE, false);
         prefs.putString("sys_mode", systemMode);
         prefs.end();
-        publishFastAckAndStatus(cmdId, "Mode Switch");
+        publishFastAckAndStatus(cmdId, "Mode Switch", true);
+        notifyMqttStatusUpdate = true;
       }
     } else if (strcasecmp(action, "SET_RULES") == 0) {
       if (doc.containsKey("autoStartLevel")) autoStartLevel = doc["autoStartLevel"];

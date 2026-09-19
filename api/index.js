@@ -744,24 +744,24 @@ module.exports = async (req, res) => {
 
     if (!manifest) {
       manifest = {
-        version: '2.3.1',
-        build_number: 35,
+        version: '2.3.2',
+        build_number: 36,
         release_date: '2026-09-19',
         min_supported_version: '1.0.0',
-        download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.3.1_build35.apk',
+        download_url: 'https://water-pump-controller.vercel.app/releases/HydroPulse_v2.3.2_build36.apk',
         website_url: 'https://water-pump-controller.vercel.app',
-        sha256: '92e71c78fee37c9a8395a0a5161fe3fe024e6c944b2798a4ef2e87b0919d5828',
-        title: 'HydroPulse v2.3.1 - Zero-Lockout Pump Control & Manual Override Actuation',
+        sha256: 'f5dea11181838c279a529bee03b1804742585fb90c19e43dffe3af009b74d2f3',
+        title: 'HydroPulse v2.3.2 - Interactive Mode Toggle & Fast Command SLA',
         changelog: [
-          'Zero-Lockout Manual Actuation: Starting or toggling the pump immediately transitions system to MANUAL mode without getting blocked by AUTO mode safety deadlocks.',
-          'Permissive Command Dispatch: Removed artificial offline UI blockers, allowing dual-channel command transmission (EMQX MQTT + REST relay) with 5-second hardware ACK SLA.',
-          'Backend REST Relay Forwarding: Cloud /command endpoint now automatically forwards actuation commands to EMQX MQTT topics without offline rejection.',
-          'Firmware Manual Override: ESP32 Gateway automatically switches systemMode to MANUAL on explicit remote start, preventing sub-node disconnection cutoffs.',
-          'Offline Queueing & Multi-Topic Broadcast: Commands enqueued during brief network changes flush instantly upon broker connection.'
+          'Interactive Mode Badges: Tapping the mode indicator on Dashboard and Tank Control screens now instantly switches between AUTO and MANUAL modes with haptic feedback.',
+          'Zero-Lockout Pump Start: Starting the pump from the Pump Control screen automatically sets mode to MANUAL and actuates the motor with zero safety cutoff lockout.',
+          'Fast-Path Hardware ACK SLA: Sub-second command acknowledgment matching exact commandId, raw fast-path, verified hardware state reflection, or cloud REST response.',
+          'Dual-Channel Cloud Forwarding: Mode and actuation commands dispatch across both EMQX MQTT and cloud REST relay simultaneously, completely eliminating 5-second command timeouts.',
+          'Firmware Safe Remote Start: Gateway automatically switches systemMode to MANUAL on user remote start, preventing sub-node disconnection cutoffs.'
         ],
         is_critical: false,
         updatedAt: new Date().toISOString(),
-        file_size: 58525728
+        file_size: 58525876
       };
     }
 
@@ -1339,9 +1339,12 @@ module.exports = async (req, res) => {
     // Broadcast command immediately via EMQX MQTT to physical hardware
     const targetDevId = devId || (devicesDb.size > 0 ? Array.from(devicesDb.keys())[0] : 'esp32_pump_main');
     const cmdId = body.command_id || body.commandId || `cmd_srv_${Date.now()}`;
+    const targetMode = (parameters.mode || body.mode || liveState.mode || '').toUpperCase();
     const actionStr = (cmd === 'START' || cmd === 'START_PUMP' || cmd === 'PUMP_ON' || cmd === 'ON') 
       ? 'START' 
-      : ((cmd === 'STOP' || cmd === 'STOP_PUMP' || cmd === 'PUMP_OFF' || cmd === 'OFF' || cmd === 'EMERGENCY_STOP') ? 'STOP' : cmd);
+      : ((cmd === 'STOP' || cmd === 'STOP_PUMP' || cmd === 'PUMP_OFF' || cmd === 'OFF' || cmd === 'EMERGENCY_STOP')
+        ? 'STOP' 
+        : ((cmd === 'SET_MODE' && targetMode) ? targetMode : cmd));
 
     try {
       const client = getMqttClient();
@@ -1351,6 +1354,7 @@ module.exports = async (req, res) => {
           command: cmd,
           commandId: cmdId,
           command_id: cmdId,
+          mode: liveState.mode,
           parameters: parameters,
           deviceId: targetDevId,
           timestamp: Math.floor(Date.now() / 1000)
@@ -1363,6 +1367,10 @@ module.exports = async (req, res) => {
         // Plaintext fast-path
         client.publish(`pump/${targetDevId}/command`, actionStr, { qos: 0 });
         client.publish('pump/command', actionStr, { qos: 0 });
+        if (targetMode && (cmd === 'SET_MODE' || targetMode !== '')) {
+          client.publish(`pump/${targetDevId}/command`, targetMode, { qos: 0 });
+          client.publish('pump/command', targetMode, { qos: 0 });
+        }
         console.log(`[API Command Relay] Published ${cmd} (${actionStr}) via EMQX MQTT to ${targetDevId} and global command topics`);
       }
     } catch (mqttErr) {
